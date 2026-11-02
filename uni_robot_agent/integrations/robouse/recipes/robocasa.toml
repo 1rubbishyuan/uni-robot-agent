@@ -1,0 +1,28 @@
+name = "robouse-robocasa"
+base = "recipes/base.toml"
+profile = "robocasa"
+python = "python3.11"
+packages = ["numpy==2.2.5", "mujoco==3.3.1", "scipy==1.15.3", "numba==0.61.2", "llvmlite==0.44.0"]
+imports = ["mujoco", "robocasa", "robosuite"]
+repository = "https://github.com/robocasa/robocasa.git"
+revision = "2ce1aecdd76e29b52d32fdb160436c5a3e230b07"
+suite_repository = "https://github.com/ARISE-Initiative/robosuite.git"
+suite_revision = "5ce6643f3092639d08f7b0f90ed1c6a84f50552c"
+
+[[assets]]
+name = "textures"
+url = "https://utexas.box.com/shared/static/4i85ileasdvstmlln5sbvzptz7keuoy1.zip"
+sha256 = "ba3a4dcef96e199cbd601c7cdb7eb46077fb6672611b7ac74c25a191bf0be392"
+destination = ""
+
+[[assets]]
+name = "fixtures"
+url = "https://utexas.box.com/shared/static/idbncsadpnaz1jfl4i6m8qejawk7p9pi.zip"
+sha256 = "62c1c87776edda9b7c42dda7b00781a1e5a7f90acc3e49d06c39c9545cbd6c3e"
+destination = ""
+
+[[assets]]
+name = "objects"
+url = "https://utexas.box.com/shared/static/vckqvvkh1z8t69k8qcpcmee6k66stii4.zip"
+sha256 = "a1db739b0e80fc4d56d4be27d89dba3aa60000e9648c5607874700e0f14b7955"
+destination = "objects"

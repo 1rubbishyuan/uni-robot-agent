@@ -1,0 +1,198 @@
+{
+  "revision": "2026-10-28.1",
+  "source_commit": "264e9b0a704630ea2820e8e4d8cf5c8a75428573",
+  "scope": "Natural-language supplements for requirements missing or unclear in the native instruction. Only required object-lift distances retain numeric values. Do not include scoring details, geometric tolerances, internal object labels, fixed coordinates, or verifier mechanics. Empty entries mean no supplemental rules. Source provenance stays in metadata, outside the planner prompt.",
+  "sources": [
+    "task/RoboDojo/tasks/",
+    "task/RoboDojo/config/",
+    "env/reward_manager/"
+  ],
+  "tasks": {
+    "align_blocks": [
+      "Do not lift any block.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "arrange_largest_number": [
+      "Place each digit in its normal readable orientation, not sideways or upside down.",
+      "Release the digits after placing them.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "arrange_largest_number_random": [
+      "Place each digit in its normal readable orientation, not sideways or upside down.",
+      "Release the digits after placing them.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "build_tower": [
+      "The tower should have upright supports beneath the lower board, another layer of upright supports beneath the upper board, and the top pieces above the upper board.",
+      "Keep the pieces upright and each layer centered and aligned over the layer beneath it.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "classify_objects": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "classify_objects_by_language": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "cover_blocks": [
+      "Keep all cups inverted throughout the task, including cups already moved away from their blocks.",
+      "Keep the blocks in their original positions.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "deposit_coin": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "fasten_screws": [
+      "Keep the matching nuts and bolts upright and align them as accurately as possible so they are fully engaged.",
+      "Release the assembled parts and open both grippers before returning the arms.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "fill_egg_holder": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "fill_pen_holder": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "fold_clothes": [
+      "Fold each sleeve toward the opposite chest, then fold each side of the hem toward the corresponding shoulder.",
+      "After completing the sleeve and hem folds, leave the garment released with both grippers open.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "fold_clothes_random": [
+      "Fold each sleeve toward the opposite chest, then fold each side of the hem toward the corresponding shoulder.",
+      "After completing the sleeve and hem folds, leave the garment released with both grippers open.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "general_pickup": [
+      "Lift the target object itself more than 10 cm above its initial height."
+    ],
+    "hang_mugs": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "hang_mugs_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "imitate_sorting_sequence": [
+      "Stay in your initial waiting poses until the demonstrator has finished and returned its arm to its initial pose.",
+      "Leave the demonstration objects in their basket while reproducing the sequence on your side.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "insert_key": [],
+    "insert_tubes": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "make_kong": [],
+    "make_toast": [
+      "Place the bread slices in separate toaster slots. Leave the unused slices in the bread rack and keep them in their original upright orientation.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "make_toast_random": [
+      "Place the bread slices in separate toaster slots. Leave the unused slices in the bread rack and keep them in their original upright orientation.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "match_and_pick_from_conveyor": [
+      "Lift the matching target object itself more than 10 cm above its initial height."
+    ],
+    "organize_table": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "pack_objects_into_box": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "pack_objects_into_box_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "pick_from_conveyor_by_image": [
+      "In addition to lifting the basket as instructed, lift the target object itself more than 8 cm above its initial height and place it near the bottom of the basket."
+    ],
+    "play_Xylophone": [],
+    "play_stacking_toy": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "play_tic_tac_toe": [
+      "After placing your piece, return both arms to their initial waiting poses for the opponent's turn. Stay there until the opponent has finished and returned its arm to its initial pose."
+    ],
+    "plug_in_charger": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "pour_balls_into_vase": [
+      "After pouring the balls, return the empty cup to an upright orientation.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "pour_by_language": [
+      "Complete the pours in the order listed in the instruction. Finish each pour before starting the next.",
+      "After pouring, return each bottle to an upright orientation."
+    ],
+    "pour_liquid_into_cup": [
+      "After pouring, return the bottle to an upright orientation."
+    ],
+    "pour_liquid_into_cup_random": [
+      "After pouring, return the bottle to an upright orientation."
+    ],
+    "press_by_number": [
+      "Press the first red button as many times as its card specifies, then press the blue button to confirm. Next, press the other red button as many times as its card specifies, then press the blue button to confirm again.",
+      "Depress and fully release the button on every press, allowing it to return to its unpressed position. Do not add extra presses.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "push_T": [
+      "Do not lift or tip the T-shaped block while pushing it.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "push_T_random": [
+      "Do not lift or tip the T-shaped block while pushing it.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "put_bottles_into_dustbin": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "solve_equation": [
+      "Place the selected number or operator in the equation's normal reading orientation, aligned as accurately as possible with the existing characters.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "sort_nesting_dolls_by_size": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "sort_nesting_dolls_by_size_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "stack_blocks": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "stack_blocks_by_language": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "stack_blocks_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "stack_bowls": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "stack_bowls_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "store_laptop_and_headphones": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "store_laptop_and_headphones_random": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "store_tools_in_toolbox": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "swap_T": [
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "swap_blocks": [
+      "Lift each block when transferring it between mats rather than sliding it.",
+      "After each transfer, press and fully release the button. Do not add extra presses.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "sweep_blocks": [
+      "At completion, leave the dustpan upright on the table, to the left of the broom.",
+      "At completion, return both arms to their initial positions and orientations."
+    ],
+    "sweep_blocks_random": [
+      "At completion, leave the dustpan upright on the table, to the left of the broom.",
+      "At completion, return both arms to their initial positions and orientations."
+    ]
+  }
+}

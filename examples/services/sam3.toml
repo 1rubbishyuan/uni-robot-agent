@@ -1,0 +1,11 @@
+backend = "sam3"
+checkpoint = "/path/to/sam3.pt"
+
+[http]
+host = "127.0.0.1"
+port = 8114
+
+[batching]
+max_batch_size = 2
+max_wait_ms = 5
+max_queue_size = 64

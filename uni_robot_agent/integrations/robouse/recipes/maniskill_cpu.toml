@@ -1,0 +1,6 @@
+name = "robouse-maniskill_cpu"
+base = "recipes/base.toml"
+profile = "maniskill_cpu"
+python = "python3.11"
+packages = ["mani-skill==3.0.1"]
+imports = ["mani_skill"]

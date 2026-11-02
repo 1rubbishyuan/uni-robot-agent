@@ -1,0 +1,1 @@
+Every tool call returns its completed result before the next planning exchange. Consume returned state, images, telemetry and errors directly. No background job handles or waiting tools are exposed. Batch independent calls with known inputs; stop at decision boundaries requiring new feedback. Completion is execution evidence, not proof of physical task success.

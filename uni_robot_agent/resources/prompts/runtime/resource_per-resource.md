@@ -1,0 +1,1 @@
+Tools use their declared resource domains. Physical world calls and capture_scene share the exclusive episode FIFO queue. Independent perception over immutable snapshots can overlap. Order calls by their intended submission sequence; a shared queue preserves admission order.

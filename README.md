@@ -1,0 +1,178 @@
+<p align="center">
+  <a href="assets/brand/uni-robot-agent-cover.png"><img src="assets/brand/uni-robot-agent-cover.png" alt="uni-robot-agent — A unified harness for robot use." width="100%"></a>
+</p>
+
+<p align="center">
+  <strong>uni-robot-agent</strong> is an open-source harness for robot-use agents, with Codex and Claude Code runtimes.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Open-RUA/uni-robot-agent"><img src="https://img.shields.io/badge/source-v0.1.0-62518B?style=for-the-badge&amp;logo=github&amp;logoColor=white&amp;labelColor=242424" alt="Source version 0.1.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-386749?style=for-the-badge&amp;labelColor=242424" alt="License: MIT"></a>
+  <a href="https://uni-robot-agent.com/docs"><img src="https://img.shields.io/badge/docs-Read%20guide-295E91?style=for-the-badge&amp;logo=readthedocs&amp;logoColor=white&amp;labelColor=242424" alt="Read the documentation"></a>
+  <a href="https://uni-robot-agent.com/"><img src="https://img.shields.io/badge/website-Homepage-98472F?style=for-the-badge&amp;labelColor=242424" alt="Project website"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start"><strong>Quick start</strong></a> ·
+  <a href="#python-sdk">Python SDK</a> ·
+  <a href="#dashboard">Dashboard</a> ·
+  <a href="#environments">Environments</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#contributing">Contributing</a> ·
+  <a href="#license">License</a> ·
+  <a href="#citation">Citation</a>
+</p>
+
+<a id="whats-new"></a>
+
+## What's New
+
+**v0.1.0** includes the CLI, Python SDK, local dashboard, and simulator integrations.
+See [pip and uv installation](#quick-start) below.
+
+<a id="features"></a>
+
+## Features
+
+Use one package to run a built-in agent, call robot tools from your own Python
+strategy, and inspect live or saved episodes. Direct mode uses robot tools;
+Hybrid mode adds a compatible action model such as Pi0.5. Prompts, skills and
+the dashboard are included in the package.
+
+The harness follows four design principles:
+
+- **Unified:** shared tool interfaces and feedback across environments, with native APIs handled by adapters.
+- **Efficient:** overlap agent reasoning with tool execution while preserving order for operations that share robot resources.
+- **Realistic:** support the paper's RGB-only setting, using proprioception, calibration and robot descriptions without simulator depth or task-verifier feedback to the agent.
+- **Modular:** replace the agent runtime, model provider, tools, environment or model services through explicit interfaces.
+
+RoboDojo enables depth by default. Select `--no-depth` for the paper's RGB-only
+setting and retain camera calibration. See [design principles](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/architecture.md#design-principles)
+and [observation settings](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/integrations.md#realistic-observation-settings).
+
+<a id="quick-start"></a>
+
+## Quick start
+
+**1. Install and prepare RoboDojo.** Use a Python 3.11 virtual environment on a [Linux GPU host](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md#host-prerequisites-and-runtime-storage).
+PyPI publication is pending; until then, follow the [wheel installation and setup instructions](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md#prepare-an-unreleased-build).
+
+```bash
+pip install uni-robot-agent  # or: uv pip install uni-robot-agent
+uni-robot-agent setup --integration robodojo
+```
+
+**2. Run a task.** Set your vision model and Responses-compatible endpoint:
+
+```bash
+export UNI_ROBOT_AGENT_API_KEY='YOUR_API_KEY'
+export UNI_ROBOT_AGENT_PROVIDER_URL='https://provider.example/v1'
+
+uni-robot-agent run --integration robodojo --deploy local \
+  --task stack_bowls --model YOUR_MODEL_ID \
+  --action-profile direct --no-sam3 --output-dir ./runs --monitor
+```
+
+Open the printed dashboard URL; results are saved under `./runs`. [More options](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/getting-started.md).
+
+<a id="python-sdk"></a>
+
+## Python SDK
+
+Run the agent against an already running environment. This uses the same API key
+as the CLI; replace the model and provider placeholders with your settings:
+
+```python
+from uni_robot_agent import AgentConfig, SessionConfig, run
+
+result = run(SessionConfig(
+    integration="robodojo",
+    env_url="http://127.0.0.1:18760",
+    no_sam3=True,
+    agent=AgentConfig(
+        model="YOUR_MODEL_ID",
+        provider_url="https://provider.example/v1",
+    ),
+    output_dir="runs",
+))
+print(result.agent_finished, result.task_success, result.session_dir)
+```
+
+`agent_finished` records agent completion; `task_success` is the environment's
+reported outcome, or `None` when unavailable. Use `Session.tools` to implement a
+custom strategy, `RunRecord` to read saved runs, and `setup()` / `deploy()` to own
+local services explicitly. See the [SDK guide](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/sdk.md) and
+[Python examples](https://github.com/Open-RUA/uni-robot-agent/tree/main/examples/sdk/).
+
+<a id="dashboard"></a>
+
+## Dashboard
+
+Add `--monitor` to a CLI run to view camera streams, tool calls, execution timing
+and available task outcomes. The monitor prints a local URL; no frontend build
+or upload is required.
+
+Replay saved episodes or browse all runs under a parent directory:
+
+```bash
+uni-robot-agent monitor --run-dir ./runs
+```
+
+Select an episode, play or pause the recording, switch cameras and jump between
+tool calls. See [live monitoring and replay](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/running.md#local-web-monitor)
+for remote-host access and other options.
+
+<a id="environments"></a>
+
+## Environments
+
+### Simulation
+
+| Integration | Environments and tasks | Guide |
+|---|---|---|
+| **RoboDojo** | Dual-arm manipulation with Direct tools or Hybrid Pi0.5 control | [Setup](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md) |
+| **RoboUse** | Selected tasks from LIBERO, RoboCasa, MetaWorld, RoboSuite, ManiSkill, Tabletop, Fetch and Kitchen; also Menagerie, composed-robot, Genesis and Factory task adapters | [Tasks](https://github.com/Open-RUA/uni-robot-agent/blob/main/scripts/robouse/README.md) |
+| **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
+
+### Real robots
+
+| Platform | Public release status |
+|---|---|
+| **ARX One** | Coming soon |
+| **Franka** | Coming soon |
+
+Real-robot integrations and deployment guides are coming soon. The public
+package does not yet include a supported physical-robot connection workflow.
+
+<a id="how-it-works"></a>
+
+## How it works
+
+<p align="center">
+  <a href="assets/diagrams/uni-robot-agent-architecture.png"><img src="assets/diagrams/uni-robot-agent-architecture.png" alt="uni-robot-agent architecture: agent backends, shared robot tools, independent services, and native adapters." width="100%"></a>
+</p>
+
+The executor schedules tool calls from agents and the Python SDK, and shared robot tools access native backends through services. [Architecture guide](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/architecture.md)
+
+<a id="contributing"></a>
+
+## Contributing
+
+Follow [CONTRIBUTING.md](https://github.com/Open-RUA/uni-robot-agent/blob/main/CONTRIBUTING.md) to set up a development environment,
+or [open an issue](https://github.com/Open-RUA/uni-robot-agent/issues) with a minimal
+reproduction, package version, platform and relevant logs.
+
+<a id="license"></a>
+
+## License
+
+This project is licensed under the [MIT License](https://github.com/Open-RUA/uni-robot-agent/blob/main/LICENSE).
+
+[Upstream code](https://github.com/Open-RUA/uni-robot-agent/blob/main/uni_robot_agent/integrations/robodojo/UPSTREAM_LICENSE), [fonts](https://github.com/Open-RUA/uni-robot-agent/blob/main/assets/brand/README.md#typography), and external assets and models retain their respective licenses.
+
+<a id="citation"></a>
+
+## Citation
+
+The paper reference and BibTeX citation will be added with publication.

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>uni-robot-agent — cover export</title>
+<style>
+body{max-width:1100px;margin:32px auto;padding:0 24px;background:#0b0c0d;color:#fff;font:16px/1.6 system-ui}
+h1{font-size:24px}a{color:#b8c7e0}button{padding:10px 16px;margin-right:16px;font:inherit;cursor:pointer}
+.source-frame{height:320px;overflow:hidden;margin-top:24px}iframe{width:1600px;height:640px;border:0;transform:scale(.5);transform-origin:top left}
+#result{max-width:100%;height:auto;margin-top:24px}#download{margin-left:16px}
+</style>
+</head>
+<body>
+<h1>uni-robot-agent cover</h1>
+<p>HTML: 1600 × 640. PNG: 6400 × 2560. Fonts are embedded in the source.</p>
+<button id="export">Export PNG</button><span id="status" role="status">Ready</span>
+<a id="download" download="uni-robot-agent-cover.png" hidden>Download PNG</a>
+<div class="source-frame"><iframe id="source" src="uni-robot-agent-cover.html" title="Cover source"></iframe></div>
+<img id="result" alt="Exported cover" hidden>
+<p><a href="README.md">Artwork and font notices</a></p>
+<script>
+const frame=document.getElementById('source');
+document.getElementById('export').onclick=async()=>{
+ const status=document.getElementById('status');
+ try{
+  status.textContent='Loading fonts…';
+  if(frame.contentDocument.readyState!=='complete')await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+  const doc=frame.contentDocument;
+  await doc.fonts.ready;
+  const css=doc.querySelector('style').textContent;
+  const markup=doc.querySelector('.cover').outerHTML;
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="6400" height="2560" viewBox="0 0 1600 640"><foreignObject width="1600" height="640"><div xmlns="http://www.w3.org/1999/xhtml"><style>'+css+'</style>'+markup+'</div></foreignObject></svg>';
+  status.textContent='Rendering PNG…';
+  const image=new Image();image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await image.decode();
+  const canvas=document.createElement('canvas');canvas.width=6400;canvas.height=2560;
+  canvas.getContext('2d').drawImage(image,0,0);
+  const png=canvas.toDataURL('image/png');
+  const result=document.getElementById('result');result.src=png;result.hidden=false;
+  const download=document.getElementById('download');download.href=png;download.hidden=false;
+  status.textContent='PNG ready — 6400 × 2560';
+ }catch(error){status.textContent='Export failed: '+error.message;}
+};
+</script>
+</body>
+</html>

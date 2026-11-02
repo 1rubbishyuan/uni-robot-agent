@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Test, type-check and coverage caches
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local agent/runtime state
+/.agents/
+/.claude/
+/.codex/
+/a
+*.pid
+*.tmp
+*.bak
+*.orig
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Outputs & experiment artifacts
+/runs/
+outputs/
+eval_outputs/
+eval_result/
+
+# Logs
+*.log
+
+logs/
+
+/resources/
+
+
+
+# Temporary experiment scripts
+scripts/tmp/
+
+# Development backend state
+.debug/
+
+eval_results/
+
+# Historical external simulator checkout and its deployment-owned link
+/robots/robodojo/resources/
+
+# Deployment-owned native runtime, excluded from the distribution
+/uni_robot_agent/integrations/robodojo/resources
+
+# Local reference material; excluded from the public project
+/archive/

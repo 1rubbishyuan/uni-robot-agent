@@ -1,0 +1,1 @@
+All tools share one exclusive FIFO resource. Calls execute one at a time in admission order. Batch already-determined calls to reduce planning exchanges, but split at decisions requiring intermediate feedback.

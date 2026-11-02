@@ -1,0 +1,8 @@
+name = "actor-robodojo-pi05"
+python = "python3.11"
+repository = "https://github.com/XPolicyLab/XPolicyLab.git"
+revision = "432f82b1758c5b1202e42a3dfe014546dbc50871"
+asset_repository = "RoboDojo-Benchmark/RoboDojo"
+asset_revision = "269457a3b42d8d0ae69898a601f2c1487c2f826e"
+# The pinned OpenPI uv.lock overrides NumPy <2 for JAX; rerun is unused by inference.
+dependency_exceptions = ["rerun-sdk 0.26.2 has requirement numpy>=2, but you have numpy 1.26.4."]

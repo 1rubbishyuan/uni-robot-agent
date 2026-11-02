@@ -1,0 +1,6 @@
+name = "robouse-genesis"
+base = "recipes/base.toml"
+profile = "genesis"
+python = "python3.11"
+packages = ["genesis-world==0.3.3"]
+imports = ["genesis"]

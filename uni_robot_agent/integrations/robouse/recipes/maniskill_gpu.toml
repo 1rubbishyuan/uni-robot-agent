@@ -1,0 +1,6 @@
+name = "robouse-maniskill_gpu"
+base = "recipes/base.toml"
+profile = "maniskill_gpu"
+python = "python3.11"
+packages = ["mani-skill==3.0.1"]
+imports = ["mani_skill"]

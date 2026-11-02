@@ -1,0 +1,9 @@
+name = "robouse-factory"
+base = "recipes/base.toml"
+profile = "factory"
+python = "python3.11"
+packages = ["isaacsim[all,extscache]==5.1.0", "isaaclab==2.3.0", "mujoco==3.3.1"]
+imports = []
+constraints = ["numpy==1.26.0", "packaging==23.0", "typing_extensions==4.12.2", "filelock==3.13.1", "websockets==12.0", "scipy==1.15.3", "warp-lang==1.11.0", "click==8.1.7", "psutil==5.9.8", "wheel==0.45.1", "starlette==0.45.3", "pydantic==2.11.7", "fastapi==0.115.12", "onnx>=1.18,<1.22", "ipython<9", "virtualenv==20.30.0"]
+torch = ["torch==2.7.0", "torchvision==0.22.0", "torchaudio==2.7.0"]
+torch_index = "https://download.pytorch.org/whl/cu128"

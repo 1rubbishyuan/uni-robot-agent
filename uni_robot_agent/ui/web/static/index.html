@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UA · Run console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#"
+        ><span class="brand-mark">u<span>↗</span></span
+        ><span>uni-robot-agent <b>/</b> <strong>observe</strong></span></a
+      >
+      <div class="top-actions">
+        <span class="local-label">LOCAL · READ ONLY</span
+        ><span id="connection" class="connection">Connecting</span>
+      </div>
+    </header>
+    <main>
+      <section id="overview" hidden>
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">RUN COLLECTION</div>
+            <h1>Your experiments, at a glance.</h1>
+            <p>Recorded results from the directories you selected.</p>
+          </div>
+          <span id="collection-count" class="tag"></span>
+        </div>
+        <div class="collection-tools">
+          <input
+            id="search"
+            type="search"
+            placeholder="Filter tasks, models or directories…"
+            aria-label="Filter runs"
+          /><select id="status-filter" aria-label="Filter by status">
+            <option value="all">All states</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed / error</option>
+            <option value="running">Running</option>
+          </select>
+        </div>
+        <div id="cards" class="cards"></div>
+      </section>
+      <section id="detail" hidden>
+        <div class="page-heading">
+          <div class="task-heading">
+            <button id="back" class="back" title="All runs">←</button>
+            <div>
+              <div class="eyebrow" id="run-context">SINGLE RUN</div>
+              <h1 id="task-title">Waiting for run</h1>
+              <p id="instruction"></p>
+            </div>
+          </div>
+          <div class="heading-status">
+            <span id="run-status" class="status"></span
+            ><span id="mode-label" class="subtle">LIVE VIEW</span>
+          </div>
+        </div>
+        <div id="metrics" class="metrics"></div>
+        <div id="run-error" class="notice error" hidden></div>
+        <div class="workspace">
+          <section class="panel viewer-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="section-number">01</span>
+                <h2>Observation</h2>
+              </div>
+              <div class="panel-controls">
+                <select id="camera" aria-label="Camera"></select
+                ><button id="play" title="Play recorded timeline" aria-label="Play timeline">▶</button
+                ><button id="fullscreen" title="Enlarge observation">⤢</button>
+              </div>
+            </div>
+            <div id="viewer" class="viewer">
+              <img id="frame" alt="Recorded robot observation" hidden />
+              <img id="frame-previous" alt="" aria-hidden="true" hidden />
+              <div id="frame-empty" class="empty">
+                <span class="empty-glyph">⌗</span
+                ><strong>Waiting for an observation</strong
+                ><span>Published camera frames appear here.</span>
+              </div>
+              <span id="frame-badge" class="frame-badge" hidden></span>
+            </div>
+            <div id="camera-tiles" class="camera-tiles" aria-label="Synchronized camera views"></div>
+            <div class="frame-controls">
+              <div class="playback-toolbar"><span id="playback-time">00:00 / 00:00</span><label class="skip-still"><input id="skip-still" type="checkbox" checked>Skip still intervals</label><select id="playback-speed" aria-label="Playback speed"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option></select></div>
+              <div id="playback-rail" class="playback-rail"><div id="time-segments" class="time-segments" aria-hidden="true"></div><svg viewBox="0 0 1000 8" preserveAspectRatio="none" aria-hidden="true"><path id="frame-ticks"></path></svg><div class="playback-fill"></div><div class="playback-cursor"></div>
+              <input
+                type="range"
+                id="frame-slider"
+                min="0"
+                max="0"
+                value="0"
+                step="0.01"
+                aria-label="Playback position"
+              />
+              </div>
+              <div>
+                <span id="frame-info">No frames recorded</span
+                ><span id="frame-count"></span>
+              </div>
+            </div>
+          </section>
+          <section class="panel console-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="section-number">02</span>
+                <h2>Batch console</h2>
+                <span id="call-count" class="count"></span>
+              </div>
+              <button id="follow" class="active">● Follow latest</button>
+            </div>
+            <div id="queue" class="queue"></div>
+            <div
+              id="console"
+              class="console"
+              tabindex="0"
+              aria-label="Batch tool calls"
+            ></div>
+            <div id="console-note" class="panel-foot">
+              Tool acknowledgement and execution completion are separate states.
+            </div>
+          </section>
+        </div>
+        <section class="panel batch-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="section-number">03</span>
+              <h2>Decision sequence</h2>
+              <span id="batch-count" class="count"></span>
+            </div>
+            <div class="sequence-controls">
+              <span id="batch-position" class="subtle">All batches</span>
+              <button id="batch-prev" aria-label="Previous batch" title="Previous batch (←)">‹</button>
+              <button id="batch-next" aria-label="Next batch" title="Next batch (→)">›</button>
+            </div>
+          </div>
+          <div id="batches" class="batch-strip" aria-label="Batch navigation">
+            <div class="batch-track">
+              <span id="batch-cursor" class="batch-cursor" aria-hidden="true"></span>
+              <div id="batch-items"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel timeline-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="section-number">04</span>
+              <h2>Execution overlap</h2>
+            </div>
+            <div class="legend">
+              <span><i class="model-dot"></i>Model request</span
+              ><span><i class="execution-dot"></i>Execution</span
+              ><span><i class="queue-dot"></i>Queued</span>
+            </div>
+          </div>
+          <div id="timeline" class="timeline"></div>
+          <div class="panel-foot">
+            Request duration includes transport, provider wait and retries.
+            Overlapping lanes share wall time.
+          </div>
+        </section>
+        <details class="panel activity-panel">
+          <summary>Agent messages & run details <span>↗</span></summary>
+          <div id="messages"></div>
+          <div id="run-path" class="run-path"></div>
+        </details>
+        <footer>
+          <span>uni-robot-agent / observation console</span
+          ><span id="history-note"
+            >No robot controls · original run artifacts remain
+            authoritative</span
+          >
+        </footer>
+      </section>
+      <div id="loading" class="loading">Opening run records…</div>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

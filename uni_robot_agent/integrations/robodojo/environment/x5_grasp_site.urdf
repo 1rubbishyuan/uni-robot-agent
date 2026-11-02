@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot name="x5_grasp_site_extension">
+  <!-- Fixed site between the area centroids of the two distal inner pad faces.
+       X5A.urdf SHA256: a31a0d3a957196ea42d216036db2fffdf7678f4f36f65f90a0b69c58daa8d7d0
+       Axes follow link6: +X toward fingertips, fingers close along +/-Y.
+       Merge with the native robot URDF for FK/DLS; do not change simulator assets. -->
+  <link name="x5_grasp_site" />
+  <joint name="link6_to_grasp_site" type="fixed">
+    <parent link="link6" />
+    <child link="x5_grasp_site" />
+    <origin xyz="0.149335 -0.000002 -0.000854" rpy="0 0 0" />
+  </joint>
+</robot>

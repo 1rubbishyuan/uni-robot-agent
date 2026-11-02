@@ -1,0 +1,24 @@
+backend = "pi05"
+runtime = "openpi_jax"
+profile = "robodojo_pi05"
+model_config_name = "pi05_base_aloha_full_sim_arx-x5_seed_0"
+checkpoint = "/path/to/pi05/checkpoint"
+# Set the manifest hash computed by openpi_jax.checkpoint_identity before launch.
+checkpoint_sha256 = "REPLACE_WITH_OFFICIAL_CHECKPOINT_SHA256"
+xpolicylab_root = "/path/to/pinned/XPolicyLab"
+
+[http]
+host = "127.0.0.1"
+port = 42000
+
+[batching]
+max_batch_size = 2
+max_wait_ms = 5
+max_queue_size = 64
+
+[sessions]
+max_sessions = 1024
+idle_timeout_s = 1800
+receipt_ttl_s = 3600
+max_receipts = 128
+max_session_requests = 4096
