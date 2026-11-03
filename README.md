@@ -174,4 +174,13 @@ This project is licensed under the [MIT License](https://github.com/Open-RUA/uni
 
 ## Citation
 
-The paper reference and BibTeX citation will be added with publication.
+If you use uni-robot-agent in your research, please cite our paper:
+
+```bibtex
+@article{yuan2026democratizing,
+  title={Democratizing Robot-Use Agents: A Unified Harness with Open Models},
+  author={Yuan, Jiarui and Zuo, Yuxin and Huang, Xiaoyu and Zhang, Wenbo and Park, Kwanyoung and Yang, Junlin and Zhang, Tianxiang and Chen, Ruoqu and Ouyang, Yutao and He, Bingxiang and others},
+  journal={arXiv preprint arXiv:2611.01560},
+  year={2026}
+}
+```
