@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Open-RUA/uni-robot-agent"><img src="https://img.shields.io/badge/source-v0.1.0-62518B?style=for-the-badge&amp;logo=github&amp;logoColor=white&amp;labelColor=242424" alt="Source version 0.1.0"></a>
+  <a href="https://pypi.org/project/uni-robot-agent/"><img src="https://img.shields.io/badge/PyPI-v0.1.0-62518B?style=for-the-badge&amp;logo=pypi&amp;logoColor=white&amp;labelColor=242424" alt="PyPI version 0.1.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-386749?style=for-the-badge&amp;labelColor=242424" alt="License: MIT"></a>
   <a href="https://uni-robot-agent.com/docs"><img src="https://img.shields.io/badge/docs-Read%20guide-295E91?style=for-the-badge&amp;logo=readthedocs&amp;logoColor=white&amp;labelColor=242424" alt="Read the documentation"></a>
   <a href="https://uni-robot-agent.com/"><img src="https://img.shields.io/badge/website-Homepage-98472F?style=for-the-badge&amp;labelColor=242424" alt="Project website"></a>
@@ -56,7 +56,6 @@ and [observation settings](https://github.com/Open-RUA/uni-robot-agent/blob/main
 ## Quick start
 
 **1. Install and prepare RoboDojo.** Use a Python 3.11 virtual environment on a [Linux GPU host](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md#host-prerequisites-and-runtime-storage).
-PyPI publication is pending; until then, follow the [wheel installation and setup instructions](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md#prepare-an-unreleased-build).
 
 ```bash
 pip install uni-robot-agent  # or: uv pip install uni-robot-agent

@@ -34,7 +34,7 @@ The standard installation includes
 the pinned Codex and Claude Agent SDKs, the Textual terminal interface, and the
 shared HTTP service framework.
 
-The first PyPI release is pending. After publication, install the CLI and SDK:
+Install the CLI and SDK:
 
 ```bash
 python -m pip install uni-robot-agent
@@ -58,7 +58,8 @@ Installing the package alone does not verify model access or native runtime heal
 
 ### Install from source or a wheel
 
-Before the first publication, or when developing, install from source:
+For development, install from a source checkout (repository access is required
+while the GitHub repository remains private):
 
 ```bash
 git clone \
@@ -93,7 +94,7 @@ Choose extras for the integrations you use:
 | `robolab` | Geometry and collision dependencies; excludes Isaac and native RoboLab assets |
 | `dev` | Build tools; combine with the integrations being developed |
 
-After publication, use `python -m pip install 'uni-robot-agent[robodojo]'` or
+Use `python -m pip install 'uni-robot-agent[robodojo]'` or
 `uv tool install 'uni-robot-agent[robodojo]'`. From a source checkout, use
 `python -m pip install '.[robodojo]'`.
 

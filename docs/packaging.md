@@ -84,9 +84,9 @@ when finished. Reuse prepared test environments when disk space is limited.
 
 ## Release status
 
-Install from source or a built wheel. Commands such as `pip install uni-robot-agent`
-require a published package on your configured index. Building or installing
-locally does not publish it.
+Install a published version with `pip install uni-robot-agent` or
+`uv pip install uni-robot-agent`. Source and wheel installations remain available
+for development. Building or installing locally does not publish a release.
 
 ### Deployment resources
 

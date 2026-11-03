@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.1.0 — Unreleased
+## 0.1.0 — 2026-11-03
 
 Initial open-source release of uni-robot-agent, a robot agent built on Codex and
-Claude Code. PyPI publication is pending.
+Claude Code.
 
 ### Agent and robot tools
 

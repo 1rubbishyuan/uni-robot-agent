@@ -20,8 +20,6 @@ uni-robot-agent setup --service actor --profile robodojo_pi05
 uni-robot-agent setup --service sam3
 ```
 
-The first PyPI release is pending; use the next workflow during the source preview.
-
 ## Prepare an unreleased build
 
 From the repository root, build a wheel and pass it to each required setup

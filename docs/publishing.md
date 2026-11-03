@@ -2,7 +2,7 @@
 
 Distribution: `uni-robot-agent`. Import: `uni_robot_agent`. Initial version:
 `0.1.0`. Building a candidate, pushing a branch, or creating a tag does not upload
-this project to a package index. PyPI publication is still pending.
+this project to a package index.
 
 ## First-release sequence
 
@@ -21,8 +21,8 @@ this project to a package index. PyPI publication is still pending.
 5. Verify installation from PyPI and add the release announcement or badge.
 
 Build checks can run during steps 1 and 2, but artifacts made before the final
-migration are preview artifacts. README is embedded in package metadata: editing
-GitHub's README later does not update the uploaded PyPI description. Make its
+migration are preview artifacts. `docs/pypi.md` is embedded in package metadata:
+editing it later does not update the uploaded PyPI description. Make its
 substantive changes before the final build; see the
 [PyPI README guide](https://packaging.python.org/en/latest/guides/making-a-pypi-friendly-readme/).
 
@@ -104,15 +104,12 @@ Before choosing to publish:
    README and installation/publishing guides, and replace the source-preview
    status in README.
    Keep the source/wheel instructions for developers and unreleased builds.
-3. Check README images and documentation links without GitHub authentication.
-   README currently uses repository-relative image paths so GitHub can render
-   images for authorized viewers while the repository is private, and local
-   Markdown previews can resolve the same files. Before the final PyPI build,
-   replace image `src` and enclosing image-link `href` paths with public absolute
-   URLs: raw image URLs for `src`, GitHub file-page URLs for `href`. Verify the
-   raw images load without authentication; PyPI cannot use a viewer's GitHub
-   login. `twine check` validates markup, not remote image accessibility. Verify the links in the README, contributor guide
-   and package metadata, then build and validate the final commit.
+3. Check the links in `docs/pypi.md` and package metadata without authentication.
+   The package description uses the public documentation website and does not
+   depend on private GitHub images or links. GitHub's README keeps relative
+   images for repository viewers. `twine check` validates markup, not remote
+   link accessibility. GitHub can remain private, but both the wheel and sdist
+   published to PyPI expose their included Python source to everyone.
 4. Review successful package checks and any promised native integration evidence.
    A package smoke test does not establish simulator or real-hardware success.
 
@@ -120,7 +117,13 @@ Before choosing to publish:
 
 This section uploads publicly. Execute it only when the release is authorized.
 Create `v0.1.0` on the reviewed commit and push that tag. Creating the tag alone
-does not publish. From the authenticated repository context, dispatch:
+does not publish. For the final browser confirmation, open the repository's Actions tab, select
+**Package checks and manual release**, and open **Run workflow**. Select tag
+`v0.1.0` and destination `pypi`. Clicking the final **Run workflow** button starts
+public publication after the checks pass; stop before that button during release
+preparation.
+
+Alternatively, from the authenticated repository context, dispatch:
 
 ```bash
 # Optional rehearsal: this uploads to TestPyPI.

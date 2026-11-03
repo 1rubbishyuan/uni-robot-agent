@@ -2,7 +2,7 @@
 name = "uni-robot-agent"
 version = "0.1.0"
 description = "A unified harness for robot-use agents, with CLI, Python SDK, and live monitoring"
-readme = "README.md"
+readme = "docs/pypi.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -35,9 +35,7 @@ dependencies = [
 
 [project.urls]
 Documentation = "https://uni-robot-agent.com/docs"
-Changelog = "https://github.com/Open-RUA/uni-robot-agent/blob/main/CHANGELOG.md"
-Repository = "https://github.com/Open-RUA/uni-robot-agent"
-Issues = "https://github.com/Open-RUA/uni-robot-agent/issues"
+Homepage = "https://uni-robot-agent.com/"
 
 [project.optional-dependencies]
 # Compatibility extras: the base package already includes these features.
