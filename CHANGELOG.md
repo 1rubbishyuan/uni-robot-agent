@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.1 — 2026-11-04
+
+- Generate native CuRobo robot configs during setup in a private asset overlay;
+  shared downloaded assets remain unchanged. Detect missing configs before launch.
+- Accept the audited X5 URDF's byte-equivalent CRLF snapshot alongside its LF
+  form, retaining exact mesh checks and checking these assets before GPU startup.
+
+- Install a matching `uni-robot-agent-runtime` in native service environments,
+  excluding planner SDK and UI dependencies while preserving the main CLI/SDK.
+- Align RoboDojo and RoboUse Factory FastAPI/Uvicorn constraints with Isaac Sim
+  5.1; retain strict dependency checks.
+- Build both distributions from one source tree and verify independent sdists,
+  resource parity, native HTTP hosting, and upgrades from 0.1.0.
+- Build the pinned IsaacLab fork with a documented, checksum-guarded Starlette
+  metadata correction and a local version suffix, preserving native module bytes.
+- Install all IsaacLab base extensions and verify their required imports before
+  marking the simulator runtime ready.
+- `setup --wheel` now requires the runtime wheel at the CLI version.
+
+Known issue: on containers that do not reap zombie descendants, SDK shutdown
+can wait about 35 extra seconds and report forced cleanup after the simulator
+has exited. The validated runs left no live simulator or GPU allocation behind.
+
 ## 0.1.0 — 2026-11-03
 
 Initial open-source release of uni-robot-agent, a robot agent built on Codex and

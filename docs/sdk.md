@@ -177,7 +177,7 @@ from uni_robot_agent import SetupConfig, setup
 runtime = setup(SetupConfig(integration="robodojo"), report=print)
 ```
 
-For an unreleased build, including the source preview, pass its wheel explicitly:
+For an unreleased build, pass its matching runtime wheel explicitly:
 
 ```python
 from pathlib import Path
@@ -185,11 +185,12 @@ from uni_robot_agent import SetupConfig, setup
 
 runtime = setup(SetupConfig(
     integration="robodojo",
-    wheel=Path("/path/to/uni_robot_agent-0.1.0-py3-none-any.whl"),
+    wheel=Path("/path/to/uni_robot_agent_runtime-0.1.1-py3-none-any.whl"),
 ), report=print)
 ```
 
-Omitting `wheel` installs the same package version from the configured index.
+Omitting `wheel` installs `uni-robot-agent-runtime` at the CLI/SDK version from
+the configured index, in the separate native environment.
 RoboDojo's native runtime requires Python 3.11; pass
 `python="/path/to/python3.11"` to `SetupConfig` if it is not on PATH. See
 [deployment prerequisites](deployment.md#host-prerequisites-and-runtime-storage).

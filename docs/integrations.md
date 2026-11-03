@@ -165,7 +165,7 @@ dependencies, task admission, step budget, scoring and camera configuration.
 
 Use `setup --integration robouse --runtime-profile PROFILE` to prepare a native
 runtime, then `run --integration robouse --deploy local --task TASK` with the
-model and provider settings. For an unreleased build, pass your agent wheel to
+model and provider settings. For an unreleased build, pass your matching runtime wheel to
 `setup --wheel`; a published installation can fetch its matching version from the
 package index. See [deployment](deployment.md).
 See [deployment profiles](deployment.md#environment-profiles-and-limits),

@@ -4,15 +4,18 @@ import numpy as np
 from .kinematics import T_NATIVE_FROM_GRASP
 
 AUDITED_ASSETS = {
-    "X5A.urdf": "a31a0d3a957196ea42d216036db2fffdf7678f4f36f65f90a0b69c58daa8d7d0",
-    "meshes/link7.STL": "ec3d40b39cccde0075ca3d16603f14f180fce41a46b446473d384def7a1b0be0",
-    "meshes/link8.STL": "29f7a8379cad81797e82e4ba099455cc275ac6ac5bb9e264ce46719fd7d2bb60",
+    # The pinned Hub snapshot uses CRLF; the original audit used LF. Replacing
+    # only CRLF with LF yields byte-identical URDFs, including all joint limits.
+    "X5A.urdf": ("a31a0d3a957196ea42d216036db2fffdf7678f4f36f65f90a0b69c58daa8d7d0",
+                 "7aaa308a1a5b6a213d914db86ba09ddd6252f25cb498ac9a148bfa6c7166a423"),
+    "meshes/link7.STL": ("ec3d40b39cccde0075ca3d16603f14f180fce41a46b446473d384def7a1b0be0",),
+    "meshes/link8.STL": ("29f7a8379cad81797e82e4ba099455cc275ac6ac5bb9e264ce46719fd7d2bb60",),
 }
 
 
 class X5Gripper:
     def __init__(self, geometry, *, scale, limits, mimic, sign):
-        if any(geometry["asset_sha256"].get(key) != value for key, value in AUDITED_ASSETS.items()):
+        if any(geometry["asset_sha256"].get(key) not in values for key, values in AUDITED_ASSETS.items()):
             raise ValueError("X5 pad calibration requires audited URDF and finger assets")
         if sign != 1 or list(mimic) != ["joint8", 1., 0.]:
             raise ValueError("X5 calibration requires opposed, equally driven fingers")

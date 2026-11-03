@@ -2,10 +2,22 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
-try:
-    __version__ = version("uni-robot-agent")
-except PackageNotFoundError:
-    __version__ = "unknown (not installed)"
+def _installed_version():
+    installed = {}
+    for name in ("uni-robot-agent", "uni-robot-agent-runtime"):
+        try:
+            installed[name] = version(name)
+        except PackageNotFoundError:
+            pass
+    if len(installed) > 1:
+        raise RuntimeError(
+            "uni-robot-agent and uni-robot-agent-runtime share module files and must be "
+            "installed in separate environments. Recreate this environment with only one package."
+        )
+    return next(iter(installed.values()), "unknown (not installed)")
+
+
+__version__ = _installed_version()
 
 
 # Keep version/help and record readers independent of planner and native runtimes.

@@ -81,7 +81,7 @@ importing `uni_robot_agent` in your own Python environment, or
 To install a release candidate without a checkout:
 
 ```bash
-python -m pip install /path/to/uni_robot_agent-0.1.0-py3-none-any.whl
+python -m pip install /path/to/uni_robot_agent-0.1.1-py3-none-any.whl
 ```
 
 ### Integration extras
@@ -130,17 +130,20 @@ version without requiring a source checkout:
 uni-robot-agent setup --integration robodojo
 ```
 
-For an unreleased checkout, build a wheel at the repository root and pass it to
-setup. This also applies during the source preview:
+For an unreleased checkout, build both distributions and pass the matching
+runtime wheel to setup:
 
 ```bash
-python -m pip wheel --no-deps . -w dist
+python -m pip install 'build>=1' 'twine>=6' 'tomli-w>=1'
+python scripts/release/prepare.py --output-dir ../candidate-0.1.1
+python -m pip install ../candidate-0.1.1/dist/uni_robot_agent-0.1.1-py3-none-any.whl
 uni-robot-agent setup --integration robodojo \
-  --wheel dist/uni_robot_agent-0.1.0-py3-none-any.whl
+  --wheel ../candidate-0.1.1/dist/uni_robot_agent_runtime-0.1.1-py3-none-any.whl
 ```
 
-If you installed a downloaded wheel, pass its actual path to `--wheel`; you do
-not need to clone the repository or rebuild it.
+If you downloaded release candidates, pass the runtime wheel to `--wheel`.
+The main and runtime wheels must have the same version and be installed in
+separate environments; setup owns the native environment.
 
 RoboDojo's runtime recipe requires Python 3.11 (`python3.11` on PATH, or pass
 `--python /path/to/python3.11`), even if the outer CLI uses Python 3.12.
@@ -247,7 +250,7 @@ Supply your model ID and the actor checkpoint hash; see
 RoboUse includes LIBERO and RoboCasa through separate native profiles. Select
 `--integration robouse`; the standalone LIBERO integration is not included.
 Prepare the profile with `setup --integration robouse --runtime-profile libero`.
-For an unreleased build, also pass your wheel with `--wheel`; a published version
+For an unreleased build, also pass your runtime wheel with `--wheel`; a published version
 is installed automatically into the runtime. Select a task from the prepared
 catalog for `--deploy local`. Use Direct mode and `--no-sam3` for the
 minimal configuration. See [profiles and task selection](deployment.md#environment-profiles-and-limits)

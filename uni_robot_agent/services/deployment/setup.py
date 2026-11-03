@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from email.parser import BytesParser
 import hashlib
 import json
 from pathlib import Path
@@ -82,7 +83,7 @@ class Preparation:
 
     def install_harness(self):
         wheel = self.wheel
-        requirement = str(wheel.expanduser().absolute()) if wheel else f'uni-robot-agent=={__version__}'
+        requirement = str(wheel.expanduser().absolute()) if wheel else f'uni-robot-agent-runtime=={__version__}'
         if wheel and (not wheel.is_file() or wheel.suffix != '.whl'):
             raise ValueError('--wheel must be an existing wheel')
         self.pip(requirement)
@@ -141,7 +142,24 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+def validate_runtime_wheel(path):
+    """Reject planner wheels and mismatched builds before any native installation."""
+    if not path.is_file() or path.suffix != '.whl':
+        raise ValueError('--wheel must be an existing uni-robot-agent-runtime wheel')
+    with zipfile.ZipFile(path) as archive:
+        entries = [name for name in archive.namelist()
+                   if len(name.split('/')) == 2 and name.endswith('.dist-info/METADATA')]
+        if len(entries) != 1:
+            raise ValueError('Runtime wheel must have exactly one distribution metadata record')
+        metadata = BytesParser().parsebytes(archive.read(entries[0]))
+    if metadata['Name'] != 'uni-robot-agent-runtime' or metadata['Version'] != __version__:
+        raise ValueError(f'--wheel requires uni-robot-agent-runtime=={__version__}; '
+                         f"received {metadata['Name']}=={metadata['Version']}")
+
+
 def prepare(args, adapter, *, report=print):
+    if args.wheel:
+        validate_runtime_wheel(args.wheel)
     recipe = adapter.recipe(args)
     root = runtime_root(args, recipe)
     with runtime_lock(root, args.setup_timeout_s):

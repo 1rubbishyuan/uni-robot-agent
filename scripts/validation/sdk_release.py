@@ -19,6 +19,7 @@ def main():
     parser.add_argument('directory', type=Path)
     parser.add_argument('--installer', choices=('pip', 'uv'), default='pip')
     parser.add_argument('--wheelhouse', type=Path)
+    parser.add_argument('--upgrade-from', help='Install this published main-package version before upgrading')
     args = parser.parse_args()
     wheel, directory = args.wheel.resolve(), args.directory.resolve()
     directory.mkdir(parents=True, exist_ok=False)
@@ -34,6 +35,8 @@ def main():
     install = [python, '-m', 'pip', 'install'] if args.installer == 'pip' else [
         shutil.which('uv') or 'uv', 'pip', 'install', '--link-mode', 'copy', '--python', python]
     source = ['--no-index', '--find-links', args.wheelhouse.resolve()] if args.wheelhouse else []
+    if args.upgrade_from:
+        command([*install, *source, f'uni-robot-agent=={args.upgrade_from}'])
     command([*install, *source, wheel])
     command([python, '-I', '-c', '''import pathlib,sys,uni_robot_agent
 for name in uni_robot_agent.__all__:
@@ -97,6 +100,10 @@ assert not (root / 'tools' / 'dexterous_hand').exists()
 print('Offline SDK configuration, unavailable-entry errors and packaged resources: OK')
 """])
     command([python, '-m', 'pip', 'check'])
+    if args.upgrade_from:
+        # Detect module ownership left behind by an upgrade or another distribution.
+        command([python, '-m', 'pip', 'uninstall', '-y', 'uni-robot-agent'])
+        command([python, '-I', '-c', "import importlib.util; assert importlib.util.find_spec('uni_robot_agent') is None"])
 
 
 if __name__ == '__main__':

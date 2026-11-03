@@ -88,7 +88,7 @@ def check_python(python, imports=(), *, environment=None, timeout=120):
         raise RuntimeError(f'Runtime import check failed: {result.stderr[-3000:]}')
     info = json.loads(result.stdout.strip().splitlines()[-1])
     if info['package_version'] != __version__:
-        raise ValueError(f'Runtime needs uni-robot-agent=={__version__}, found {info["package_version"]}')
+        raise ValueError(f'Runtime needs uni-robot-agent-runtime=={__version__}, found {info["package_version"]}')
     return info
 
 

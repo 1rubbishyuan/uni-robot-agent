@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/uni-robot-agent/"><img src="https://img.shields.io/badge/PyPI-v0.1.0-62518B?style=for-the-badge&amp;logo=pypi&amp;logoColor=white&amp;labelColor=242424" alt="PyPI version 0.1.0"></a>
+  <a href="https://pypi.org/project/uni-robot-agent/"><img src="https://img.shields.io/pypi/v/uni-robot-agent?color=62518B&amp;style=for-the-badge&amp;logo=pypi&amp;logoColor=white&amp;labelColor=242424" alt="Latest PyPI version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-386749?style=for-the-badge&amp;labelColor=242424" alt="License: MIT"></a>
   <a href="https://uni-robot-agent.com/docs"><img src="https://img.shields.io/badge/docs-Read%20guide-295E91?style=for-the-badge&amp;logo=readthedocs&amp;logoColor=white&amp;labelColor=242424" alt="Read the documentation"></a>
   <a href="https://uni-robot-agent.com/"><img src="https://img.shields.io/badge/website-Homepage-98472F?style=for-the-badge&amp;labelColor=242424" alt="Project website"></a>
@@ -28,7 +28,7 @@
 
 ## What's New
 
-**v0.1.0** includes the CLI, Python SDK, local dashboard, and simulator integrations.
+**v0.1.1** fixes fresh RoboDojo setup with isolated simulator dependencies and automatic robot configuration.
 See [pip and uv installation](#quick-start) below.
 
 <a id="features"></a>

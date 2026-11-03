@@ -12,16 +12,16 @@ as described in the [release sequence](publishing.md#first-release-sequence).
 
 ## Prepare a release candidate without publishing
 
-With `build` and `twine` installed, run from a source checkout:
+With `build`, `twine` and `tomli-w` installed, run from a source checkout:
 
 ```bash
-python scripts/release/prepare.py --output-dir ../uni-robot-agent-0.1.0-candidate
+python scripts/release/prepare.py --output-dir ../uni-robot-agent-0.1.1-candidate
 ```
 
-The output directory must not already exist. It receives `dist/` with the sdist
-and wheel, `SHA256SUMS`, and `release.json`. The command builds the wheel from the
+The output directory must not already exist. It receives `dist/` with independent sdists
+and wheels for the main and runtime packages, `SHA256SUMS`, and `release.json`. The command builds the wheel from the
 sdist, verifies contents, and runs `twine check --strict`. It never uploads or
-creates a Git tag. Add `--tag v0.1.0` to verify the planned release tag matches
+creates a Git tag. Add `--tag v0.1.1` to verify the planned release tag matches
 `pyproject.toml`. Complete the fresh installation checks below before release.
 See [Publishing](publishing.md) for CI, account setup and the separate upload step.
 
@@ -39,8 +39,8 @@ content against the checkout before installing:
 
 ```bash
 python scripts/validation/release_contents.py \
-  --sdist dist/uni_robot_agent-0.1.0.tar.gz \
-  --wheel dist/uni_robot_agent-0.1.0-py3-none-any.whl
+  --sdist dist/uni_robot_agent-0.1.1.tar.gz \
+  --wheel dist/uni_robot_agent-0.1.1-py3-none-any.whl
 ```
 
 The check compares public source files and packaged resources byte-for-byte,
@@ -56,11 +56,11 @@ directories. Substitute the absolute wheel path below:
 
 ```bash
 python3 -m venv ../uni-robot-agent-pip-check
-../uni-robot-agent-pip-check/bin/python -m pip install /absolute/path/to/uni_robot_agent-0.1.0-py3-none-any.whl
+../uni-robot-agent-pip-check/bin/python -m pip install /absolute/path/to/uni_robot_agent-0.1.1-py3-none-any.whl
 
 UV_TOOL_DIR="$PWD/../uni-robot-agent-uv-check/tools" \
 UV_TOOL_BIN_DIR="$PWD/../uni-robot-agent-uv-check/bin" \
-  uv tool install /absolute/path/to/uni_robot_agent-0.1.0-py3-none-any.whl
+  uv tool install /absolute/path/to/uni_robot_agent-0.1.1-py3-none-any.whl
 ```
 
 Outside the checkout, run each installed executable with `--version`, `--help`,
@@ -93,9 +93,17 @@ for development. Building or installing locally does not publish a release.
 The wheel and sdist include integration/service deployment TOML recipes. Native
 repositories, simulator assets, actor weights and SAM3 checkpoints stay outside
 the distribution in the explicit runtime cache. The main distribution provides
-the `robouse.backends:uni_robot_agent_worker` entry point. Install the agent package
-in every native worker interpreter; workers load it from that installation.
-Pass your local build with `setup --wheel`; see [local deployment](deployment.md)
+the CLI and planner SDKs. The separate `uni-robot-agent-runtime` distribution
+provides native workers and the `robouse.backends:uni_robot_agent_worker` entry point,
+without Codex, Claude, MCP or Textual dependencies. Setup installs exactly the
+matching runtime version in its isolated environment. Both distributions are
+built from the same source tree, own the same `uni_robot_agent` modules, and must
+never be installed together. Neither depends on the other. The main package
+retains its module ownership, so upgrading from 0.1.0 needs no migration.
+If both were installed together, recreate the environment; uninstalling one can
+remove files needed by the other.
+
+Pass the runtime wheel (not the main wheel) to `setup --wheel`; see [local deployment](deployment.md)
 for setup and validation.
 
 ## SDK release validation
@@ -112,3 +120,15 @@ Use `--wheelhouse /path/to/wheels` for offline dependency resolution. The valida
 uses fresh virtual environments, checks the CLI entry point, public imports,
 offline Session configuration and deployment/Web resources without connecting
 to a model or environment. Validate HTTP execution and native runtimes separately.
+
+The native dependency and HTTP-host regression runs without a GPU:
+
+```bash
+python scripts/validation/runtime_release.py /path/to/uni_robot_agent_runtime-0.1.1-py3-none-any.whl /path/to/new-runtime-check
+python scripts/validation/sdk_release.py /path/to/uni_robot_agent-0.1.1-py3-none-any.whl /path/to/new-upgrade-check --upgrade-from 0.1.0
+```
+
+The first check resolves dependencies with the RoboDojo recipe's Isaac Sim
+constraints, verifies planner SDKs are absent, and exercises real HTTP startup,
+request, shutdown and signal ownership. It does not install Isaac Sim or replace
+the clean GPU installation check. The second checks upgrade and clean uninstall.

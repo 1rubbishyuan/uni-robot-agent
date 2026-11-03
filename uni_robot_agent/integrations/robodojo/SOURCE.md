@@ -33,7 +33,11 @@ git -C /path/to/RoboDojo submodule update --init --recursive
 ```
 
 Prepare the dependencies and assets required by this pinned upstream revision,
-then install this package with its `robodojo` extra in the simulator environment.
+then let `uni-robot-agent setup` install the matching runtime package in its
+isolated simulator environment. Do not install the planner package there.
+Setup installs all six IsaacLab base extensions, matching the upstream base
+installation without optional RL training frameworks. Installing only the core
+and assets packages omits dependencies needed when the app loads its extensions.
 The pinned upstream `scripts/install.sh -i` runs `git submodule update --remote`;
 that changes the recorded dependency revisions. Keep the submodules at the
 commits above when installing their packages, and verify the checkout again
@@ -94,3 +98,37 @@ JAX compiles encountered batch shapes; GPU throughput and memory need separate
 measurement. Native transform validation requires the pinned XPolicyLab source and its runtime
 dependencies. Resolve pin mismatches by preparing the pinned checkout;
 do not change expected digests to accept an unverified copy.
+
+## IsaacLab build compatibility (0.1.1)
+
+The pinned fork declares `starlette==0.49.1`, which cannot resolve alongside
+Isaac Sim 5.1's `fastapi==0.115.7` (Starlette `<0.46`). Setup verifies the exact
+upstream `setup.py` SHA256, copies the source tree into its own build directory, and
+changes only that dependency to `0.45.3`. The locally built IsaacLab version has
+a `+ura.1` suffix, and `runtime.json` records the compatibility profile. Native
+Python modules, assets, RoboDojo task logic and the original Git checkout remain
+unmodified. Editable installs preserve IsaacLab’s relative `apps/` and extension
+`config/` paths; setup verifies those resources before publishing the runtime
+manifest. The build installs declared tools explicitly and retains `pip check`.
+
+This is an explicit build metadata patch, not an upstream release. It preserves
+the pinned fork's headless camera changes; substituting another IsaacLab release
+would change more native code. Clean GPU validation is required for this profile.
+
+## Robot asset initialization
+
+The pinned asset snapshot contains `*_tmp.yml` templates, not initialized CuRobo
+configs. Setup invokes upstream `utils/update_embodiment_config_path.py` in its
+private `build/Assets` overlay. Robot directories are writable there; downloaded
+templates, geometry and other assets remain links to the original snapshot.
+Generated YAML therefore contains paths for this runtime without modifying a
+shared `--assets-dir`. Preflight checks require initialized configs for both
+supported robot models before launching the simulator.
+
+The pinned snapshot's `X5A.urdf` has SHA256
+`7aaa308a1a5b6a213d914db86ba09ddd6252f25cb498ac9a148bfa6c7166a423`.
+Its 287 CRLF line endings account for the entire difference from the audited LF
+file (`a31a0d3a957196ea42d216036db2fffdf7678f4f36f65f90a0b69c58daa8d7d0`):
+normalizing CRLF to LF produces identical bytes. Both exact digests are accepted;
+finger mesh digests, joint validation and pad calibration remain unchanged. Setup
+checks these asset digests before publishing a runtime manifest.

@@ -39,6 +39,15 @@ def prepare(context):
         download = Path(context.step('assets', lambda: context.snapshot(config['asset_repository'],
             config['asset_revision'], context.root / 'assets', patterns=['Assets/**'])))
         assets = download / 'Assets'
+    def initialize_assets():
+        from .assets import asset_overlay, verify_robot_configs
+        prepared = asset_overlay(assets, context.root / 'build/Assets')
+        context.command([context.python, native / 'utils/update_embodiment_config_path.py'],
+                        cwd=prepared.parent)
+        verify_robot_configs(prepared)
+        return str(prepared)
+    context.data['asset_source_dir'] = str(assets)
+    assets = Path(context.step('robot-configs', initialize_assets))
     link = native / 'Assets'
     if not link.exists():
         link.symlink_to(assets, target_is_directory=True)
@@ -48,8 +57,17 @@ def prepare(context):
     context.step('isaacsim', lambda: context.pip('isaacsim[all,extscache]==5.1.0',
                                               options=['--extra-index-url', 'https://pypi.nvidia.com']))
     context.step('dependencies', lambda: context.pip('-r', native / 'scripts/requirements.txt', *config['packages']))
-    context.step('isaaclab', lambda: context.pip(native / 'third_party/IsaacLab/source/isaaclab',
-                                               native / 'third_party/IsaacLab/source/isaaclab_assets'))
+    context.step('build-tools', lambda: context.pip(*config['build_tools']))
+    def install_isaaclab():
+        from .build_compat import isaaclab_source
+        source = isaaclab_source(native, context.root / 'build/IsaacLab')
+        # Match the upstream base install: the app loads these extensions and
+        # core environment imports also require their declared dependencies.
+        packages = [item for name in config['isaaclab_extensions']
+                    for item in ('--editable', source / 'source' / name)]
+        context.pip(*packages, options=['--no-build-isolation'])
+    context.step('isaaclab', install_isaaclab)
+    context.data['isaaclab_build_compat'] = config['isaaclab_build_compat']
     context.step('curobo', lambda: context.pip(str(native / 'third_party/curobo') + '[cu12]',
                                             options=['--no-build-isolation']))
     context.data.update(native_root=str(native), assets_dir=str(assets))
@@ -59,19 +77,33 @@ def prepare(context):
 
 
 def verify(runtime):
-    info = check_python(runtime.python, ['scipy', 'trimesh'], environment=runtime.environment)
+    from .assets import verify_robot_configs
+    info = check_python(runtime.python, ['scipy', 'trimesh', 'sklearn', 'h5py', 'omegaconf', 'hydra'],
+                        environment=runtime.environment)
     native, assets = Path(runtime.data['native_root']), Path(runtime.data['assets_dir'])
     if (native / 'Assets').resolve() != assets.resolve():
         raise ValueError('The official checkout must resolve Assets to the prepared assets')
     for directory in ('Robots', 'Object', 'Material', 'Eval_Layout'):
         if not (assets / directory).is_dir():
             raise ValueError(f'Missing RoboDojo asset directory: {assets / directory}')
-    code = ('import json,sys,importlib.util; from pathlib import Path; '
+    verify_robot_configs(assets)
+    code = ('import hashlib,json,sys,importlib.util; from pathlib import Path; '
             'from uni_robot_agent.integrations.robodojo.environment.native_compat import resolve_native_root; '
+            'from uni_robot_agent.integrations.robodojo.environment.gripper_geometry import AUDITED_ASSETS; '
             'root=resolve_native_root(Path(sys.argv[1])); '
+            'robot=root/"Assets/Robots/x5"; '
+            'invalid=[name for name,values in AUDITED_ASSETS.items() '
+            'if hashlib.sha256((robot/name).read_bytes()).hexdigest() not in values]; '
+            'assert not invalid,("Unaudited X5 assets",invalid); '
             'names=("isaacsim","isaaclab","curobo"); '
             'missing=[n for n in names if importlib.util.find_spec(n) is None]; '
-            'assert not missing,missing; print(json.dumps(dict(native_root=str(root))))')
+            'assert not missing,missing; '
+            'lab=Path(importlib.util.find_spec("isaaclab").origin).parent.parent; '
+            'assets=Path(importlib.util.find_spec("isaaclab_assets").origin).parent.parent; '
+            'required=(lab/"config/extension.toml",assets/"config/extension.toml",'
+            'lab.parent.parent/"apps/isaaclab.python.kit"); '
+            'assert all(p.is_file() for p in required),required; '
+            'print(json.dumps(dict(native_root=str(root),isaaclab_source=str(lab))))')
     info.update(query_python(runtime.python, code, native, environment=runtime.environment))
     return info
 

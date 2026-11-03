@@ -4,7 +4,11 @@ repository = "https://github.com/RoboDojo-Benchmark/RoboDojo.git"
 revision = "ee67a1468510da7624a089164402359f2afc72c8"
 asset_repository = "RoboDojo-Benchmark/RoboDojo"
 asset_revision = "269457a3b42d8d0ae69898a601f2c1487c2f826e"
+asset_preparation = "private-robot-config-overlay-v1"
+isaaclab_build_compat = "starlette-0.45.3+ura.1-source-layout"
+isaaclab_extensions = ["isaaclab", "isaaclab_assets", "isaaclab_tasks", "isaaclab_rl", "isaaclab_mimic", "isaaclab_contrib"]
+build_tools = ["setuptools>=77,<82", "setuptools-scm>=8,<9", "wheel==0.45.1", "toml==0.10.2"]
 torch = ["torch==2.7.0", "torchvision==0.22.0", "torchaudio==2.7.0"]
 torch_index = "https://download.pytorch.org/whl/cu128"
-packages = ["numpy==1.26.0", "scipy==1.15.3", "trimesh>=4,<5", "imageio>=2", "imageio-ffmpeg>=0.4", "opencv-python-headless==4.11.0.86", "warp-lang==1.11.0"]
-constraints = ["numpy==1.26.0", "packaging==23.0", "typing_extensions==4.12.2", "filelock==3.13.1", "websockets==12.0", "scipy==1.15.3", "warp-lang==1.11.0", "click==8.1.7", "psutil==5.9.8", "wheel==0.45.1", "starlette==0.45.3", "pydantic==2.11.7", "fastapi==0.115.12", "onnx>=1.18,<1.22", "ipython<9", "virtualenv==20.30.0"]
+packages = ["numpy==1.26.0", "scipy==1.15.3", "scikit-learn", "trimesh>=4,<5", "imageio>=2", "imageio-ffmpeg>=0.4", "opencv-python-headless==4.11.0.86", "warp-lang==1.11.0"]
+constraints = ["numpy==1.26.0", "packaging==23.0", "typing_extensions==4.12.2", "filelock==3.13.1", "websockets==12.0", "scipy==1.15.3", "warp-lang==1.11.0", "click==8.1.7", "psutil==5.9.8", "wheel==0.45.1", "starlette==0.45.3", "pydantic==2.11.7", "fastapi==0.115.7", "uvicorn==0.29.0", "onnx>=1.18,<1.22", "ipython<9", "virtualenv==20.30.0"]

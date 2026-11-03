@@ -1,5 +1,11 @@
 # Local setup, deployment, and task execution
 
+The CLI/planner package and native runtime use separate Python environments.
+Never install `uni-robot-agent` and `uni-robot-agent-runtime` in the same environment.
+Since 0.1.1, `setup --wheel` accepts only a matching runtime wheel and rejects a
+main-package or mismatched-version wheel before starting installation. Build both
+with `scripts/release/prepare.py`; see [Packaging](packaging.md).
+
 Prepare resources once, then launch services without installing dependencies in
 `deploy` or `run`. Each service runs in its own interpreter and process group.
 The CLI itself does not import Isaac, OpenPI, PyTorch, or native simulators.
@@ -10,7 +16,7 @@ If you already have an environment service, skip setup and use
 
 ## Prepare a published version
 
-For a published package, setup installs the exact same agent version from the
+For a published package, setup installs `uni-robot-agent-runtime` at the exact CLI version from the
 configured package index. Prepare only the runtimes you need:
 
 ```bash
@@ -22,13 +28,15 @@ uni-robot-agent setup --service sam3
 
 ## Prepare an unreleased build
 
-From the repository root, build a wheel and pass it to each required setup
-command. This keeps the native runtime on the same source build as the planner:
+From the repository root, build both distributions and pass the runtime wheel
+to each required setup command. This keeps the native runtime on the same source build as the planner:
 
 ```bash
-python -m pip wheel --no-deps . -w dist
+python -m pip install 'build>=1' 'twine>=6' 'tomli-w>=1'
+python scripts/release/prepare.py --output-dir ../candidate-0.1.1
+python -m pip install ../candidate-0.1.1/dist/uni_robot_agent-0.1.1-py3-none-any.whl
 uni-robot-agent setup --integration robodojo \
-  --wheel dist/uni_robot_agent-0.1.0-py3-none-any.whl
+  --wheel ../candidate-0.1.1/dist/uni_robot_agent_runtime-0.1.1-py3-none-any.whl
 ```
 
 If you installed a downloaded wheel, pass its actual path directly; no checkout
@@ -38,6 +46,14 @@ a new runtime. Changing inputs for an existing cache entry requires another
 
 ## Host prerequisites and runtime storage
 
+RoboDojo setup applies a documented [IsaacLab build metadata correction](../uni_robot_agent/integrations/robodojo/SOURCE.md#isaaclab-build-compatibility-011)
+to keep its Starlette requirement compatible with Isaac Sim 5.1. The original
+checkout and native Python modules are unchanged.
+
+Setup also runs the native robot configuration generator in a private asset
+overlay. Downloaded geometry stays linked; generated `curobo.yml` files belong to
+this runtime, so `--assets-dir` never rewrites another runtime's configuration.
+
 RoboDojo requires a Python 3.11 interpreter for its native runtime. Provide
 `python3.11` on PATH or select it with `--python /path/to/python3.11`. The CLI's
 Python version and the simulator runtime's Python version are independent.
@@ -46,7 +62,7 @@ The wheel contains the agent code. Setup downloads simulator assets and model
 weights separately, so allow enough time and disk space. A Direct run with
 `--no-sam3` needs only an environment runtime.
 
-`setup` creates an isolated environment, installs the agent and pinned native
+`setup` creates an isolated environment, installs the runtime package and pinned native
 resources, then writes `runtime.json` after import and resource checks pass.
 `validation.json` records whether the runtime was adopted or installed; GPU
 validation is separate. New installations also save `installed.txt`. Source and
@@ -58,8 +74,8 @@ Preparation is locked, completed steps are reused after an interruption, and the
 final manifest is published atomically. Different preparation inputs require a
 separate cache directory; they never silently replace an existing runtime.
 
-Select the base interpreter with `--python /path/to/python` and a local agent
-build with `--wheel /path/to/uni_robot_agent.whl`. Prepare Linux, NVIDIA drivers,
+Select the base interpreter with `--python /path/to/python` and a local runtime
+build with `--wheel /path/to/uni_robot_agent_runtime-0.1.1-py3-none-any.whl`. Prepare Linux, NVIDIA drivers,
 EGL/Vulkan, sufficient disk space and any required compiler or CUDA toolkit first.
 Setup does not use sudo or modify the system interpreter. For gated SAM3 assets,
 configure Hugging Face access in the process environment before setup.

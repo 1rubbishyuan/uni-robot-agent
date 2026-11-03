@@ -146,7 +146,7 @@ def build_parser(integration_spec=None) -> argparse.ArgumentParser:
     target.add_argument("--service", choices=("actor", "sam3"))
     setup.add_argument("--profile")
     setup.add_argument("--python", help="Base interpreter for the isolated runtime")
-    setup.add_argument("--wheel", type=Path, help="Install this built uni-robot-agent wheel")
+    setup.add_argument("--wheel", type=Path, help="Install a matching uni-robot-agent-runtime wheel in the native environment")
     setup.add_argument("--setup-timeout-s", type=float, default=14400)
     add_runtime_arguments(setup)
     deploy = subparsers.add_parser("deploy", help="Run a prepared service in the foreground", allow_abbrev=False)
