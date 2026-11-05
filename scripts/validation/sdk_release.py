@@ -54,11 +54,19 @@ print('Installed SDK:', uni_robot_agent.__file__)
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
                  '--model', 'validation-model', '--env-url', 'http://127.0.0.1:18760',
                  '--no-sam3', '--agent-python', python, '--validate-config'])
+    command([python, '-m', 'uni_robot_agent', 'run', '--integration', 'robodojo',
+             '--agent', 'codex', '--model', 'hy4', '--provider-profile', 'tencent.responses',
+             '--provider-url', 'https://tokenhub.tencentmaas.com/v1',
+             '--reasoning-effort', 'high', '--context-policy', 'identity',
+             '--env-url', 'http://127.0.0.1:18760', '--action-profile', 'direct',
+             '--no-sam3', '--agent-python', python, '--validate-config'])
     command([python, '-I', '-c', """from pathlib import Path
 from importlib.util import find_spec
 import uni_robot_agent
 from uni_robot_agent import Session, SessionConfig, SetupConfig, DeploymentConfig
 from uni_robot_agent.context.prompt import get_prompt_builder
+from uni_robot_agent.provider.registry import build_provider_adapter
+assert build_provider_adapter('tencent.responses', client_protocol='responses').profile_name == 'tencent.responses'
 root = Path(uni_robot_agent.__file__).parent
 assert callable(get_prompt_builder('robodojo'))
 assert callable(get_prompt_builder('robouse'))

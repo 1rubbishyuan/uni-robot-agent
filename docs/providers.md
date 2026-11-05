@@ -12,6 +12,7 @@ does not identify the hosting service or select an adapter automatically.
 | `passthrough.messages` | Messages | Messages |
 | `aliyun.chat_completions` | Responses | Chat Completions |
 | `aliyun.messages` | Messages | Messages |
+| `tencent.responses` | Responses | Responses |
 | `volcengine.responses` | Responses | Responses |
 | `moonshot.chat_completions` | Responses | Chat Completions |
 | `deepseek.chat_completions` | Responses | Chat Completions |
@@ -28,6 +29,15 @@ a generic adapter for every model hosted by Alibaba or every service hosting
 Qwen. `volcengine` targets Ark; `moonshot` targets Kimi's service. Supply the
 correct service URL and credentials separately. Passthrough preserves payloads;
 it does not discover or guarantee the remote endpoint's capabilities.
+
+`tencent.responses` targets Tencent TokenHub's Responses endpoint, including
+HY4. It preserves reasoning fields, tool-call identifiers, history and raw
+responses. Inline PNG images are encoded as lossless WebP without changing
+pixels or dimensions; other image formats and remote URLs pass through. It
+uses the shared provider credentials and HTTP transport, with no Tencent SDK
+or native robot dependency. This profile requires Responses input; it does not
+implement Tencent's other APIs or a Claude Code Messages adapter. See the
+[Tencent configuration example](running.md#tencent-tokenhub-and-hy4).
 
 The Hybrid reviewer uses Responses input independently of the main planner.
 Its adapter choices come from the same registry filtered for Responses. It can
