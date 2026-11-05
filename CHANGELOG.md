@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add the `tencent.responses` provider for Tencent TokenHub, including HY4,
+  preserving native Responses fields and losslessly encoding inline PNG images.
+- Document provider configuration and validate Tencent support in installed SDKs.
+
 ## 0.1.1 — 2026-11-04
 
 - Generate native CuRobo robot configs during setup in a private asset overlay;
