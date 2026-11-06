@@ -30,7 +30,7 @@ def feedback(target, actual):
     p = float(np.linalg.norm(target[:3, 3] - actual[:3, 3]))
     a = float(Rotation.from_matrix(target[:3, :3] @ actual[:3, :3].T).magnitude())
     return {"position_error_m": p, "orientation_error_rad": a,
-            "target_reached": p <= .002 and a <= np.deg2rad(1)}
+            "target_reached": bool(p <= .002 and a <= np.deg2rad(1))}
 
 
 class DroidModel:
