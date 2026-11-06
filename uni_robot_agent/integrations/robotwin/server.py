@@ -45,11 +45,17 @@ def prepare(args):
         # for the agent. No expert trajectories or state enter public metadata.
         env.setup_demo(now_ep_num=0, seed=args.seed, is_test=True, **config)
         expert_info = env.play_once()
-        admissible = bool(env.plan_success and env.check_success())
+        planning_succeeded = bool(env.plan_success)
+        task_succeeded = bool(env.check_success())
+        admissible = planning_succeeded and task_succeeded
     finally:
         env.close_env()
     if not admissible:
-        raise ValueError("Seed rejected by upstream expert check; do not count as an agent failure")
+        raise ValueError(
+            f"Seed {args.seed} rejected by upstream expert check: "
+            f"planning_succeeded={planning_succeeded}, task_succeeded={task_succeeded}; "
+            "do not count as an agent failure"
+        )
     try:
         env.setup_demo(now_ep_num=0, seed=args.seed, is_test=True, **config)
         instruction = native.build_instruction(config, expert_info, instruction_type, 50, args.seed)
