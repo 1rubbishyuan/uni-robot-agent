@@ -33,8 +33,8 @@ def prepare(args):
         raise ValueError("A different RoboTwin runtime was imported")
     config, embodiment = native.load_task_args({"task_name": args.task, "task_config": args.task_config,
                                                "policy_name": "uni_robot_agent", "ckpt_setting": "direct"})
-    if embodiment != "aloha_agilex":
-        raise ValueError("This binding admits the official aloha_agilex parallel-gripper embodiment")
+    if embodiment != "aloha-agilex":
+        raise ValueError("This binding admits the official aloha-agilex parallel-gripper embodiment")
     config.update(eval_mode=True, render_freq=0, save_data=False, eval_video_save_dir=None,
                   save_path=str(output / "native"))
     config["data_type"] = {"rgb": True, "depth": args.depth, "endpose": True, "qpos": True}

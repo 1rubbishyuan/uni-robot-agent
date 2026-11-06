@@ -2,7 +2,7 @@
 
 `--integration robotwin` connects the shared Direct gripper tools to a separately
 prepared RoboTwin environment service. The initial binding supports the official
-`aloha_agilex` dual-arm parallel-gripper embodiment and `demo_clean` /
+`aloha-agilex` dual-arm parallel-gripper embodiment and `demo_clean` /
 `demo_randomized` task configurations. Hybrid actors, other embodiments and
 automatic `setup` / `--deploy local` recipes are not included.
 
