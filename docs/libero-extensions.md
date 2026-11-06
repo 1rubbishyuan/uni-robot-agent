@@ -13,6 +13,11 @@ the `benchmarks` extra and the matching uni-robot-agent runtime distribution. Fo
 for its other dependencies, including its image-corruption libraries. Do not
 install stock LIBERO and its forks into the same interpreter.
 
+Check that both the imported package and its distribution metadata resolve to
+the intended environment; a shared site-packages directory can silently select
+stock LIBERO or a different robosuite version. Plus also needs the ImageMagick
+shared library for Wand, not just the Python package.
+
 ```bash
 git clone https://github.com/sylvestf/LIBERO-plus.git /persistent/LIBERO-plus
 git -C /persistent/LIBERO-plus checkout 4976dc30028e805ff8094b55501d532c48fec182
@@ -23,6 +28,18 @@ revision and rejects tracked modifications. Native code and assets are external,
 not included in the harness wheel. Native import, asset and rendering failures
 are setup failures, not task failures. Automatic `setup` / `--deploy local`
 recipes are not provided for this integration.
+
+The official Plus archive includes parent directories before `assets/`. Place
+the actual contents under `libero/libero/assets`, including the scene XMLs,
+object meshes and textures needed by each selected task. Extracting only object
+meshes is insufficient. PRO's generated BDDL and initial states are distributed
+separately from its Git source; obtain the official files for the selected suite.
+
+With PyTorch 2.6 or newer, the pinned upstream loader can reject official pickle
+initial states under the new `weights_only=True` default. For verified, trusted
+upstream initial-state files, set `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` in the
+native service process. This enables pickle loading; do not use it with
+untrusted state files.
 
 ## Start one episode
 
@@ -96,3 +113,16 @@ For multi-trial evaluation, enumerate official initial-state indices explicitly
 and retain the native revision, suite, task name, seed and budget with each result.
 The Plus one-trial recommendation does not apply to PRO. These integrations do
 not expand RoboUse's separate task-admission list.
+
+## Native validation scope
+
+Real Linux/MuJoCo HTTP probes exercised Plus `libero_spatial` tasks 0 (table
+texture) and 1390 (zoom blur), and PRO `libero_spatial_swap` task 0, each with
+seed 0 and initial-state index 0. Each probe executed 20 native pose/gripper
+actions, measured over 24 mm TCP displacement, saved camera images and verified
+budget termination and cleanup. The zoom-blur probe withheld agent-view
+calibration while retaining wrist calibration.
+
+These bounded motion probes did not solve the tasks. Only their required assets
+were unpacked; this validation does not establish complete suite coverage or a
+benchmark success rate.
