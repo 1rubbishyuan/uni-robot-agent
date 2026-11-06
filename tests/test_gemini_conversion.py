@@ -44,6 +44,30 @@ class GeminiConversionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             encode_request(self.request([{'parts': [{'functionResponse': {'name': 'view', 'response': {}}}]}]))
 
+    def test_cli_unsigned_history_sentinel_preserves_call_identity(self):
+        request = self.request([
+            {'role': 'model', 'parts': [{'thoughtSignature': 'skip_thought_signature_validator',
+                'functionCall': {'id': 'view__a', 'name': 'view', 'args': {}}}]},
+            {'role': 'user', 'parts': [{'functionResponse': {
+                'id': 'view__a', 'name': 'view', 'response': {'ok': True}}}]},
+        ])
+        body = encode_request(request).body
+        self.assertEqual(body['messages'][0]['tool_calls'][0]['id'], 'view__a')
+        self.assertEqual(body['messages'][1]['tool_call_id'], 'view__a')
+        self.assertNotIn('thoughtSignature', json.dumps(body))
+        self.assertIn('thoughtSignature', request['contents'][0]['parts'][0])
+        request['contents'][0]['parts'][0]['thoughtSignature'] = 'opaque-google-signature'
+        with self.assertRaisesRegex(ValueError, 'thought signatures'):
+            encode_request(request)
+
+    def test_unsigned_thought_sentinel_only_applies_to_model_history(self):
+        part = {'thoughtSignature': 'skip_thought_signature_validator',
+                'thought': True, 'text': 'Binary content received.'}
+        body = encode_request(self.request([{'role': 'model', 'parts': [part]}])).body
+        self.assertEqual(body['messages'][0]['reasoning_content'], 'Binary content received.')
+        with self.assertRaisesRegex(ValueError, 'thought signatures'):
+            encode_request(self.request([{'role': 'user', 'parts': [part]}]))
+
     def test_duplicate_and_unresolved_history_is_rejected(self):
         with self.assertRaises(ValueError):
             encode_request(self.request([{'role': 'model', 'parts': [

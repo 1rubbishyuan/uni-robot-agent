@@ -50,7 +50,9 @@ do not gain backend-specific branches.
 
 Both adapters support one episode per instance. Resume, subagents, Google-native
 grounding, Google thought signatures, arbitrary model routing and validated SFT
-export are unsupported. Gemini `countTokens`, upload and caching operations are
+export are unsupported. The CLI's public `skip_thought_signature_validator`
+sentinel is accepted only on model history and omitted from Qwen requests; it
+contains no Google reasoning state. Gemini `countTokens`, upload and caching operations are
 rejected. Unknown generation options fail explicitly. Long-context behavior,
 inherited system-level CLI settings and CLI image transformations require live
 verification. `identity` describes the harness policy, not a guarantee that a

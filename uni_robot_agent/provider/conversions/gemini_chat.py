@@ -59,7 +59,10 @@ def encode_request(request):
             raise ValueError('Model content precedes outstanding tool results')
         text_parts, calls, results, reasoning = [], [], [], []
         for part in content.get('parts', []):
-            if 'thoughtSignature' in part:
+            # Gemini adds this public sentinel to unsigned local tool history.
+            # It carries no Google reasoning state; real signatures remain invalid.
+            if 'thoughtSignature' in part and (role != 'model' or
+                    part['thoughtSignature'] != 'skip_thought_signature_validator'):
                 raise ValueError('Google thought signatures are not supported by the Qwen bridge')
             if part.get('thought'):
                 if not isinstance(part.get('text'), str):
