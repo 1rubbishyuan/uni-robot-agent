@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add an optional XPolicyLab WebSocket bridge for explicitly validated RoboDojo
+  X5 joint policies, with declared camera selection and action horizon.
+- Add `--action-model-binding robodojo_x5_joint` and its SDK option to reuse
+  hybrid review and correction with compatible actors; retain the Pi0.5 default.
+- Record actor identity/profile in proposal archives and reviewer context;
+  preserve full output chunks while bounding FK preview and execution prefixes.
+
 - Add the `tencent.responses` provider for Tencent TokenHub, including HY4,
   preserving native Responses fields and losslessly encoding inline PNG images.
 - Document provider configuration and validate Tencent support in installed SDKs.
