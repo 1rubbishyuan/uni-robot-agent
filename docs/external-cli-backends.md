@@ -187,6 +187,13 @@ State uses `GEMINI_CLI_HOME`, the assembled system prompt uses `GEMINI_SYSTEM_MD
 GenerateContent gateway. Provider authentication replaces the local Google key
 with the configured Qwen credential.
 
+Gemini's native loop detection is disabled through `model.disableLoopDetection`.
+Its periodic auxiliary classifiers select Google models outside this Qwen bridge;
+the reviewed CLI first invokes them at turn 30. The harness still enforces the
+configured delivered-exchange cap and episode timeout. With `--max-turns 0`,
+only the wall-clock budget bounds a repetitive planner; no native loop cutoff
+is claimed.
+
 Python callers use the same `AgentConfig` fields: `opencode_binary`,
 `opencode_version`, `gemini_binary`, `gemini_version`, `gemini_bridge_manifest`.
 Options belonging to another backend are rejected. `--validate-config` checks

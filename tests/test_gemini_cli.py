@@ -128,6 +128,7 @@ for line in sys.stdin:
             self.assertEqual(trust_path.stat().st_mode & 0o777, 0o600)
             settings = json.loads(trust_path.with_name('settings.json').read_text())
             self.assertTrue(settings['security']['folderTrust']['enabled'])
+            self.assertTrue(settings['model']['disableLoopDetection'])
 
     def test_seal_and_verify_split_bundle_with_policy_assets(self):
         with tempfile.TemporaryDirectory() as tmp:
