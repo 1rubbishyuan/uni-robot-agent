@@ -11,6 +11,7 @@ does not identify the hosting service or select an adapter automatically.
 | `passthrough.responses` | Responses | Responses |
 | `passthrough.messages` | Messages | Messages |
 | `aliyun.chat_completions` | Responses | Chat Completions |
+| `aliyun.gemini_chat_completions` | GenerateContent | Chat Completions |
 | `aliyun.messages` | Messages | Messages |
 | `volcengine.responses` | Responses | Responses |
 | `moonshot.chat_completions` | Responses | Chat Completions |
@@ -22,6 +23,12 @@ Codex declares Responses input; Claude Code declares Messages input. An omitted
 respectively, and the resolved name is recorded in configuration. Explicit
 incompatible combinations are rejected before connecting to services.
 
+Experimental OpenCode defaults to `aliyun.chat_completions` with Qwen thinking
+disabled; Codex retains that profile's existing thinking default. Gemini CLI
+defaults to `aliyun.gemini_chat_completions`, also with thinking disabled.
+See [External CLI backends](external-cli-backends.md) for compatibility limits.
+Changing a Google base URL alone does not make Gemini CLI speak Chat Completions.
+
 `aliyun` targets Alibaba Cloud Model Studio. It retains the tested Qwen parameter
 rules, including the model-specific Qwen3.8 Messages effort mapping. It is not
 a generic adapter for every model hosted by Alibaba or every service hosting
@@ -32,7 +39,7 @@ it does not discover or guarantee the remote endpoint's capabilities.
 The Hybrid reviewer uses Responses input independently of the main planner.
 Its adapter choices come from the same registry filtered for Responses. It can
 inherit a compatible Responses planner's endpoint/profile. For a Messages
-planner, an enabled reviewer needs an explicit `--vla-review-base-url` and
+or GenerateContent planner, an enabled reviewer needs an explicit `--vla-review-base-url` and
 `--vla-review-adapter`. When review availability depends on the prepared action
 binding, the check runs during assembly before model requests. A disabled
 reviewer opens no model client.

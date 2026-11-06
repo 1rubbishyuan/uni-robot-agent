@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Add experimental OpenCode and Gemini CLI backends with Qwen protocol bridges,
+  explicit tool-call identity, response delivery gates and isolated subprocess
+  state. Gemini requires a separately built ACP compatibility patch and manifest.
+- Add offline configuration and package checks plus an inert Qwen image/tool
+  smoke runner. Live CLI/Qwen validation and the full Gemini build remain pending;
+  see [external CLI requirements](docs/external-cli-backends.md).
+- Reject incomplete Chat tool generations and emit complete Responses text events.
+  Preserve Codex's Qwen thinking default while disabling it for the new adapters.
+
 ## 0.1.1 — 2026-11-04
 
 - Generate native CuRobo robot configs during setup in a private asset overlay;

@@ -40,6 +40,10 @@ strategy, and inspect live or saved episodes. Direct mode uses robot tools;
 Hybrid mode adds a compatible action model such as Pi0.5. Prompts, skills and
 the dashboard are included in the package.
 
+Experimental [OpenCode and Gemini CLI adapters](docs/external-cli-backends.md)
+add Qwen-backed runtime options. They require separate CLI installations and
+live compatibility validation; Gemini also requires the documented ACP bridge.
+
 The harness follows four design principles:
 
 - **Unified:** shared tool interfaces and feedback across environments, with native APIs handled by adapters.

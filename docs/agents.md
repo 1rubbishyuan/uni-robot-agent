@@ -1,5 +1,9 @@
 # Agent integration
 
+Experimental OpenCode and Gemini CLI adapters are described in
+[External CLI backends](external-cli-backends.md), including Qwen conversion,
+runtime requirements, tool identity and outstanding live validation.
+
 `uni_robot_agent/agents/` owns agent-specific configuration, SDK lifecycle,
 tool dispatch, event interpretation and native artifact export. `session.py`
 invokes a registered agent without switching on its name. Robot tools and
