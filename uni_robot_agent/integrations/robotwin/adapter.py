@@ -49,9 +49,12 @@ def camera_frames(observation, names, depth_enabled):
         item = observation["observation"][name]
         # Native depth is millimetres; extrinsic_cv maps world to optical.
         depth = np.asarray(item["depth"], dtype=np.float32) / 1000. if depth_enabled else None
+        # SAPIEN exposes OpenCV [R|t] as 3x4, without the homogeneous row.
+        world_to_optical = np.eye(4)
+        world_to_optical[:3] = np.asarray(item["extrinsic_cv"])
         result[name] = CameraFrame(np.asarray(item["rgb"]).copy(), depth,
                                   np.asarray(item["intrinsic_cv"]).copy(),
-                                  np.linalg.inv(item["extrinsic_cv"]))
+                                  np.linalg.inv(world_to_optical))
     return result
 
 
