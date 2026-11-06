@@ -72,6 +72,15 @@ class ModelProtocol(Protocol):
     def exception_response(self, error: Exception) -> dict: ...
 
 
+@runtime_checkable
+class RoutedModelProtocol(Protocol):
+    """Protocols whose model/method is encoded in the URL rather than the body."""
+
+    def normalize_request(self, path: str, body: dict | None) -> dict: ...
+
+    def response_headers(self, request: dict, headers: Mapping[str, str]) -> Mapping[str, str]: ...
+
+
 if TYPE_CHECKING:
     from uni_robot_agent.services.http import HttpTransport
 

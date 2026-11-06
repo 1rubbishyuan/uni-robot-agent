@@ -159,6 +159,7 @@ class ProviderGateway:
         return self.base_url
 
     def _forward(self, request_path, raw_request, incoming_headers, request):
+        from uni_robot_agent.provider.contracts import RoutedModelProtocol
         target = self._adapter.target_url(
             self._upstream_base_url, request_path
         )
@@ -177,6 +178,9 @@ class ProviderGateway:
         request_bytes = raw_request
 
         try:
+            normalized = None
+            if isinstance(self._protocol, RoutedModelProtocol):
+                normalized = self._protocol.normalize_request(request_path, _decode_json(raw_request))
             if self._protocol.matches(request_path):
                 request_json = _decode_json(raw_request)
                 exchange = {
@@ -221,7 +225,10 @@ class ProviderGateway:
 
                 # Control model generation only; MCP/runtime owns execution exclusion.
                 # Copy so generation controls do not change the original client request.
-                source = self._protocol.generation_request(request_json, self._model_parallel_tool_calls)
+                source = self._protocol.generation_request(
+                    normalized if normalized is not None else request_json,
+                    self._model_parallel_tool_calls,
+                )
                 # Select context before encoding the upstream protocol and vendor fields.
                 prepared, encoded = self._client.prepare_request(
                     source,
@@ -296,6 +303,9 @@ class ProviderGateway:
                 exchange["request"] = encoded.training_body
                 exchange["response"] = decoded.training_body
                 exchange["provider_complete"] = True
+
+            if normalized is not None and not failure and status == 200:
+                response_headers = self._protocol.response_headers(normalized, response_headers)
 
             return _GatewayResponse(
                 self, request, exchange, reply,
