@@ -196,7 +196,11 @@ class EnvironmentClient:
             except (KeyError, TypeError, ValueError) as error:
                 self.uncertain = True
                 raise ExecutionUncertain("Episode receipt is invalid; request cannot be replayed") from error
-            if result["status"] == "running" or result.get("execution_status") == "unknown":
+            nested = result.get("result")
+            if (result["status"] == "running" or result.get("execution_status") == "unknown"
+                    or isinstance(nested, dict) and nested.get("execution_status") == "unknown"):
+                # A valid receipt may still explicitly decline to establish completion.
+                self.uncertain = True
                 return result
             self.connect()
             self.uncertain = False
@@ -245,7 +249,12 @@ class EnvironmentClient:
                     f"Request {identity.request_id} may have executed; query its receipt before continuing"
                 ) from error
             self._next_sequence += 1
-            self._pending_identity = None
+            if getattr(result, "execution_status", None) == "unknown":
+                # Keep the ACK's state available while blocking all subsequent writes.
+                # Successful HTTP transport does not establish physical completion.
+                self.uncertain = True
+            else:
+                self._pending_identity = None
             return result
 
     def _get(self, path: str) -> dict:
