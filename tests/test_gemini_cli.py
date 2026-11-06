@@ -103,6 +103,28 @@ for line in sys.stdin:
         self.assertEqual(agent.texts, ['answer'])
         self.assertFalse(agent.result().success)
 
+    def test_startup_trust_is_limited_to_the_owned_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            agent = GeminiCliAgent(model='qwen')
+            agent.directory = Path(tmp) / 'session'
+            agent.workspace = agent.directory / 'workspace'
+            agent.workspace.mkdir(parents=True)
+            agent.env = {}
+            agent.mcp_url, agent.mcp_token = 'http://127.0.0.1:1234/mcp/', 'fixture'
+            with patch.object(agent, 'begin'), patch(
+                    'uni_robot_agent.agents.gemini_cli.agent.subprocess.Popen',
+                    side_effect=RuntimeError('stopped before launch')) as launch:
+                agent.run(prompt=SimpleNamespace(user='task'), task='task', toolkit=None,
+                          executor=None, model_endpoint='http://127.0.0.1:5678/v1')
+            env = launch.call_args.kwargs['env']
+            trust_path = Path(env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'])
+            self.assertTrue(trust_path.is_relative_to(agent.directory))
+            self.assertEqual(json.loads(trust_path.read_text()), {
+                str(agent.workspace.resolve()): 'TRUST_FOLDER'})
+            self.assertEqual(trust_path.stat().st_mode & 0o777, 0o600)
+            settings = json.loads(trust_path.with_name('settings.json').read_text())
+            self.assertTrue(settings['security']['folderTrust']['enabled'])
+
     def test_seal_and_verify_split_bundle_with_policy_assets(self):
         with tempfile.TemporaryDirectory() as tmp:
             checkout = Path(tmp)

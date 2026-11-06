@@ -43,7 +43,8 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
                             self.binding, finalize_records)
 
     def configuration(self):
-        return {'security': {'auth': {'selectedType': 'gemini-api-key'}},
+        return {'security': {'auth': {'selectedType': 'gemini-api-key'},
+                             'folderTrust': {'enabled': True}},
             'general': {'maxAttempts': 1, 'retryFetchErrors': False,
                         'plan': {'modelRouting': False}},
             'model': {'name': self.model, 'maxSessionTurns': -1, 'skipNextSpeakerCheck': True},
@@ -88,7 +89,13 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
             settings = home / '.gemini'
             settings.mkdir(parents=True, exist_ok=True)
             (settings / 'settings.json').write_text(json.dumps(self.configuration(), indent=2) + '\n')
+            # Gemini suppresses MCP discovery in untrusted folders, including ACP.
+            # Trust only the scratch workspace created for this owned session.
+            trusted_folders = settings / 'trustedFolders.json'
+            trusted_folders.write_text(json.dumps({str(self.workspace.resolve()): 'TRUST_FOLDER'}) + '\n')
+            trusted_folders.chmod(0o600)
             self.env.update(GEMINI_CLI_HOME=str(home), GEMINI_SYSTEM_MD=str(self.directory / 'system.md'),
+                GEMINI_CLI_TRUSTED_FOLDERS_PATH=str(trusted_folders),
                 GOOGLE_GEMINI_BASE_URL=model_endpoint.removesuffix('/v1'), GEMINI_API_KEY='local-gateway',
                 UNI_ROBOT_AGENT_MCP_URL=self.mcp_url,
                 UNI_ROBOT_AGENT_MCP_AUTH='Bearer ' + self.mcp_token)

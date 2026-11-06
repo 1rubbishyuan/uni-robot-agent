@@ -165,7 +165,9 @@ uni-robot-agent run --integration robouse --agent gemini_cli \
 Startup checks the exact version and every file hash, rejecting added, removed
 or changed files. Existing single-file manifests remain supported. The manifest detects changes;
 it is not a signature or proof of an upstream build. Running an episode never
-patches a globally installed CLI. State uses `GEMINI_CLI_HOME`, the assembled
+patches a globally installed CLI. Its private trust file permits only the session's
+scratch workspace, allowing native MCP discovery without disabling folder trust.
+State uses `GEMINI_CLI_HOME`, the assembled
 system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
 GenerateContent gateway. Provider authentication replaces the local Google key
 with the configured Qwen credential.
