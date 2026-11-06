@@ -45,6 +45,7 @@ def encode_request(request):
     if request.get('safetySettings'):
         raise ValueError('Gemini safetySettings cannot be mapped to Qwen')
     messages, pending, seen = [], {}, set()
+    deferred_media = []
     system = request.get('systemInstruction', {}).get('parts', [])
     if system:
         if any(set(p) != {'text'} for p in system):
@@ -98,10 +99,13 @@ def encode_request(request):
             if reasoning or calls:
                 raise ValueError('User content cannot contain thoughts or calls')
             messages.extend(results)
-            if text_parts:
-                if pending:
+            if text_parts and pending:
+                if not results:
                     raise ValueError('All tool results must precede subsequent image or user content')
-                messages.append({'role': 'user', 'content': text_parts})
+                deferred_media.extend(text_parts)
+            elif not pending and (text_parts or deferred_media):
+                messages.append({'role': 'user', 'content': deferred_media + text_parts})
+                deferred_media = []
     if pending:
         raise ValueError('History contains tool calls without matching results')
 

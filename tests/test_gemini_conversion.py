@@ -7,6 +7,21 @@ from uni_robot_agent.provider.backends.aliyun.gemini_chat_completions import Ali
 
 
 class GeminiConversionTest(unittest.TestCase):
+    def test_images_wait_until_all_tool_results_are_emitted(self):
+        from uni_robot_agent.provider.conversions.gemini_chat import encode_request
+        image = {'inlineData': {'mimeType': 'image/png', 'data': 'fixture'}}
+        request = {'model': 'qwen', 'contents': [
+            {'role': 'model', 'parts': [{'functionCall': {'id': key, 'name': 'observe', 'args': {}}}
+                                       for key in ('a', 'b')]},
+            {'role': 'user', 'parts': [{'functionResponse': {
+                'id': 'a', 'name': 'observe', 'response': {}, 'parts': [image]}}]},
+            {'role': 'user', 'parts': [{'functionResponse': {
+                'id': 'b', 'name': 'observe', 'response': {}}}]},
+        ]}
+        messages = encode_request(request).body['messages']
+        self.assertEqual([m['role'] for m in messages], ['assistant', 'tool', 'tool', 'user'])
+        self.assertEqual(messages[-1]['content'][0]['type'], 'image_url')
+
     def request(self, contents):
         return {'model': 'qwen-test', 'contents': contents}
 

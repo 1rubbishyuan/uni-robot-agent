@@ -204,12 +204,6 @@ class ProviderGateway:
                         self._context_manager.policy_metadata
                     ),
                 }
-                request_context = (
-                    self._model_binding.request_context(request_json)
-                    if self._model_binding
-                    else RequestContext()
-                )
-                exchange["agent_metadata"] = request_context.metadata
                 attach_wire_views(
                     exchange,
                     client_request=request_json,
@@ -221,6 +215,12 @@ class ProviderGateway:
                 )
                 # Persist raw requests first so policy or adapter failures remain diagnosable.
                 self._trace.begin(exchange, request_bytes=raw_request)
+                request_context = (
+                    self._model_binding.request_context(request_json)
+                    if self._model_binding
+                    else RequestContext()
+                )
+                exchange["agent_metadata"] = request_context.metadata
                 self._model_event(exchange, "started")
 
                 # Control model generation only; MCP/runtime owns execution exclusion.

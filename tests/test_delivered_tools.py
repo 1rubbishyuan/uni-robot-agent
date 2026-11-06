@@ -99,6 +99,28 @@ class DeliveredToolsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.prepare(('a', 'a'))
 
+    def test_invalid_batch_does_not_partially_register(self):
+        self.binding.read_calls = lambda body: [
+            {'call_id': 'a', 'name': 'ura_move', 'arguments': {}},
+            {'call_id': 'b', 'name': 'ura_move', 'arguments': []}]
+        with self.assertRaises(ValueError):
+            self.binding.prepare_response(b'', 'exchange', {})
+        self.assertEqual(self.binding.calls, {})
+
+    def test_invalid_callback_types_are_tool_errors(self):
+        for field in ('arguments', '_meta'):
+            result = self.binding.dispatch(self.executor, {'name': 'move', field: 'invalid'})
+            self.assertTrue(result['isError'])
+        self.assertEqual(self.executor.calls, [])
+
+    def test_queued_finish_requires_successful_job_receipt(self):
+        self.binding.response_written(self.prepare(name='finish'))
+        self.executor.call = lambda *args: ExecutionResult.accepted('job', 'fixture', 'queued')
+        self.executor.job_result = lambda job_id, timeout: ExecutionResult.completed(
+            ToolOutput(success=False, error='fixture failure'))
+        self.assertTrue(self.invoke('a', name='finish')['isError'])
+        self.assertFalse(self.binding.finish_submitted)
+
     def test_unknown_identity_and_argument_changes_are_rejected(self):
         self.binding.response_written(self.prepare())
         self.assertTrue(self.invoke('unknown')['isError'])

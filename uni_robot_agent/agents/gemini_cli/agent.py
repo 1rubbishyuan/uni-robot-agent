@@ -19,6 +19,7 @@ BRIDGE_ID = 'uni-robot-agent-gemini-acp-call-id-v1'
 class GeminiCliAgent(GeminiConfig, ManagedAgent):
     name = 'gemini_cli'
     trace_format = 'gemini_generate_content'
+    text_separator = ''
 
     def __init__(self, *, model, binary='gemini', expected_version=None, bridge_manifest=None, **kwargs):
         super().__init__(model=model, binary=binary, expected_version=expected_version,
@@ -52,6 +53,9 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
             'general': {'maxAttempts': 1, 'retryFetchErrors': False,
                         'plan': {'modelRouting': False}},
             'model': {'name': self.model, 'maxSessionTurns': -1, 'skipNextSpeakerCheck': True},
+            'context': {'fileName': '.ura-no-ambient-context.md', 'includeDirectoryTree': False,
+                        'loadMemoryFromIncludeDirectories': False, 'discoveryMaxDirs': 0},
+            'experimental': {'enableAgents': False, 'autoMemory': False, 'contextManagement': False},
             'modelConfigs': {'customAliases': {self.model: {'extends': 'base',
                 'modelConfig': {'model': self.model, 'generateContentConfig': {
                     'temperature': 0, 'maxOutputTokens': 8192}}}}},

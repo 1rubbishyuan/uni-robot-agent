@@ -64,6 +64,7 @@ def finalize_records(gateway, result, session_dir, event_bus):
 
 class ManagedAgent:
     capabilities = AgentCapabilities(tool_event_source='execution')
+    text_separator = '\n'
 
     def __init__(self, *, model, binary, expected_version, read_calls,
                  timeout_s=10800, api_key=None, startup_timeout_s=30):
@@ -144,7 +145,7 @@ class ManagedAgent:
 
     def result(self, error=None):
         return AgentResult(success=self.binding.finish_submitted and error is None and not self.stop_reason,
-            message='\n'.join(self.texts), error=error, stop_reason=self.stop_reason,
+            message=self.text_separator.join(self.texts), error=error, stop_reason=self.stop_reason,
             turns_used=self.binding.exchanges, tool_calls=self.binding.tool_calls,
             steps_used=self.binding.exchanges + self.binding.tool_calls,
             elapsed_s=time.monotonic() - self.started if self.started else 0,
