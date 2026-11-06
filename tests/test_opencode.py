@@ -1,10 +1,18 @@
 """Responses streaming and OpenCode episode boundaries, without a CLI install."""
 import json
 import queue
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
+
+import httpx
 
 from uni_robot_agent.agents.opencode.agent import OpenCodeAgent
+from uni_robot_agent.agents.opencode.transport import OpenCodeTransport
 from uni_robot_agent.agents.registry import get_agent_backend
 from uni_robot_agent.provider.backends.aliyun.chat_completions import AliyunChatCompletionsAdapter
 from uni_robot_agent.provider.conversions.responses_chat import response_json, encode_response
@@ -12,6 +20,28 @@ from uni_robot_agent.provider.protocols.sse import decode_events
 
 
 class OpenCodeTest(unittest.TestCase):
+    def test_failed_server_startup_reaps_process_and_readers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            process = subprocess.Popen([sys.executable, '-u', '-c',
+                "import time; print('http://127.0.0.1:1234', flush=True); time.sleep(30)"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(503)),
+                                  base_url='http://127.0.0.1:1234')
+            transport = OpenCodeTransport.__new__(OpenCodeTransport)
+            try:
+                with patch('uni_robot_agent.agents.opencode.transport.httpx.Client', return_value=client):
+                    with self.assertRaises(httpx.HTTPStatusError):
+                        transport.__init__(process, Path(tmp), password='fixture', timeout=2)
+                self.assertIsNotNone(process.poll())
+                self.assertTrue(client.is_closed)
+                self.assertTrue(all(not thread.is_alive() for thread in transport.readers))
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                process.stdout.close()
+                process.stderr.close()
+
     def test_text_has_deltas_and_matching_message_identity(self):
         response = response_json({'id': 'r1', 'choices': [{'finish_reason': 'stop',
             'message': {'content': 'done'}}]})

@@ -39,7 +39,11 @@ def stop_process(process):
     if process is None:
         return
     if process.poll() is None:
-        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            process.wait(timeout=5)
+            return
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -86,7 +90,7 @@ class ManagedAgent:
             raise RuntimeError('Agent adapters support one episode per instance')
         if session_dir is None:
             raise ValueError('External CLI backends require a session directory for isolated state')
-        if not prompt.system.strip():
+        if not prompt.system or not prompt.system.strip():
             raise ValueError('Robot system prompt must not be empty')
         self.started = time.monotonic()
         self.deadline = self.started + self.timeout_s if self.timeout_s else None

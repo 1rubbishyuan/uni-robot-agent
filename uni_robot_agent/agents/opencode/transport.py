@@ -3,7 +3,6 @@ import json
 import queue
 import re
 import threading
-import time
 
 import httpx
 
@@ -23,20 +22,21 @@ class OpenCodeTransport:
             worker.start()
             self.readers.append(worker)
         try:
-            address = self.addresses.get(timeout=timeout)
-        except queue.Empty:
-            raise TimeoutError('OpenCode did not report a loopback server address') from None
-        self.client = httpx.Client(base_url=address, auth=('opencode', password),
-                                   trust_env=False, timeout=httpx.Timeout(timeout, read=None))
-        try:
+            try:
+                address = self.addresses.get(timeout=timeout)
+            except queue.Empty:
+                raise TimeoutError('OpenCode did not report a loopback server address') from None
+            self.client = httpx.Client(base_url=address, auth=('opencode', password),
+                                       trust_env=False, timeout=httpx.Timeout(timeout, read=None))
             self.request('GET', '/global/health')
             self.consumer = threading.Thread(target=self.consume_events, daemon=True)
             self.consumer.start()
             if not self.connected.wait(timeout):
                 raise TimeoutError('OpenCode SSE stream did not connect')
         except Exception:
-            self.closed.set()
-            self.client.close()
+            from uni_robot_agent.agents.managed import stop_process
+            stop_process(process)
+            self.close()
             raise
 
     def read_output(self, label, stream):
