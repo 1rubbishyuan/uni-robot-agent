@@ -20,6 +20,8 @@ class GeminiConfig:
 
     @classmethod
     def validate_config(cls, args, explicit):
+        if getattr(args, "interaction_mode", "tool_calling") != "tool_calling":
+            raise ValueError("Gemini CLI currently supports tool_calling interaction only")
         if not args.gemini_version or not args.gemini_bridge_manifest:
             raise ValueError('Gemini CLI requires --gemini-version and --gemini-bridge-manifest')
         if not args.provider_url:

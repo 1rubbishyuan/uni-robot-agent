@@ -19,6 +19,8 @@ class OpenCodeConfig:
 
     @classmethod
     def validate_config(cls, args, explicit):
+        if getattr(args, "interaction_mode", "tool_calling") != "tool_calling":
+            raise ValueError("OpenCode currently supports tool_calling interaction only")
         if not args.opencode_version:
             raise ValueError('--opencode-version is required to pin the external runtime')
         if not args.provider_url:
