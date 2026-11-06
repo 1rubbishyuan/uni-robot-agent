@@ -209,11 +209,9 @@ configuration offline; binary and manifest checks happen at runtime startup.
 
 ## Validation before use
 
-Run `python -m unittest discover -s tests -v` for protocol/lifecycle fixtures.
-For JS hooks, transpile `robotBridge.ts` to an ES module with esbuild, then pass
-its absolute path to `node tests/test_bridges.mjs`. This does not replace the
-full Gemini build. Standard package-content and installed SDK checks include
-both bridge assets.
+Build and type-check the Gemini compatibility runtime using its upstream
+procedure. Standard package-content and installed SDK checks include both
+bridge assets.
 
 After installing the candidate wheel and reviewed CLI, run the real Qwen fixture:
 
