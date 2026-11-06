@@ -23,11 +23,13 @@ class HttpMcpServer:
 
     def __init__(
         self, executor: ToolExecutor, *, host: str = "127.0.0.1", port: int = 0,
-        event_bus: Any = None,
+        event_bus: Any = None, call_handler=None, auth_token: str | None = None,
     ) -> None:
         self._executor = executor
         self._event_bus = event_bus
         self._host, self._port = host, port
+        self._call_handler = call_handler
+        self._auth_token = auth_token
         self._server: HttpServer | None = None
 
     @property
@@ -63,6 +65,8 @@ class HttpMcpServer:
                 "error": {"code": code, "message": message}}
 
     def _call_tool(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._call_handler is not None:
+            return self._call_handler(params)
         name, arguments = params.get("name", ""), params.get("arguments", {})
         if not isinstance(name, str) or not isinstance(arguments, dict):
             return {"content": [{"type": "text", "text": "Invalid tool name or arguments"}],
@@ -92,6 +96,11 @@ class HttpMcpServer:
 
         @router.post("/mcp/")
         async def mcp(request: Request):
+            if self._auth_token is not None:
+                import hmac
+                if not hmac.compare_digest(request.headers.get('authorization', ''),
+                                           'Bearer ' + self._auth_token):
+                    return Response(status_code=401)
             try:
                 body = await request.json()
             except (ValueError, UnicodeDecodeError):
