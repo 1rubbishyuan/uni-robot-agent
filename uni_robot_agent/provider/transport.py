@@ -32,6 +32,7 @@ class ModelTransport:
         self._loop = None
         self._thread = None
         self._client = None
+        self._client_closed = False
         self._startup_error = None
         self._tasks = set()
         self._closed = False
@@ -121,6 +122,7 @@ class ModelTransport:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         await self._client.aclose()
+        self._client_closed = True
         await self._loop.shutdown_asyncgens()
         await self._loop.shutdown_default_executor()
 
@@ -131,10 +133,11 @@ class ModelTransport:
             self.cancel()
             if self._thread is not None:
                 if self._startup_error is None:
-                    if self._shutdown_future is not None and self._shutdown_future.done():
+                    if self._client_closed and self._shutdown_future is not None and self._shutdown_future.done():
                         if self._shutdown_future.cancelled() or self._shutdown_future.exception() is not None:
-                            # Only completed failed cleanup may be retried. A
-                            # pending timeout still owns its draining tasks.
+                            # Retry only after client close completed successfully.
+                            # HTTPX may mark itself closed before transport cleanup
+                            # fails, making a later aclose silently skip that work.
                             self._shutdown_future = None
                     if self._shutdown_future is None:
                         self._shutdown_future = asyncio.run_coroutine_threadsafe(self._shutdown(), self._loop)

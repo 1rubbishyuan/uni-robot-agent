@@ -104,6 +104,9 @@ draining request workers and freezing their records. It waits for the model
 transport's socket, task and thread cleanup. Synchronous adapter preparation,
 including image uploads, still drains normally; exceeding the drain deadline
 remains an explicit cleanup failure and does not claim frozen records.
+If the HTTP client's close fails, subsequent close calls preserve that failure;
+they do not infer socket cleanup from HTTPX's closed flag. Completed failures in
+later event-loop cleanup can be retried after client close has succeeded.
 
 `max_turns` counts successfully delivered model exchanges, including final text;
 zero disables the cap. Tool calls are counted separately. Provider retry settings
