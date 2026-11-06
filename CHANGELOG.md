@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a Direct RoboTwin 2.0 adapter with dual-arm TCP control, measured gripper
+  state, native seed admission and calibrated cached observations.
+
 - Add a separate Direct LIBERO-PRO entry point for pinned base and perturbation
   suites, reusing the LIBERO-family controller and native observation path.
 
