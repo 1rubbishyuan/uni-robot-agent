@@ -14,8 +14,12 @@ from .manifest import BRIDGE_ID, bundle_inventory
 
 SOURCE = Path('packages/cli/src/acp/acpSession.ts')
 HELPER = SOURCE.with_name('robotBridge.ts')
-IMPORT = "import { callRobotTool } from './robotBridge.js';\n"
+IMPORT = "import { callRobotTool, robotToolErrorParts } from './robotBridge.js';\n"
 PATTERN = re.compile(r'const toolResult: ToolResult = await invocation\.execute\(\{\s*abortSignal,?\s*\}\);')
+ERROR_PARTS = (r"\[\s*\{\s*functionResponse: \{\s*id: callId,\s*name: fc.name \?\? '',"
+               r"\s*response: \{ error: error.message \},\s*\},\s*\},\s*\]")
+ERROR_RETURN = re.compile(r'return (' + ERROR_PARTS + r');')
+ERROR_RECORD = re.compile(r'responseParts: (' + ERROR_PARTS + r'),')
 REPLACEMENT = """const toolResult: ToolResult =
         tool instanceof DiscoveredMCPTool && tool.serverName === 'ura'
           ? await callRobotTool(tool, args, callId, abortSignal)
@@ -23,9 +27,17 @@ REPLACEMENT = """const toolResult: ToolResult =
 
 
 def patch_source(source: str) -> str:
-    if IMPORT in source or 'DiscoveredMCPTool' not in source or len(PATTERN.findall(source)) != 1:
+    if ('./robotBridge.js' in source or 'DiscoveredMCPTool' not in source
+            or any(len(pattern.findall(source)) != 1 for pattern in (PATTERN, ERROR_RETURN, ERROR_RECORD))):
         raise ValueError('Gemini ACP source does not match the reviewed compatibility seam')
-    return IMPORT + PATTERN.sub(REPLACEMENT, source)
+    source = PATTERN.sub(REPLACEMENT, source)
+    # The native catch still owns failed status and logging. Preserve media only
+    # for our structured MCP error, leaving all other native exceptions unchanged.
+    source = ERROR_RETURN.sub(lambda match:
+        "return robotToolErrorParts(error, fc.name ?? '', callId) ?? " + match[1] + ';', source)
+    source = ERROR_RECORD.sub(lambda match:
+        "responseParts: robotToolErrorParts(error, fc.name ?? '', callId) ?? " + match[1] + ',', source)
+    return IMPORT + source
 
 
 def git(checkout: Path, *args: str) -> str:

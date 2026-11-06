@@ -2,7 +2,7 @@
 import hashlib
 from pathlib import Path
 
-BRIDGE_ID = 'uni-robot-agent-gemini-acp-call-id-v1'
+BRIDGE_ID = 'uni-robot-agent-gemini-acp-call-id-v2'
 
 
 def bundle_inventory(root: Path) -> dict[str, str]:

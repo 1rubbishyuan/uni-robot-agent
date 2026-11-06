@@ -2,6 +2,21 @@
 import type { DiscoveredMCPTool, ToolResult } from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 
+class RobotToolError extends Error {
+  readonly images: Part[];
+
+  constructor(message: string, parts: Part[]) {
+    super(message);
+    this.images = parts.filter((part) => part.inlineData !== undefined);
+  }
+}
+
+export function robotToolErrorParts(error: Error, name: string, callId: string): Part[] | undefined {
+  if (!(error instanceof RobotToolError)) return undefined;
+  return [{ functionResponse: { id: callId, name, response: { error: error.message } } },
+    ...error.images];
+}
+
 export async function callRobotTool(
   tool: DiscoveredMCPTool,
   args: Record<string, unknown>,
@@ -21,7 +36,7 @@ export async function callRobotTool(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json', Accept: 'application/json', Authorization: authorization,
-      'X-Uni-Robot-Agent-Bridge': 'uni-robot-agent-gemini-acp-call-id-v1',
+      'X-Uni-Robot-Agent-Bridge': 'uni-robot-agent-gemini-acp-call-id-v2',
     },
     body: JSON.stringify({
       jsonrpc: '2.0', id: callId, method: 'tools/call',
@@ -49,8 +64,8 @@ export async function callRobotTool(
       throw new Error('Unsupported robot MCP result block');
     }
   }
-  // Throwing feeds Gemini's native failed-call history and ACP error notification.
-  // It must never cause this bridge to retry an uncertain physical invocation.
-  if (result.isError) throw new Error(display.join('\n') || 'Robot tool failed');
+  // Preserve native failed-call history and ACP status, including observations
+  // from partially completed jobs. Never retry an uncertain physical invocation.
+  if (result.isError) throw new RobotToolError(display.join('\n') || 'Robot tool failed', parts);
   return { llmContent: parts, returnDisplay: display.join('\n') };
 }

@@ -152,7 +152,12 @@ native MCP invocation does not forward it. The bridge replaces execution only
 for tools belonging to the `ura` server. Native discovery/schemas, the ACP loop
 and other tools retain their upstream path. The bridge preserves text/images,
 checks response identity and makes one HTTP attempt per callback. Errors enter
-the CLI's normal failed-call path.
+the CLI's normal failed-call path. Bridge v2 preserves image attachments on
+failed MCP results, including completed observations returned by a partially
+timed-out batch wait. The native history retains a function-response error,
+ACP reports the tool as failed, and the images remain available to the model.
+Old v1 compatibility bundles must be rebuilt and sealed; the adapter rejects
+their manifests instead of silently retaining the lossy error path.
 
 Use a disposable checkout of the official Gemini CLI repository. The tested
 revision is `3fd7d263466b9e5d30b2da1ebf85dae956a0fb86`; retain its complete build
@@ -184,7 +189,7 @@ uni-robot-agent run --integration robouse --agent gemini_cli \
 ```
 
 Startup checks the exact version and every file hash, rejecting added, removed
-or changed files. Existing single-file manifests remain supported. The manifest
+or changed files. Single-file manifests for the current bridge remain supported. The manifest
 detects changes; it is not a signature or proof of an upstream build. Running an episode never
 patches a globally installed CLI. Its private trust file permits only the session's
 scratch workspace, allowing native MCP discovery without disabling folder trust.
