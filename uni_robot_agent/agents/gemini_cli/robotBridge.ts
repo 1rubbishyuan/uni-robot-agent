@@ -8,8 +8,8 @@ export async function callRobotTool(
   callId: string,
   signal: AbortSignal,
 ): Promise<ToolResult> {
-  const url = process.env.UNI_ROBOT_AGENT_MCP_URL;
-  const authorization = process.env.UNI_ROBOT_AGENT_MCP_AUTH;
+  const url = process.env['UNI_ROBOT_AGENT_MCP_URL'];
+  const authorization = process.env['UNI_ROBOT_AGENT_MCP_AUTH'];
   if (!url || !authorization || !callId) {
     throw new Error('Robot bridge requires its endpoint, authorization and explicit call ID');
   }
