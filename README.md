@@ -28,6 +28,11 @@
 
 ## What's New
 
+**Code as Policy (unreleased)** lets Codex and Claude Code write and run Python
+programs to control robots through the existing tool APIs. Add
+`--interaction-mode code_as_policy` to your `run` or `tui` command; the default
+remains `tool_calling`. See the [Code as Policy guide](docs/code-as-policy.md).
+
 **v0.1.1** fixes fresh RoboDojo setup with isolated simulator dependencies and automatic robot configuration.
 See [pip and uv installation](#quick-start) below.
 

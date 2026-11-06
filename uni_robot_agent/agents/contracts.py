@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -10,6 +11,16 @@ from uni_robot_agent.context.prompt import Prompt
 from uni_robot_agent.events import EventBus
 from uni_robot_agent.execution import ToolExecutor
 from uni_robot_agent.tools.toolkit import Toolkit
+
+@dataclass(frozen=True)
+class CodePolicyContext:
+    """Native process setup and trusted completion for program-driven runs."""
+
+    cwd: str
+    env: dict[str, str]
+    finish_request: Callable[[], dict | None]
+    revoke: Callable[[], None]
+
 
 @dataclass(frozen=True)
 class AgentCapabilities:
@@ -90,4 +101,5 @@ class Agent(Protocol):
         event_bus: EventBus | None = None,
         session_dir: Path | None = None,
         model_endpoint: str | None = None,
+        code_policy: CodePolicyContext | None = None,
     ) -> AgentResult: ...

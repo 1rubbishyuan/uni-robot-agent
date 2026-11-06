@@ -55,6 +55,7 @@ class PromptContext:
     observation_profile: str = "none"
     action_profile: str | None = None
     skill_writing: bool = False
+    interaction_mode: str = "tool_calling"
     tool_return_mode: str = "background"
     resource_scheduling: str = "per-resource"
     tool_names: tuple[str, ...] = ()
@@ -85,7 +86,12 @@ def assemble_prompt(
         raise ValueError(f"Invalid tool return mode: {context.tool_return_mode}")
     if context.resource_scheduling not in {"per-resource", "global-serial"}:
         raise ValueError(f"Invalid resource scheduling: {context.resource_scheduling}")
-    for name in ("batch.md", f"resource_{context.resource_scheduling}.md", f"return_{context.tool_return_mode}.md"):
+    if context.interaction_mode not in {"tool_calling", "code_as_policy"}:
+        raise ValueError(f"Invalid interaction mode: {context.interaction_mode}")
+    resources = ("code_as_policy.md",) if context.interaction_mode == "code_as_policy" else (
+        "tool_calling.md", "batch.md", f"resource_{context.resource_scheduling}.md", f"return_{context.tool_return_mode}.md",
+    )
+    for name in resources:
         prompt = _append_resource(prompt, prompts / "runtime" / name)
     if context.action_profile == "hybrid" and "actor_act" in context.tool_names:
         prompt = _append_resource(prompt, prompts / "runtime" / "hybrid.md")
@@ -208,8 +214,13 @@ def _default_prompt(context: PromptContext) -> Prompt:
         system=(
             f"You are an embodied agent interacting with a prepared environment through the {context.integration_name!r} integration. "
             "Use the registered tools to complete the instruction and verify effects with current observations. "
-            "Do not inspect source code, scripts, processes, servers, or simulator internals. "
-            "Do not use shell/exec or bypass the registered tools."
+            + (
+                "Do not inspect simulator internals or service implementation sources. "
+                "Use your own scripts to call the registered robot API."
+                if context.interaction_mode == "code_as_policy" else
+                "Do not inspect source code, scripts, processes, servers, or simulator internals. "
+                "Do not use shell/exec or bypass the registered tools."
+            )
         ),
         user=context.task,
     )
