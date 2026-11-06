@@ -55,7 +55,7 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
             'modelConfigs': {'customAliases': {self.model: {'extends': 'base',
                 'modelConfig': {'model': self.model, 'generateContentConfig': {
                     'temperature': 0, 'maxOutputTokens': 8192}}}}},
-            'tools': {'exclude': ['google_web_search', 'web_fetch', 'delegate_to_agent']},
+            'tools': {'exclude': ['google_web_search', 'web_fetch', 'delegate_to_agent', 'invoke_agent']},
             'telemetry': {'enabled': False},
             'mcpServers': {'ura': {'httpUrl': self.mcp_url, 'trust': True,
                 'headers': {'Authorization': '${UNI_ROBOT_AGENT_MCP_AUTH}'}}}}
