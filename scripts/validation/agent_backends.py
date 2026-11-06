@@ -15,6 +15,7 @@ import secrets
 
 from PIL import Image
 
+from uni_robot_agent.artifacts import ArtifactStore
 from uni_robot_agent.agents import create_agent
 from uni_robot_agent.context.prompt import Prompt
 from uni_robot_agent.events import EventBus
@@ -98,7 +99,8 @@ def main():
     profile = 'aliyun.gemini_chat_completions' if args.agent == 'gemini_cli' else 'aliyun.chat_completions'
     runtime = agent.model_runtime(profile, bus)
     trace_dir = args.output / runtime.trace_directory
-    gateway = ProviderGateway(args.provider_url, trace_dir=trace_dir, adapter=runtime.adapter,
+    artifacts = ArtifactStore(args.output)
+    gateway = ProviderGateway(args.provider_url, trace_dir=trace_dir, artifacts=artifacts, adapter=runtime.adapter,
         protocol=runtime.protocol, model_binding=runtime.binding, event_bus=bus,
         request_timeout_s=min(args.timeout, 60), max_retries=1, retry_backoff_initial_s=1)
     prompt = Prompt(system='You operate only the provided inert validation tools. Follow the requested order. '
@@ -113,7 +115,7 @@ def main():
     except Exception as error:
         errors.append(f'{type(error).__name__}: {error}')
     finally:
-        for close in (agent.close, gateway.stop, executor.close):
+        for close in (agent.close, gateway.stop, executor.close, artifacts.close):
             try:
                 close()
             except Exception as error:
