@@ -19,8 +19,8 @@ git clone https://github.com/RoboTwin-Platform/RoboTwin.git /persistent/RoboTwin
 git -C /persistent/RoboTwin checkout ea8b21121ebb3cd201ff5b3fe361944ac94eda3f
 python -m uni_robot_agent.integrations.robotwin.server \
   --native-root /persistent/RoboTwin --task beat_block_hammer \
-  --task-config demo_clean --seed 0 --run-id robotwin-hammer-0 \
-  --output-dir /persistent/runs/robotwin-hammer-0 --no-depth --port 18783
+  --task-config demo_clean --seed 1 --run-id robotwin-hammer-1 \
+  --output-dir /persistent/runs/robotwin-hammer-1 --no-depth --port 18783
 ```
 
 The output directory must be new. The service checks the upstream expert's seed
@@ -29,6 +29,13 @@ exclusion, not an agent failure. Instruction selection uses upstream seen/unseen
 configuration; `--instruction-type` can override it. Upstream may fall back to the
 task name when description generation fails. Metadata records the selected
 configuration, seed, native revision, budget and evaluation profile.
+
+The tested native stack uses Python 3.11, SAPIEN 3.0.0b1, mplib 0.2.1 and
+CuRobo v0.7.8. A newer CuRobo installation may expose an incompatible API.
+On an RTX 5090, the native probe used PyTorch 2.7.0+cu128 and CuRobo extensions
+built for SM 12.0 with CUDA 12.8 and GCC 14. Install the official embodiment and
+object assets and run upstream's `scripts/update_embodiment_config_path.py` to
+generate local embodiment configuration paths.
 
 Connect from the planner interpreter:
 
@@ -66,3 +73,18 @@ run on one owner thread. Launch another service for each new trial.
 This is an episode integration, not a full benchmark runner or a reproduced
 leaderboard result. Native rendering and complete task coverage require the
 upstream runtime and assets; CPU contract tests do not establish those results.
+
+## Native validation scope
+
+A Linux/SAPIEN HTTP probe exercised `beat_block_hammer`, `demo_clean`, seed 1.
+The upstream expert admitted this seed; seed 0 was excluded by its precheck.
+Twenty native EE actions moved both TCPs by over 25 mm, saved all three RGB
+views and exercised budget termination and cleanup. The adapter accepts
+SAPIEN's native 3-by-4 camera extrinsics and converts them to homogeneous
+transforms before inversion.
+
+The probe did not solve the hammer task. Its renderer reported OIDN invalid-handle
+errors: the saved images contained the scene, but visibly retained ray-tracing
+noise. Rendering quality needs validation on the deployment's driver/runtime
+before score comparisons. Other tasks, randomized configurations and complete
+benchmark success rates have not been established by this probe.
