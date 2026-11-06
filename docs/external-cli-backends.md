@@ -101,6 +101,18 @@ agents. Model and MCP credentials use environment substitutions. MCP has a
 per-run bearer token; the control server has a separate password. Native file
 and shell tools remain available. The working directory is not an OS sandbox.
 
+OpenCode 1.19.5 bundles its runtime, but loading a local plugin still waits for
+configuration-directory dependencies, including `@opencode-ai/plugin`. Its
+internal package installer may need registry access; installing a separate Node
+or Bun executable does not remove that requirement. Fresh per-run XDG state can
+repeat cold dependency work. A measured full configuration took 38.5 seconds to
+initialize, compared with 0.9 seconds for a minimal configuration; neither probe
+called a model or a robot. Startup therefore has one bounded 120-second budget
+for server discovery, health and SSE readiness. HTTP commands use the same
+configured timeout instead of a separate ten-second cutoff. Python callers can
+override `startup_timeout_s`; runtime logs remain under `opencode/data/opencode/log/`.
+Dependencies and configuration are not shared across episodes to bypass isolation.
+
 ## Gemini compatibility build
 
 The reviewed ACP source exposes `callId` before executing an MCP tool, but its

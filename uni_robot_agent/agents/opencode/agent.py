@@ -20,9 +20,10 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
     name = 'opencode'
     trace_format = 'opencode_responses'
 
-    def __init__(self, *, model, binary='opencode', expected_version=None, **kwargs):
+    def __init__(self, *, model, binary='opencode', expected_version=None,
+                 startup_timeout_s=120, **kwargs):
         super().__init__(model=model, binary=binary, expected_version=expected_version,
-                         read_calls=responses_calls, **kwargs)
+                         startup_timeout_s=startup_timeout_s, read_calls=responses_calls, **kwargs)
         self.transport = None
         self.session_id = None
 

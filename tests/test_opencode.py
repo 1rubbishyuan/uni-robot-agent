@@ -20,6 +20,44 @@ from uni_robot_agent.provider.protocols.sse import decode_events
 
 
 class OpenCodeTest(unittest.TestCase):
+    def test_command_requests_use_bounded_runtime_budget(self):
+        observed = []
+        def respond(request):
+            observed.append(request.extensions['timeout']['read'])
+            return httpx.Response(200, json={'id': 'session'})
+        transport = OpenCodeTransport.__new__(OpenCodeTransport)
+        transport.command_timeout = 120
+        with httpx.Client(transport=httpx.MockTransport(respond),
+                          base_url='http://127.0.0.1') as client:
+            transport.client = client
+            self.assertEqual(transport.request('POST', '/session'), {'id': 'session'})
+            transport.request('GET', '/global/health', timeout=0.5)
+        self.assertEqual(observed, [120, 0.5])
+
+    def test_sse_startup_error_is_reported_and_process_reaped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            process = subprocess.Popen([sys.executable, '-u', '-c',
+                "import time; print('http://127.0.0.1:1234', flush=True); time.sleep(30)"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            client = httpx.Client(transport=httpx.MockTransport(lambda request:
+                httpx.Response(403 if request.url.path == '/event' else 200, json={})),
+                base_url='http://127.0.0.1:1234')
+            transport = OpenCodeTransport.__new__(OpenCodeTransport)
+            try:
+                with patch('uni_robot_agent.agents.opencode.transport.httpx.Client', return_value=client):
+                    with self.assertRaises(httpx.HTTPStatusError) as error:
+                        transport.__init__(process, Path(tmp), password='fixture', timeout=2)
+                self.assertEqual(error.exception.response.status_code, 403)
+                self.assertIsNotNone(process.poll())
+                self.assertFalse(transport.consumer.is_alive())
+                self.assertTrue(client.is_closed)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                process.stdout.close()
+                process.stderr.close()
+
     def test_stream_preserves_sdk_required_metadata_and_usage(self):
         adapter = AliyunChatCompletionsAdapter(thinking=False, require_response_metadata=True)
         encoded = adapter.encode_request({'model': 'qwen', 'input': [], 'stream': True})
