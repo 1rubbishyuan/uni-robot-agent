@@ -226,7 +226,9 @@ generation settings and retained call arguments/result JSON remain unchanged.
 Tool-response inline images may be replaced with explicit omission notices;
 standalone user images are protected. Original and after-context requests, item
 IDs, wire format and the context decision are recorded separately. Runtime
-metadata reports the selected policy.
+metadata reports the selected policy. The provider validates original native
+content before context selection, so unsupported Google signatures, media or
+malformed results remain errors even when their old block would be removed.
 
 The image phase retains at least `--context-min-recent-tool-images` eligible
 images and evicts only full `--context-image-eviction-batch-size` batches. For

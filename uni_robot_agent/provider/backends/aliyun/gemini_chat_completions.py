@@ -24,6 +24,7 @@ class AliyunGeminiChatAdapter:
         encode_chat_images(encoded.body['messages'])
         return EncodedRequest(encoded.body, encoded.decode_state, copy.deepcopy(encoded.body))
 
+    validate_request = staticmethod(gemini_chat.validate_request)
     decode_response = staticmethod(gemini_chat.decode_response)
 
     def open_session(self, transport, base_url):

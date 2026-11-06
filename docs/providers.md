@@ -100,3 +100,9 @@ The gateway binding argument is `model_binding`; use the `ModelBinding` contract
 
 Provider profiles select protocol conversion and backend behavior. The context
 policy named `identity` controls conversation selection independently.
+
+Adapters may implement `RequestValidatingAdapter.validate_request` to validate
+the original wire history before context selection. Gemini's Qwen adapter uses
+this boundary so unsupported content cannot disappear through history pruning.
+Validation traverses native parts without encoding or copying image payloads;
+provider encoding still operates on the selected effective request.

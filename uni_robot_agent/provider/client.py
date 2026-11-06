@@ -9,6 +9,7 @@ from uni_robot_agent.context.history import create_context_policy
 from uni_robot_agent.provider.contracts import (
     ProviderAdapter,
     SessionAdapter,
+    RequestValidatingAdapter,
     ModelProtocol,
     ModelResponse,
     EncodedRequest,
@@ -87,6 +88,8 @@ class ModelClient:
         preserve_history: bool = False,
     ) -> tuple[PreparedContext, EncodedRequest]:
         self.protocol.validate_context(self.context_manager)
+        if isinstance(self.adapter, RequestValidatingAdapter):
+            self.adapter.validate_request(request)
         prepared = self.context_manager.prepare(
             request, preserve_history=preserve_history, wire_format=self.protocol.name
         )

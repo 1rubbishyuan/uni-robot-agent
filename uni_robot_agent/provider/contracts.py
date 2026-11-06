@@ -123,6 +123,13 @@ class ProviderAdapter(Protocol):
     ) -> DecodedResponse: ...
 
 
+@runtime_checkable
+class RequestValidatingAdapter(Protocol):
+    """Optional wire validation before context selection can discard input."""
+
+    def validate_request(self, request: dict[str, Any]) -> None: ...
+
+
 class ProviderSession(Protocol):
     """Optional resources scoped to one ModelClient, separate from pure encoding."""
 

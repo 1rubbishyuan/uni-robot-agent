@@ -12,13 +12,87 @@ from uni_robot_agent.provider.protocols.chat_completions import parse_response
 def _media(part):
     if 'text' in part:
         return {'type': 'text', 'text': part['text']}
-    if 'inlineData' in part:
+    data = part['inlineData']
+    return {'type': 'image_url', 'image_url': {
+        'url': f"data:{data['mimeType']};base64,{data['data']}"}}
+
+
+def _validate_media(part):
+    if 'text' in part:
+        if not isinstance(part['text'], str):
+            raise ValueError('Gemini text part must contain a string')
+    elif 'inlineData' in part:
         data = part['inlineData']
-        if not data['mimeType'].startswith('image/'):
-            raise ValueError('Qwen bridge supports image inlineData only')
-        return {'type': 'image_url', 'image_url': {
-            'url': f"data:{data['mimeType']};base64,{data['data']}"}}
-    raise ValueError('Unsupported Gemini content part: ' + ', '.join(part))
+        if (not isinstance(data, dict) or not isinstance(data.get('mimeType'), str)
+                or not data['mimeType'].startswith('image/') or not isinstance(data.get('data'), str)):
+            raise ValueError('Qwen bridge supports image inlineData with string data only')
+    else:
+        raise ValueError('Unsupported Gemini content part: ' + ', '.join(part))
+
+
+def _validated_contents(request):
+    """Validate native history without constructing media URLs or Chat copies."""
+    pending, seen = {}, set()
+    for content in request.get('contents', []):
+        if not isinstance(content, dict) or not isinstance(content.get('parts', []), list):
+            raise ValueError('Gemini content requires a parts list')
+        role = content.get('role', 'user')
+        if role not in {'user', 'model'}:
+            raise ValueError('Unsupported Gemini content role')
+        if role == 'model' and pending:
+            raise ValueError('Model content precedes outstanding tool results')
+        has_response = has_media = False
+        for part in content.get('parts', []):
+            if not isinstance(part, dict):
+                raise ValueError('Gemini content part must be an object')
+            # The CLI's public sentinel carries no Google reasoning state.
+            if 'thoughtSignature' in part and (role != 'model' or
+                    part['thoughtSignature'] != 'skip_thought_signature_validator'):
+                raise ValueError('Google thought signatures are not supported by the Qwen bridge')
+            if part.get('thought'):
+                if role != 'model' or not isinstance(part.get('text'), str):
+                    raise ValueError('Thought part requires model text')
+            elif 'functionCall' in part:
+                call = part['functionCall']
+                if not isinstance(call, dict):
+                    raise ValueError('Function call must be an object')
+                key, name = call.get('id'), call.get('name')
+                if (role != 'model' or not isinstance(key, str) or not key or key in seen
+                        or not isinstance(name, str) or not name
+                        or not isinstance(call.get('args', {}), dict)):
+                    raise ValueError('Function call requires unique ID, name and object arguments')
+                seen.add(key)
+                pending[key] = name
+            elif 'functionResponse' in part:
+                result = part['functionResponse']
+                if not isinstance(result, dict):
+                    raise ValueError('Function response must be an object')
+                key = result.get('id')
+                if (role != 'user' or not isinstance(key, str) or key not in pending
+                        or pending[key] != result.get('name')):
+                    raise ValueError('Function response does not match an outstanding call ID')
+                if not isinstance(result.get('response'), dict) or not isinstance(result.get('parts', []), list):
+                    raise ValueError('Function response requires an object payload and attachment list')
+                del pending[key]
+                has_response = True
+                for attachment in result.get('parts', []):
+                    if not isinstance(attachment, dict):
+                        raise ValueError('Function response attachment must be an object')
+                    _validate_media(attachment)
+            else:
+                _validate_media(part)
+                has_media = True
+        if role == 'user' and has_media and pending and not has_response:
+            raise ValueError('All tool results must precede subsequent image or user content')
+        yield content
+    if pending:
+        raise ValueError('History contains tool calls without matching results')
+
+
+def validate_request(request):
+    """Reject unsupported original content before a context policy can omit it."""
+    for _ in _validated_contents(request):
+        pass
 
 
 def _schema(value):
@@ -44,44 +118,28 @@ def encode_request(request):
         raise ValueError('Unsupported Gemini request fields: ' + ', '.join(sorted(unsupported)))
     if request.get('safetySettings'):
         raise ValueError('Gemini safetySettings cannot be mapped to Qwen')
-    messages, pending, seen = [], {}, set()
+    messages, pending = [], {}
     deferred_media = []
     system = request.get('systemInstruction', {}).get('parts', [])
     if system:
         if any(set(p) != {'text'} for p in system):
             raise ValueError('System instruction must contain text only')
         messages.append({'role': 'system', 'content': '\n'.join(p['text'] for p in system)})
-    for content in request.get('contents', []):
+    for content in _validated_contents(request):
         role = content.get('role', 'user')
-        if role not in {'user', 'model'}:
-            raise ValueError('Unsupported Gemini content role')
-        if role == 'model' and pending:
-            raise ValueError('Model content precedes outstanding tool results')
         text_parts, calls, results, reasoning = [], [], [], []
         for part in content.get('parts', []):
-            # Gemini adds this public sentinel to unsigned local tool history.
-            # It carries no Google reasoning state; real signatures remain invalid.
-            if 'thoughtSignature' in part and (role != 'model' or
-                    part['thoughtSignature'] != 'skip_thought_signature_validator'):
-                raise ValueError('Google thought signatures are not supported by the Qwen bridge')
             if part.get('thought'):
-                if not isinstance(part.get('text'), str):
-                    raise ValueError('Thought part must contain text')
                 reasoning.append(part['text'])
             elif 'functionCall' in part:
                 call = part['functionCall']
                 key = call.get('id')
-                if role != 'model' or not key or key in seen:
-                    raise ValueError('Function call must have a unique explicit identity')
-                seen.add(key)
                 pending[key] = call['name']
                 calls.append({'id': key, 'type': 'function', 'function': {
                     'name': call['name'], 'arguments': json.dumps(call.get('args', {}))}})
             elif 'functionResponse' in part:
                 result = part['functionResponse']
                 key = result.get('id')
-                if role != 'user' or pending.get(key) != result.get('name'):
-                    raise ValueError('Function response does not match an outstanding call ID')
                 del pending[key]
                 results.append({'role': 'tool', 'tool_call_id': key,
                     'content': json.dumps(result['response'], ensure_ascii=False)})
@@ -90,8 +148,6 @@ def encode_request(request):
             else:
                 text_parts.append(_media(part))
         if role == 'model':
-            if results:
-                raise ValueError('Model content cannot contain function responses')
             message = {'role': 'assistant', 'content': text_parts or None}
             if calls:
                 message['tool_calls'] = calls
@@ -99,18 +155,12 @@ def encode_request(request):
                 message['reasoning_content'] = ''.join(reasoning)
             messages.append(message)
         else:
-            if reasoning or calls:
-                raise ValueError('User content cannot contain thoughts or calls')
             messages.extend(results)
             if text_parts and pending:
-                if not results:
-                    raise ValueError('All tool results must precede subsequent image or user content')
                 deferred_media.extend(text_parts)
             elif not pending and (text_parts or deferred_media):
                 messages.append({'role': 'user', 'content': deferred_media + text_parts})
                 deferred_media = []
-    if pending:
-        raise ValueError('History contains tool calls without matching results')
 
     tools = []
     for group in request.get('tools', []):
