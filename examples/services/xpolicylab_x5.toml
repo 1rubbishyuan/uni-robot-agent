@@ -1,6 +1,6 @@
 # Bridge an independently prepared, exclusive XPolicyLab policy server.
-# Replace deployment placeholders only after validating the adapter/checkpoint
-# against the X5 contract in docs/services.md#xpolicylab-x5-bridge.
+# This example declares X5 semantics; other integrations use their own profile
+# and wire mappings with the same backend. Verify the checkpoint, not only shape.
 backend = "xpolicylab"
 upstream_url = "ws://127.0.0.1:19000"
 xpolicylab_root = "/absolute/path/to/XPolicyLab"
@@ -9,21 +9,67 @@ model = "your_x5_vla"
 model_config_name = "your_x5_config"
 # Deployment-owned weight identity; not attested by the WebSocket server.
 checkpoint_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
-action_horizon = 16
-action_semantics = "absolute_joint_positions"
-control_frequency_hz = 25
-gripper_convention = "0=closed,1=open"
 language_conditioned = true
 fresh_observation_predictions = true
 exclusive_upstream = true
 request_timeout_s = 120
 
-# Upstream slot -> environment camera. Select the views required by this model.
-# cam_high is also supported when the upstream adapter expects that slot.
-[cameras]
+# Model wire slots -> profile camera names.
+[camera_mapping]
 cam_head = "head"
 cam_left_wrist = "left_wrist"
 cam_right_wrist = "right_wrist"
+
+[observation_mapping]
+left_arm_joint_state = ["left_joint_0", "left_joint_1", "left_joint_2", "left_joint_3", "left_joint_4", "left_joint_5"]
+left_ee_joint_state = ["left_gripper"]
+right_arm_joint_state = ["right_joint_0", "right_joint_1", "right_joint_2", "right_joint_3", "right_joint_4", "right_joint_5"]
+right_ee_joint_state = ["right_gripper"]
+
+[action_mapping]
+left_arm_joint_state = ["left_joint_0", "left_joint_1", "left_joint_2", "left_joint_3", "left_joint_4", "left_joint_5"]
+left_ee_joint_state = ["left_gripper"]
+right_arm_joint_state = ["right_joint_0", "right_joint_1", "right_joint_2", "right_joint_3", "right_joint_4", "right_joint_5"]
+right_ee_joint_state = ["right_gripper"]
+
+[profile]
+name = "robodojo_x5_joint"
+cameras = ["head", "left_wrist", "right_wrist"]
+action_horizon = 16
+control_frequency_hz = 25
+image_convention = "RGB HWC; model preprocessing belongs to the upstream adapter"
+observation_fields = [
+  { name = "left_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0, maximum = 1 },
+  { name = "right_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0, maximum = 1 },
+]
+action_fields = [
+  { name = "left_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "left_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0, maximum = 1 },
+  { name = "right_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint" },
+  { name = "right_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0, maximum = 1 },
+]
 
 [http]
 host = "127.0.0.1"
