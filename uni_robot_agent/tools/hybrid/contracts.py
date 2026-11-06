@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any, Protocol
 
 from uni_robot_agent.services.actor.contracts import ActorObservation
@@ -54,6 +55,8 @@ class StepOutcome:
             raise ValueError("One primitive may acknowledge at most one proposal sample")
         if self.status != "completed" and self.completed_samples:
             raise ValueError("Only a completed primitive establishes a completed sample")
+        if self.duration_s is not None and (not math.isfinite(self.duration_s) or self.duration_s < 0):
+            raise ValueError("An acknowledged duration must be finite and nonnegative")
 
 
 @dataclass

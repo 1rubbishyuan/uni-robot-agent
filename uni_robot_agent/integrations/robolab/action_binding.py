@@ -43,7 +43,8 @@ def create_binding(name, args, description, actor_info):
             or arm.control_frame != "droid_robotiq_base_link"
             or arm.control is None or set(arm.control.commands) != {"joints", "pose"}
             or arm.control.pose_solver != "native" or not arm.control.joint_preview
-            or arm.control.rotation != "full" or arm.control.gripper != "continuous"):
+            or arm.control.rotation != "full" or arm.control.rotation_reference != "measured"
+            or arm.control.gripper != "continuous"):
         raise ValueError("RoboLab must publish the DROID joint and mounting-flange control contract")
     profile = actor_info.profile
     expected = droid_joint_profile(profile.cameras, profile.action_horizon, environment.control_frequency_hz)

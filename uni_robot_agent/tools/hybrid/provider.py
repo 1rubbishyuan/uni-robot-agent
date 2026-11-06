@@ -1,7 +1,7 @@
 """Independent model-facing actor collaboration tools."""
 from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
 from uni_robot_agent.tools.toolkit import ToolOutput, ToolProvider, ToolSpec, bind_tools, schema
-from uni_robot_agent.tools.presentation import round_physical, state_for_model
+from uni_robot_agent.tools.presentation import state_for_model
 from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
 
 from .runner import ActorRunner, actor_action_limits

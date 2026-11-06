@@ -4,14 +4,25 @@ from uni_robot_agent.services.actor.profiles import validate_x5_joint_profile
 from uni_robot_agent.tools.hybrid.adapters.arm_gripper import ArmActionLayout, ArmGripperBinding
 
 
+X5_JOINT_NAMES = tuple(f"joint{index}" for index in range(1, 7))
+
+
 class ActionBinding(ArmGripperBinding):
     def __init__(self, args, description, actor_info, *, name="robodojo_pi05"):
         if name not in {"robodojo_pi05", "robodojo_x5_joint"}:
             raise ValueError(f"Unsupported RoboDojo action binding: {name}")
         environment = description.environment
         if (description.integration != "robodojo" or tuple(arm.name for arm in environment.arms) != ("left", "right")
-                or environment.control_frequency_hz != 25 or any(len(arm.joint_names) != 6 for arm in environment.arms)):
+                or environment.control_frequency_hz != 25):
             raise ValueError("RoboDojo binding requires the dual X5 environment at 25 Hz")
+        for arm in environment.arms:
+            control = arm.control
+            if (tuple(arm.joint_names) != X5_JOINT_NAMES or arm.control_frame != "x5_grasp_site"
+                    or control is None or set(control.commands) != {"joints", "pose"}
+                    or control.pose_solver != "dls" or not control.joint_preview
+                    or control.rotation != "full" or control.rotation_reference != "measured"
+                    or control.gripper != "continuous"):
+                raise ValueError("RoboDojo must publish the ordered X5 joints and grasp-site control contract")
         legacy = name == "robodojo_pi05"
         if legacy:
             if (actor_info.profile != profile_for(name) or actor_info.model != "pi05"

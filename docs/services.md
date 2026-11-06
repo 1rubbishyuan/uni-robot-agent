@@ -264,12 +264,13 @@ They construct `EnvironmentService` and mount its shared routes after preparing
 the native environment. Use the [existing simulator launchers](running.md#scripts)
 for prepared simulation episodes.
 
-Environment protocol `"3"` exposes `EpisodeInfo.environment` and
-`EnvironmentState`, with tool schema `"7"`. Persisted environment snapshots use
+Environment protocol `"4"` exposes `EpisodeInfo.environment` and
+`EnvironmentState`, with tool schema `"8"`. Persisted environment snapshots use
 `artifact_type = "environment_snapshot"`, integer `schema_version = 2` and the
 `state` field. Upgrade clients and environment services together when changing
-wire contracts; existing run artifacts are not rewritten. Actor clients validate
-the complete profile before opening a session.
+wire contracts; existing run artifacts are not rewritten. Actor clients validate protocol and checkpoint identity before opening a session.
+The integration then validates the complete actor/environment profile before
+inference or physical commands; setup failure closes the owned actor session.
 
 Connect the harness with HTTP URLs, for example:
 

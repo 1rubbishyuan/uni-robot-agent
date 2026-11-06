@@ -419,10 +419,10 @@ These settings configure the reviewer, not the Claude SDK's model transport.
 ## Service endpoints
 
 Environment, actor and perception clients use HTTP(S) URLs. Environment episode
-descriptions declare `protocol_version: "3"` and `tool_schema_version: "7"`;
+descriptions declare `protocol_version: "4"` and `tool_schema_version: "8"`;
 actor and perception use their own versioned contracts. For example,
 `--action-model-url http://127.0.0.1:8601` selects the shared actor API for
-the selected RoboDojo actor runtime. Actor sessions carry explicit session, request
+the selected actor runtime. Actor sessions carry explicit session, request
 and sequence identities; policy state belongs to the explicit session.
 See [Services](services.md) for routes, failure recovery and deployment TOML.
 
