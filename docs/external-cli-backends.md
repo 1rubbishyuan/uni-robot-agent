@@ -101,6 +101,12 @@ agents. Model and MCP credentials use environment substitutions. MCP has a
 per-run bearer token; the control server has a separate password. Native file
 and shell tools remain available. The working directory is not an OS sandbox.
 
+OpenCode may snapshot tool arguments while the before hook has attached private
+MCP identity. The messages hook removes that field from copies of robot-tool
+history before model serialization, including failed calls. Original snapshots,
+call IDs and ordinary arguments remain intact; callback admission still requires
+an exact match to the delivered model call.
+
 OpenCode 1.19.5 bundles its runtime, but loading a local plugin still waits for
 configuration-directory dependencies, including `@opencode-ai/plugin`. Its
 internal package installer may need registry access; installing a separate Node

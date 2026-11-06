@@ -18,6 +18,35 @@ const system = { system: ['ambient system'] };
 await hooks['experimental.chat.system.transform']({}, system);
 assert.deepEqual(system.system, ['robot system']);
 
+// The CLI may persist a snapshot while the private MCP identity is attached.
+// Cleanup of the live callback object cannot remove it from that history copy.
+const history = { messages: [{ info: { role: 'assistant' }, parts: [] }] };
+for (const status of ['pending', 'running', 'completed', 'error']) {
+  const callback = { direction: 'left' };
+  const callID = `call-${status}`;
+  await hooks['tool.execute.before']({ tool: 'ura_move', callID }, { args: callback });
+  history.messages[0].parts.push({ type: 'tool', tool: 'ura_move', callID,
+    state: { status, input: structuredClone(callback) } });
+  if (status === 'completed') {
+    await hooks['tool.execute.after']({ tool: 'ura_move', callID, args: callback });
+    assert.deepEqual(callback, { direction: 'left' });
+  }
+}
+const nativePart = { type: 'tool', tool: 'bash', callID: 'native-call',
+  state: { input: { _uni_robot_agent_call: 'ordinary-native-argument' } } };
+history.messages[0].parts.push(nativePart, { type: 'text', text: 'Keep user content.' });
+const persistedParts = history.messages[0].parts;
+await hooks['experimental.chat.messages.transform']({}, history);
+for (const part of history.messages[0].parts.slice(0, 4)) {
+  assert.deepEqual(part.state.input, { direction: 'left' });
+  assert.equal(part.callID, `call-${part.state.status}`);
+}
+for (const part of persistedParts.slice(0, 4)) {
+  assert.equal(part.state.input._uni_robot_agent_call, part.callID);
+}
+assert.equal(nativePart.state.input._uni_robot_agent_call, 'ordinary-native-argument');
+assert.equal(history.messages[0].parts.at(-1).text, 'Keep user content.');
+
 const { callRobotTool } = await import(pathToFileURL(process.argv[2]));
 process.env.UNI_ROBOT_AGENT_MCP_URL = 'http://127.0.0.1:1234/mcp/';
 process.env.UNI_ROBOT_AGENT_MCP_AUTH = 'Bearer fixture-token';
