@@ -55,4 +55,3 @@ class ChunkReviewer:
         decision.update(model=self.model, reasoning_effort="medium", provider_attempts=len(reply.attempts),
                         elapsed_s=round(time.monotonic() - started, 3), usage=response.get("usage"))
         return decision
-
