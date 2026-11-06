@@ -3,7 +3,7 @@ verified_completed, currently_attempting and remaining subgoals. This is
 model-reported progress, not an environment verification flag. Correct it when
 a previously achieved relation is disturbed.
 
-When enabled, the RoboDojo reviewer assesses each fresh Pi proposal before its
+When enabled, the RoboDojo reviewer assesses each fresh action-model proposal before its
 prefix executes. It receives current images and measured state, recent
 feedback, previous actor context and robot-only FK, not the agent's full
 conversation. Previous actor images may predate intervening Direct actions;
