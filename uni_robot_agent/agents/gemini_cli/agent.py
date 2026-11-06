@@ -1,5 +1,4 @@
 """Run Gemini's native agent loop over ACP and a GenerateContent/Qwen bridge."""
-import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -11,9 +10,8 @@ from uni_robot_agent.events import AssistantText
 from uni_robot_agent.provider.backends.aliyun.gemini_chat_completions import AliyunGeminiChatAdapter
 from uni_robot_agent.provider.protocols.gemini import GeminiProtocol, tool_calls
 from .config import GeminiConfig
+from .manifest import BRIDGE_ID, verify_bundle
 from .transport import AcpTransport
-
-BRIDGE_ID = 'uni-robot-agent-gemini-acp-call-id-v1'
 
 
 class GeminiCliAgent(GeminiConfig, ManagedAgent):
@@ -33,11 +31,7 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
         if not self.bridge_manifest:
             raise ValueError('A sealed Gemini bridge manifest is required')
         manifest = json.loads(Path(self.bridge_manifest).read_text())
-        artifact = Path(self.binary).read_bytes()
-        if (manifest.get('bridge') != BRIDGE_ID or BRIDGE_ID.encode() not in artifact
-                or manifest.get('sha256') != hashlib.sha256(artifact).hexdigest()
-                or manifest.get('version') != self.expected_version):
-            raise ValueError('Gemini bundle does not match its bridge manifest; rebuild and seal it')
+        verify_bundle(Path(self.binary), manifest, self.expected_version)
 
     def model_runtime(self, profile, event_bus=None):
         if profile != 'aliyun.gemini_chat_completions':

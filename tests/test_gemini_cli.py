@@ -9,9 +9,11 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from uni_robot_agent.agents.gemini_cli.agent import BRIDGE_ID, GeminiCliAgent
-from uni_robot_agent.agents.gemini_cli.bridge import patch_source
+from uni_robot_agent.agents.gemini_cli.bridge import HELPER, SOURCE, patch_source, seal
+from uni_robot_agent.agents.gemini_cli.manifest import bundle_inventory
 from uni_robot_agent.agents.gemini_cli.transport import AcpTransport
 from uni_robot_agent.agents.managed import stop_process
 
@@ -100,3 +102,73 @@ for line in sys.stdin:
             'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'answer'}}})
         self.assertEqual(agent.texts, ['answer'])
         self.assertFalse(agent.result().success)
+
+    def test_seal_and_verify_split_bundle_with_policy_assets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkout = Path(tmp)
+            (checkout / SOURCE).parent.mkdir(parents=True)
+            source = {'bridge': BRIDGE_ID, 'revision': 'a' * 40}
+            for path, key in [(SOURCE, 'patched_sha256'), (HELPER, 'helper_sha256')]:
+                (checkout / path).write_text('reviewed source')
+                source[key] = hashlib.sha256(b'reviewed source').hexdigest()
+            (checkout / 'ura-bridge-source.json').write_text(json.dumps(source))
+            bundle = checkout / 'bundle'
+            bundle.mkdir()
+            binary = bundle / 'gemini.js'
+            binary.write_text('#!/bin/sh\necho candidate\n')
+            binary.chmod(0o700)
+            (bundle / 'chunk.mjs').write_text('// ' + BRIDGE_ID)
+            (bundle / 'policy.toml').write_text('rule = "trusted"\n')
+            manifest = checkout / 'manifest.json'
+            with patch('uni_robot_agent.agents.gemini_cli.bridge.git', return_value='a' * 40):
+                seal(checkout, binary, 'candidate', manifest)
+                with self.assertRaisesRegex(ValueError, 'outside'):
+                    seal(checkout, binary, 'candidate', bundle / 'manifest.json')
+            agent = GeminiCliAgent(model='qwen', binary=str(binary), expected_version='candidate',
+                                   bridge_manifest=str(manifest))
+            agent.verify_runtime()
+            original = {p: p.read_bytes() for p in bundle.iterdir()}
+            for name, content in [('chunk.mjs', '// ' + BRIDGE_ID + ' modified'),
+                                  ('policy.toml', 'rule = "changed"'),
+                                  ('extra.js', '// unexpected file')]:
+                with self.subTest(name=name):
+                    path = bundle / name
+                    path.write_text(content)
+                    with self.assertRaises(ValueError):
+                        agent.verify_runtime()
+                    if path in original:
+                        path.write_bytes(original[path])
+                    else:
+                        path.unlink()
+            (bundle / 'policy.toml').unlink()
+            with self.assertRaises(ValueError):
+                agent.verify_runtime()
+            (bundle / 'policy.toml').write_bytes(original[bundle / 'policy.toml'])
+            binary.write_text('changed entry point')
+            with self.assertRaises(ValueError):
+                agent.verify_runtime()
+
+    def test_bundle_rejects_symlinks_missing_bridge_and_unknown_formats(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / 'bundle'
+            bundle.mkdir()
+            binary = bundle / 'gemini.js'
+            binary.write_text('// ' + BRIDGE_ID)
+            manifest = Path(tmp) / 'manifest.json'
+            record = {'bridge': BRIDGE_ID, 'version': 'candidate', 'format': 2,
+                      'entrypoint': binary.name, 'files': bundle_inventory(bundle)}
+            manifest.write_text(json.dumps(record))
+            agent = GeminiCliAgent(model='qwen', binary=str(binary), expected_version='candidate',
+                                   bridge_manifest=str(manifest))
+            (bundle / 'linked.js').symlink_to(binary)
+            with self.assertRaisesRegex(ValueError, 'symbolic links'):
+                agent.verify_runtime()
+            (bundle / 'linked.js').unlink()
+            binary.write_text('// unpatched')
+            with self.assertRaisesRegex(ValueError, 'compatibility bridge'):
+                bundle_inventory(bundle)
+            binary.write_text('// ' + BRIDGE_ID)
+            for change in [{'format': 3}, {'entrypoint': 'other.js'}]:
+                manifest.write_text(json.dumps({**record, **change}))
+                with self.assertRaises(ValueError):
+                    agent.verify_runtime()

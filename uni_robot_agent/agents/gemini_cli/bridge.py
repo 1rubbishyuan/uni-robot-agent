@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from .agent import BRIDGE_ID
+from .manifest import BRIDGE_ID, bundle_inventory
 
 SOURCE = Path('packages/cli/src/acp/acpSession.ts')
 HELPER = SOURCE.with_name('robotBridge.ts')
@@ -58,14 +58,17 @@ def seal(checkout: Path, binary: Path, version: str, output: Path) -> None:
     for path, key in [(SOURCE, 'patched_sha256'), (HELPER, 'helper_sha256')]:
         if hashlib.sha256((checkout / path).read_bytes()).hexdigest() != source[key]:
             raise ValueError('Gemini compatibility source changed after patching')
-    artifact = binary.read_bytes()
-    if BRIDGE_ID.encode() not in artifact:
-        raise ValueError('Seal the executable JS bundle containing the bridge, not a wrapper')
+    root = checkout.resolve() / 'bundle'
+    if binary.is_symlink() or binary.resolve().parent != root or not binary.is_file():
+        raise ValueError('Seal the entry point directly inside the built bundle directory')
+    if output.resolve().is_relative_to(root):
+        raise ValueError('Write the bridge manifest outside the sealed bundle directory')
+    files = bundle_inventory(root)
     actual = subprocess.check_output([str(binary.resolve()), '--version'], text=True, timeout=30).strip()
     if actual != version:
         raise ValueError('Built Gemini version differs from the requested version')
-    output.write_text(json.dumps({**source, 'version': version,
-        'sha256': hashlib.sha256(artifact).hexdigest()}, indent=2) + '\n')
+    output.write_text(json.dumps({**source, 'format': 2, 'version': version,
+        'entrypoint': binary.name, 'files': files}, indent=2) + '\n')
 
 
 def main():

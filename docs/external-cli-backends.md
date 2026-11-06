@@ -138,23 +138,26 @@ python -m uni_robot_agent.agents.gemini_cli.bridge apply /path/to/gemini-source 
 
 This requires a clean checkout and exactly one matching ACP execution seam. It
 records source hashes and copies `robotBridge.ts`. Build and type-check using
-that revision's upstream build procedure. The executable JavaScript bundle must
-contain the bridge; a wrapper importing a mutable installation is insufficient.
-Seal the artifact after building:
+that revision's upstream build procedure. Start with a fresh `bundle/` directory
+when rebuilding, so obsolete chunks are not retained. The bridge may live in the
+entry point or an imported JavaScript chunk. Sealing records every file beneath
+`bundle/`, including policies and built-in skills, and rejects symbolic links.
+Write the manifest outside that directory:
 
 ```bash
 python -m uni_robot_agent.agents.gemini_cli.bridge seal /path/to/gemini-source \
-  --binary /absolute/path/to/gemini-bundle.js --version "$GEMINI_VERSION" \
+  --binary /path/to/gemini-source/bundle/gemini.js --version "$GEMINI_VERSION" \
   --output /path/to/gemini-bridge-manifest.json
 
 uni-robot-agent run --integration robouse --agent gemini_cli \
   --model "$QWEN_MODEL" --env-url "$EPISODE_URL" --no-sam3 \
-  --gemini-binary /absolute/path/to/gemini-bundle.js \
+  --gemini-binary /path/to/gemini-source/bundle/gemini.js \
   --gemini-version "$GEMINI_VERSION" \
   --gemini-bridge-manifest /path/to/gemini-bridge-manifest.json
 ```
 
-Startup checks the artifact hash and exact version. The manifest detects changes;
+Startup checks the exact version and every file hash, rejecting added, removed
+or changed files. Existing single-file manifests remain supported. The manifest detects changes;
 it is not a signature or proof of an upstream build. Running an episode never
 patches a globally installed CLI. State uses `GEMINI_CLI_HOME`, the assembled
 system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
