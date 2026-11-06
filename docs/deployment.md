@@ -216,3 +216,14 @@ one. A requested monitor port conflict fails before deploying an environment.
 The browser has no authority over service lifetimes, and closing it does not
 cancel the run. Existing `--env-url` mode preserves external service ownership.
 See [local Web monitoring and directory replay](running.md#local-web-monitor).
+
+## Hybrid models across integrations
+
+A prepared environment advertises its binding and native control capabilities.
+Connect a separately deployed actor with a matching explicit profile; installing
+an integration does not supply compatible model weights. The
+[XPolicyLab bridge](services.md#xpolicylab-bridge) accepts configured observation
+and action mappings for any integration. Its pinned upstream checkout is needed
+only in the bridge/model deployment, not on each planner machine. Keep the older
+pinned Pi0.5 runtime separate. See [Hybrid compatibility](hybrid.md) before
+selecting camera, frequency, frame, control-point or delta conventions.

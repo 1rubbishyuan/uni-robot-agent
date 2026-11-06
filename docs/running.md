@@ -348,18 +348,18 @@ and agent completion are recorded separately. See [result inspection](getting-st
 | Integration | Episode configuration |
 |---|---|
 | `robodojo` | Shared gripper tools plus optional pinned task requirements; RoboDojo Pi0.5 requires an action-model URL and checkpoint SHA256 |
-| `robouse` | Direct-only tasks, including LIBERO and RoboCasa; local deployment selects the native runtime profile |
-| `robolab` | Direct-only single-DROID tasks; connect to a separately prepared RoboLab/Isaac environment |
+| `robouse` | Direct tasks and admitted LIBERO/RoboCasa Hybrid controllers; local deployment selects the native runtime profile |
+| `robolab` | Direct and joint-policy Hybrid DROID tasks; connect to a prepared RoboLab/Isaac environment |
 
-`robodojo` accepts `--action-profile direct|hybrid` (default `direct`). Use `direct`
-for explicit gripper and motion tools without an actor. Hybrid adds `actor_act`;
-its action binding defaults to the prepared environment description. Select
-`--action-model-binding robodojo_x5_joint` for a compatible XPolicyLab bridge;
-this option is hybrid-only and RoboDojo-only. The SDK equivalent is
-`integration_options["action_model_binding"]`. See the
-[bridge deployment contract](services.md#xpolicylab-x5-bridge). A RoboDojo
-binding requires `--action-model-checkpoint-sha256`. These binding
-checks happen during session setup, beyond offline CLI validation.
+All three integrations accept `--action-profile direct|hybrid` (default `direct`).
+Hybrid adds the independent `actor_act` tool and requires an actor URL and
+`--action-model-checkpoint-sha256`. The binding defaults to the prepared environment
+and can be selected with `--action-model-binding`; the SDK equivalent is
+`integration_options["action_model_binding"]`. RoboDojo accepts `robodojo_pi05` or
+`robodojo_x5_joint`, RoboLab accepts `robolab_droid_joint`, and RoboUse accepts
+`robouse_cartesian` on its admitted controllers. Complete profile and environment
+compatibility checks happen at session setup. See [Hybrid](hybrid.md) and the
+[bridge deployment contract](services.md#xpolicylab-bridge).
 
 Only RoboDojo supplies a task-requirements loader for
 `--include-extra-task-requirements`. It is enabled by default and reads the packaged
@@ -379,7 +379,7 @@ to `min(H, 40)`. Explicit values above that limit are rejected before inference.
 | Binding | Current service output length | Default `actions_per_chunk` | Default `max_chunks` |
 |---|---|---|---|
 | RoboDojo Pi0.5 | 50 actions | 25 | 6 |
-| RoboDojo X5 via XPolicyLab | Declared `H` actions | `min(25,H,40)` | 6 |
+| X5, DROID or admitted RoboUse binding | Declared `H` actions | `min(25,H,40)` | 6 |
 
 `max_chunks` accepts any positive integer; there is no shared ten-chunk cap.
 The call stops at its requested chunk budget or earlier when the native episode
@@ -390,7 +390,7 @@ for a single observation, prediction and execution round.
 
 ### VLA reviewer
 
-RoboDojo Hybrid enables the VLA reviewer by default. `--no-vla-review` disables it; enabling it with
+The included Hybrid bindings enable the VLA reviewer by default. `--no-vla-review` disables it; enabling it with
 direct control is invalid. Enabling or disabling review does not change the
 actor execution budgets.
 
@@ -453,7 +453,7 @@ native backends, including LIBERO. For owned startup and cleanup, prefer the
 
 The product, distribution, and CLI are `uni-robot-agent`; Python imports use
 `uni_robot_agent`. Configuration environment variables use `UNI_ROBOT_AGENT_`.
-Actor clients and services use `uni_robot_agent.actor.v1`; update both together.
+Actor clients and services use `uni_robot_agent.actor.v2`; update both together.
 Trace format 5 uses `$uni_robot_agent_image` references to the shared session image
 directory. Existing records retain their original format. The source repository is
 [Open-RUA/uni-robot-agent](https://github.com/Open-RUA/uni-robot-agent).

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Extract Hybrid into an independent tool family with one receipt-aware execution
+  loop, capability-derived schemas and integration-owned semantic bindings.
+- Generalize XPolicyLab wire mappings; actor v2 separates observation/action
+  semantics and timing. Upgrade actor clients/services and migrate bridge configs.
+- Add RoboLab DROID joint-policy binding and native nominal FK preview, plus
+  RoboUse LIBERO full-pose and RoboCasa translation-only bindings. Checkpoints
+  still require explicit compatibility validation.
+- Upgrade scalar environment protocol to 4 and tool schema to 8. Hybrid uses
+  `active_groups` and capability-specific `constraints`; retain unknown device
+  receipts to prevent replay. See [migration](docs/hybrid.md).
+
 - Add opt-in `code_as_policy` interaction for Codex and Claude Code: run ordinary
   Python programs against the registered robot tools, with completed feedback,
   local image paths, and the existing session lifecycle.

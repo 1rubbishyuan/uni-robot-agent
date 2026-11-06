@@ -41,7 +41,8 @@ Paths below are relative to `uni_robot_agent/` unless noted otherwise.
 | `provider/` | Model gateway, upstream codecs, model request retries | Physical action retries or tool execution |
 | `context/` | Prompt/history assembly and context policies | Hardware queries and hidden task controllers |
 | `tools/<family>/` | Existing or new tool sets: schemas, handlers, orchestration, feedback, resource policies | Concrete environment imports and native device connections |
-| `tools/gripper/` | Scalar-gripper motion and companion arm orchestration; Hybrid actor loop | Dexterous joint semantics and native SDK imports |
+| `tools/gripper/` | Direct scalar-gripper motion and companion arm orchestration | Actor collaboration, dexterous joint semantics and native SDK imports |
+| `tools/hybrid/` | Actor/reviewer orchestration, generic bounded execution; explicitly selected domain adapters | Native drivers, concrete integration imports and model wire conventions |
 | `tools/scene/` | Shared state viewing, snapshot capture, localization | Per-robot camera endpoints and device calibration procedures |
 | `tools/skills.py`, `tools/episode.py`, `tools/presentation.py` | Runtime guidance, finish request, model-visible presentation | Native success evaluators or developer workflow instructions |
 | `execution/` | Scheduling, resource exclusion, jobs and execution lifecycle | Environment-name or SDK-name dispatch |
@@ -205,6 +206,10 @@ following [Model providers](providers.md)
 and test request conversion, response delivery, error handling and recording.
 Provider retries concern model exchanges, not physical actions. A new planner
 using an existing protocol should reuse that provider path.
+
+For a new hybrid embodiment, follow [the binding contract](hybrid.md). Reuse
+`integrations.hybrid.configure_hybrid` and inject the integration's binding factory;
+no central binding registry is needed.
 
 For an action or perception model, add a backend to the corresponding service
 and declare its input/output profile. Put environment-specific conversions in

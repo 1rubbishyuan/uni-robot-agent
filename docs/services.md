@@ -417,7 +417,8 @@ one command, records the receipt, and publishes a snapshot. It knows nothing
 about whether a caller is trying to reach a pose, close a gripper, or execute a
 recovery sequence.
 
-`tools/gripper/motion.py` is the client-side program layer. It reads the
+`tools/gripper/motion.py` owns Direct motion programs, while
+`tools/hybrid/execution.py` owns the independent bounded actor-prefix loop. It reads the
 latest typed state, plans bounded waypoints, calls `EnvironmentClient.step`
 repeatedly, checks feedback, and stops on tolerance, divergence, native
 termination, or a step budget. This is why high-level orchestration is in the
