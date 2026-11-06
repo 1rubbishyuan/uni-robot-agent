@@ -94,6 +94,7 @@ class ManagedAgent:
         self.workspace = self.directory / 'workspace'
         self.workspace.mkdir(exist_ok=True)
         self.binary = executable(self.binary)
+        self.verify_runtime()
         self.env = isolated_environment(self.directory)
         version = subprocess.run([self.binary, '--version'], capture_output=True, text=True,
                                  timeout=self.startup_timeout_s, check=True, env=self.env).stdout.strip()
@@ -124,12 +125,17 @@ class ManagedAgent:
             self.cancel('max_turns' if self.binding.limit_reached else 'provider_error')
 
     def check_running(self):
+        if self.binding.limit_reached:
+            self.cancel('max_turns')
         if self.deadline is not None and time.monotonic() >= self.deadline:
             self.cancel('wall_time_limit')
         if self.stopped.is_set():
             raise RuntimeError('Agent stopped: ' + str(self.stop_reason))
         if self.process is not None and self.process.poll() is not None:
             raise RuntimeError(f'{self.name} process exited with status {self.process.returncode}')
+
+    def verify_runtime(self):
+        """Subclasses may require a reproducible compatibility artifact."""
 
     def cancel(self, reason):
         self.stop_reason = self.stop_reason or reason

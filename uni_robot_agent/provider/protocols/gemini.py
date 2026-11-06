@@ -66,6 +66,16 @@ class GeminiProtocol:
     def exception_response(self, error):
         return self.error_response({'message': str(error)})
 
+    def response_failure(self, body):
+        try:
+            error = response_object(body).get('error')
+        except (ValueError, TypeError):
+            return {'code': 'invalid_response', 'message': 'Invalid Gemini response'}
+        if error:
+            return {'code': str(error.get('code', 'provider_error')),
+                    'message': str(error.get('message', error))}
+        return None
+
     def response_usage(self, body):
         # ModelClient archives the upstream training view (Chat), not the
         # converted Gemini reply. Read both forms without losing Qwen usage.
@@ -79,4 +89,10 @@ class GeminiProtocol:
                         'total_tokens': u.get('totalTokenCount', 0)}
         except (ValueError, KeyError):
             pass
-        return parse_response(body).get('usage', {})
+        try:
+            usage = parse_response(body).get('usage') or {}
+            return {'input_tokens': usage.get('prompt_tokens', 0),
+                    'output_tokens': usage.get('completion_tokens', 0),
+                    'total_tokens': usage.get('total_tokens', 0)}
+        except (ValueError, TypeError, AttributeError):
+            return {}

@@ -44,7 +44,7 @@ def encode_request(request):
         raise ValueError('Unsupported Gemini request fields: ' + ', '.join(sorted(unsupported)))
     if request.get('safetySettings'):
         raise ValueError('Gemini safetySettings cannot be mapped to Qwen')
-    messages, pending = [], {}
+    messages, pending, seen = [], {}, set()
     system = request.get('systemInstruction', {}).get('parts', [])
     if system:
         if any(set(p) != {'text'} for p in system):
@@ -54,6 +54,8 @@ def encode_request(request):
         role = content.get('role', 'user')
         if role not in {'user', 'model'}:
             raise ValueError('Unsupported Gemini content role')
+        if role == 'model' and pending:
+            raise ValueError('Model content precedes outstanding tool results')
         text_parts, calls, results, reasoning = [], [], [], []
         for part in content.get('parts', []):
             if 'thoughtSignature' in part:
@@ -65,8 +67,9 @@ def encode_request(request):
             elif 'functionCall' in part:
                 call = part['functionCall']
                 key = call.get('id')
-                if role != 'model' or not key or key in pending:
+                if role != 'model' or not key or key in seen:
                     raise ValueError('Function call must have a unique explicit identity')
+                seen.add(key)
                 pending[key] = call['name']
                 calls.append({'id': key, 'type': 'function', 'function': {
                     'name': call['name'], 'arguments': json.dumps(call.get('args', {}))}})
@@ -119,8 +122,11 @@ def encode_request(request):
         body['tools'] = tools
     generation = request.get('generationConfig', {})
     fields = {'temperature': 'temperature', 'topP': 'top_p',
-              'maxOutputTokens': 'max_tokens', 'stopSequences': 'stop'}
-    if set(generation) - set(fields):
+              'topK': 'top_k', 'maxOutputTokens': 'max_tokens', 'stopSequences': 'stop'}
+    thinking = generation.get('thinkingConfig')
+    if thinking is not None and thinking != {'thinkingBudget': 0, 'includeThoughts': False}:
+        raise ValueError('Qwen bridge only supports explicitly disabled Gemini thinking')
+    if set(generation) - set(fields) - {'thinkingConfig'}:
         raise ValueError('Unsupported Gemini generationConfig: ' + ', '.join(sorted(set(generation) - set(fields))))
     body.update({target: generation[key] for key, target in fields.items() if key in generation})
     choice = request.get('toolConfig', {}).get('functionCallingConfig', {})

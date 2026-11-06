@@ -9,4 +9,7 @@ export const RobotBridge = async () => ({
       output.args._uni_robot_agent_call = input.callID;
     }
   },
+  "tool.execute.after": async (input) => {
+    if (input.tool.startsWith("ura_")) delete input.args._uni_robot_agent_call;
+  },
 });
