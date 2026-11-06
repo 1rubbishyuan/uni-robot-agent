@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a Direct LIBERO-Plus environment adapter with official task/initial-state
+  selection, native corrupted images and explicit evaluation budgets.
+
 - Add opt-in `code_as_policy` interaction for Codex and Claude Code: run ordinary
   Python programs against the registered robot tools, with completed feedback,
   local image paths, and the existing session lifecycle.
