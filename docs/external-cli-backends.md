@@ -1,11 +1,21 @@
 # OpenCode and Gemini CLI backends
 
 These experimental adapters run the native OpenCode or Gemini CLI agent loop
-against Qwen. Protocol, subprocess, delivery and offline package checks are
-available. A real CLI/Qwen smoke run and a full Gemini source build are still
-required before treating either adapter as validated. There is no certified
-external CLI version yet. Version arguments prevent unnoticed upgrades; they
-do not certify compatibility.
+against Qwen in `tool_calling` interaction mode. On 2026-11-06, both runtimes below
+passed the real Qwen image/tool smoke fixture with `qwen3.8-flash` on Alibaba
+Model Studio. The Gemini compatibility build also passed its upstream build,
+full type-check and bundle commands. These checks establish the tested protocol
+and tool loop; they do not establish environment task or real-hardware success.
+
+| Tested runtime | Exact artifact |
+|---|---|
+| OpenCode | `1.19.5`, official Linux x64 baseline release |
+| Gemini CLI | `0.69.0-nightly.20261104.g89e9d25d6`, compatibility patch applied to source revision `3fd7d263466b9e5d30b2da1ebf85dae956a0fb86`, built with Node `v22.16.0` |
+
+Each smoke run delivered the observation image to Qwen, preserved two identical
+record calls as distinct model call IDs, and completed the finish receipt with
+complete gateway records. Version arguments prevent unnoticed upgrades; other
+runtime versions and provider/model combinations require their own validation.
 
 Install the CLIs separately. Use a Qwen endpoint accepting Alibaba's non-thinking
 Chat Completions parameters, with function calling and image input. Arbitrary
@@ -48,14 +58,15 @@ do not gain backend-specific branches.
 | Context | `identity` | `identity` |
 | Reasoning | `none`, Qwen thinking disabled | `none`, Qwen thinking disabled |
 
-Both adapters support one episode per instance. Resume, subagents, Google-native
+Both adapters support one episode per instance and reject `code_as_policy`
+interaction. Resume, subagents, Google-native
 grounding, Google thought signatures, arbitrary model routing and validated SFT
 export are unsupported. The CLI's public `skip_thought_signature_validator`
 sentinel is accepted only on model history and omitted from Qwen requests; it
-contains no Google reasoning state. Gemini `countTokens`, upload and caching operations are
-rejected. Unknown generation options fail explicitly. Long-context behavior,
-inherited system-level CLI settings and CLI image transformations require live
-verification. `identity` describes the harness policy, not a guarantee that a
+contains no Google reasoning state. Gemini `countTokens`, upload and caching
+operations are rejected. Unknown generation options fail explicitly. Long-context
+behavior, inherited system-level CLI settings and image transformations beyond
+the smoke fixture require separate verification. `identity` describes the harness policy, not a guarantee that a
 CLI will never modify its own history.
 
 ## Delivery, limits and completion
@@ -134,8 +145,9 @@ and other tools retain their upstream path. The bridge preserves text/images,
 checks response identity and makes one HTTP attempt per callback. Errors enter
 the CLI's normal failed-call path.
 
-Use a disposable checkout of the official Gemini CLI repository. Review and pin
-its exact source revision, then apply the patch:
+Use a disposable checkout of the official Gemini CLI repository. The tested
+revision is `3fd7d263466b9e5d30b2da1ebf85dae956a0fb86`; retain its complete build
+output and manifest. Review and pin the source revision, then apply the patch:
 
 ```bash
 python -m uni_robot_agent.agents.gemini_cli.bridge apply /path/to/gemini-source \
@@ -163,12 +175,11 @@ uni-robot-agent run --integration robouse --agent gemini_cli \
 ```
 
 Startup checks the exact version and every file hash, rejecting added, removed
-or changed files. Existing single-file manifests remain supported. The manifest detects changes;
-it is not a signature or proof of an upstream build. Running an episode never
+or changed files. Existing single-file manifests remain supported. The manifest
+detects changes; it is not a signature or proof of an upstream build. Running an episode never
 patches a globally installed CLI. Its private trust file permits only the session's
 scratch workspace, allowing native MCP discovery without disabling folder trust.
-State uses `GEMINI_CLI_HOME`, the assembled
-system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
+State uses `GEMINI_CLI_HOME`, the assembled system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
 GenerateContent gateway. Provider authentication replaces the local Google key
 with the configured Qwen credential.
 
@@ -193,7 +204,7 @@ python scripts/validation/agent_backends.py --agent opencode \
   --model "$QWEN_MODEL" --output /path/to/new-opencode-run
 
 python scripts/validation/agent_backends.py --agent gemini_cli \
-  --binary /path/to/gemini-bundle.js --version "$GEMINI_VERSION" \
+  --binary /path/to/gemini-source/bundle/gemini.js --version "$GEMINI_VERSION" \
   --bridge-manifest /path/to/gemini-bridge-manifest.json \
   --model "$QWEN_MODEL" --output /path/to/new-gemini-run
 ```

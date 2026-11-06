@@ -4,10 +4,13 @@
 
 - Add experimental OpenCode and Gemini CLI backends with Qwen protocol bridges,
   explicit tool-call identity, response delivery gates and isolated subprocess
-  state. Gemini requires a separately built ACP compatibility patch and manifest.
+  state in `tool_calling` interaction mode. Gemini requires a separately built
+  ACP compatibility patch and manifest covering its split bundle and assets.
 - Add offline configuration and package checks plus an inert Qwen image/tool
-  smoke runner. Live CLI/Qwen validation and the full Gemini build remain pending;
-  see [external CLI requirements](docs/external-cli-backends.md).
+  smoke runner. OpenCode `1.19.5` and the patched Gemini CLI
+  `0.69.0-nightly.20261104.g89e9d25d6` passed live image/tool smoke runs with
+  `qwen3.8-flash`; the pinned Gemini source also passed its full build and
+  type-check. See [tested versions and limits](docs/external-cli-backends.md).
 - Reject incomplete Chat tool generations and emit complete Responses text events.
   Preserve Codex's Qwen thinking default while disabling it for the new adapters.
 - Add opt-in `code_as_policy` interaction for Codex and Claude Code: run ordinary
