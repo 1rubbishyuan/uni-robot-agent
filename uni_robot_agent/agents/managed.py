@@ -71,10 +71,11 @@ class ManagedAgent:
     text_separator = '\n'
 
     def __init__(self, *, model, binary, expected_version, read_calls,
-                 timeout_s=10800, api_key=None, startup_timeout_s=30):
+                 timeout_s=10800, api_key=None, startup_timeout_s=30, context_policy="identity"):
         self.model, self.binary, self.expected_version = model, binary, expected_version
         self.timeout_s, self.startup_timeout_s = timeout_s, startup_timeout_s
         self.api_key = api_key
+        self.context_policy = context_policy
         self.binding = DeliveredToolBinding(read_calls)
         self.stopped = threading.Event()
         self.stop_reason = None
@@ -107,7 +108,7 @@ class ManagedAgent:
             raise ValueError(f'Expected {self.name} {self.expected_version}, found {version}')
         (self.directory / 'runtime.json').write_text(json.dumps({
             'backend': self.name, 'version': version, 'model': self.model,
-            'context_policy': 'identity', 'turn_unit': 'delivered_model_exchange',
+            'context_policy': self.context_policy, 'turn_unit': 'delivered_model_exchange',
         }, indent=2) + '\n')
         (self.directory / 'system.md').write_text(prompt.system)
         (self.directory / 'user.md').write_text(prompt.user)

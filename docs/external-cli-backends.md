@@ -62,7 +62,7 @@ do not gain backend-specific branches.
 | Default profile | `aliyun.chat_completions` | `aliyun.gemini_chat_completions` |
 | Tool identity | Plugin `callID` in private callback arguments | ACP `callId` in MCP metadata through a source patch |
 | Records | `opencode_responses/` | `gemini_generate_content/` |
-| Context | `identity` | `identity` |
+| Context | `identity` | `identity` (default), `sliding_window` |
 | Reasoning | `none`, Qwen thinking disabled | `none`, Qwen thinking disabled |
 
 Both adapters support one episode per instance and reject `code_as_policy`
@@ -214,6 +214,33 @@ the reviewed CLI first invokes them at turn 30. The harness still enforces the
 configured delivered-exchange cap and episode timeout. With `--max-turns 0`,
 only the wall-clock budget bounds a repetitive planner; no native loop cutoff
 is claimed.
+
+## Gemini context
+
+`identity` remains the default. Select `--context-policy sliding_window` with
+`--context-max-input-tokens` and `--context-target-input-tokens` to filter native
+GenerateContent history before Qwen conversion. The policy validates every call
+ID and result name before eviction, retains complete call/result batches, and
+protects all standalone user inputs. System instructions, tool declarations,
+generation settings and retained call arguments/result JSON remain unchanged.
+Tool-response inline images may be replaced with explicit omission notices;
+standalone user images are protected. Original and after-context requests, item
+IDs, wire format and the context decision are recorded separately. Runtime
+metadata reports the selected policy.
+
+The image phase retains at least `--context-min-recent-tool-images` eligible
+images and evicts only full `--context-image-eviction-batch-size` batches. For
+example, a minimum of `6` and batch size `2` retains 6–7 images when enough
+are available.
+Whole-block token pruning can subsequently remove older retained images. Recent
+blocks and observation blocks use the shared retention options; if protected
+content alone exceeds the target, the request fails explicitly.
+
+Estimates use native JSON bytes divided by four, not Qwen's multimodal tokenizer.
+The PNG context estimate precedes lossless WebP conversion. Choose budgets for
+the model and replay representative requests to check actual provider body size;
+image count alone cannot guarantee the provider's byte limit. This policy changes
+only the effective provider request; the native CLI keeps its complete history.
 
 Native long-context compression is not supported by this Qwen integration.
 Disabling experimental context management does not disable the reviewed CLI's

@@ -28,10 +28,13 @@ class GeminiConfig:
             raise ValueError('Gemini CLI requires --provider-url')
         if args.provider_profile != 'aliyun.gemini_chat_completions':
             raise ValueError('Gemini CLI currently supports aliyun.gemini_chat_completions only')
-        if args.context_policy != 'identity' or args.reasoning_effort != 'none':
-            raise ValueError('Gemini CLI Qwen bridge requires identity context and reasoning-effort none')
+        if args.context_policy not in {'identity', 'sliding_window'}:
+            raise ValueError('Gemini CLI supports identity or sliding_window context')
+        if args.reasoning_effort != 'none':
+            raise ValueError('Gemini CLI Qwen bridge requires reasoning-effort none')
 
     @classmethod
     def config_options(cls, args):
         return {'binary': args.gemini_binary, 'expected_version': args.gemini_version,
-                'bridge_manifest': args.gemini_bridge_manifest, 'api_key': args._api_key}
+                'bridge_manifest': args.gemini_bridge_manifest, 'api_key': args._api_key,
+                'context_policy': args.context_policy}

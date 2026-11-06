@@ -88,7 +88,7 @@ class ModelClient:
     ) -> tuple[PreparedContext, EncodedRequest]:
         self.protocol.validate_context(self.context_manager)
         prepared = self.context_manager.prepare(
-            request, preserve_history=preserve_history
+            request, preserve_history=preserve_history, wire_format=self.protocol.name
         )
         return prepared, self.adapter.encode_request(prepared.effective)
 
