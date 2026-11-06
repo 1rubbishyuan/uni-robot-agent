@@ -194,6 +194,14 @@ configured delivered-exchange cap and episode timeout. With `--max-turns 0`,
 only the wall-clock budget bounds a repetitive planner; no native loop cutoff
 is claimed.
 
+Native long-context compression is not supported by this Qwen integration.
+Disabling experimental context management does not disable the reviewed CLI's
+legacy compression path, which selects a Google auxiliary model. Unsupported
+model routes, auxiliary API operations such as `countTokens`, and malformed
+Gemini requests are archived as failed exchanges and stop the owning agent
+with `provider_error` before an upstream request or tool callback. No compression
+threshold override is used to imply support.
+
 Python callers use the same `AgentConfig` fields: `opencode_binary`,
 `opencode_version`, `gemini_binary`, `gemini_version`, `gemini_bridge_manifest`.
 Options belonging to another backend are rejected. `--validate-config` checks

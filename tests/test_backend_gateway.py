@@ -1,11 +1,17 @@
 """Exercise gateway delivery and authenticated MCP in-process, without sockets."""
 import json
+import gzip
+from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import httpx
 
 from uni_robot_agent.agents.tool_binding import DeliveredToolBinding, responses_calls
+from uni_robot_agent.agents.gemini_cli.agent import GeminiCliAgent
+from uni_robot_agent.artifacts.store import ArtifactStore
 from uni_robot_agent.events import EventBus, ModelRequest
 from uni_robot_agent.provider.backends.aliyun.chat_completions import AliyunChatCompletionsAdapter
 from uni_robot_agent.provider.backends.aliyun.gemini_chat_completions import AliyunGeminiChatAdapter
@@ -114,3 +120,50 @@ class BackendGatewayTest(unittest.IsolatedAsyncioTestCase):
             reply = await client.post('/mcp/', json=body, headers={'Authorization': 'Bearer fixture-token'})
             self.assertEqual(reply.json()['id'], 'request')
             self.assertEqual(calls[0]['_meta']['uni_robot_agent/call_id'], 'model')
+
+    async def test_rejected_gemini_routes_cancel_owner_and_archive_failure(self):
+        cases = [
+            ('/v1beta/models/other:generateContent', {'contents': []}, 'routing is disabled'),
+            ('/v1beta/models/qwen:countTokens', {'contents': []}, 'Unsupported Gemini API'),
+            ('/v1beta/models/qwen:generateContent', {'contents': 'invalid'}, 'Expected Gemini contents'),
+        ]
+        for path, body, message in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                artifacts = ArtifactStore(root)
+                agent = GeminiCliAgent(model='qwen')
+                bus, events = EventBus(), []
+                bus.subscribe(events.append)
+                bus.subscribe(agent.on_model_event)
+                gateway = ProviderGateway('https://provider.invalid/v1',
+                    trace_dir=root / 'trace', artifacts=artifacts,
+                    adapter=AliyunGeminiChatAdapter(), protocol=GeminiProtocol('qwen'),
+                    model_binding=agent.binding, event_bus=bus)
+                gateway._client.send = lambda **kwargs: self.fail('Rejected route reached upstream')
+                try:
+                    with patch('uni_robot_agent.provider.gateway.HttpServer') as host:
+                        gateway.start()
+                        app = host.call_args.args[0]
+                        transport = httpx.ASGITransport(app=app)
+                        async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:
+                            response = await client.post(path, json=body)
+                    self.assertEqual(response.status_code, 502)
+                    self.assertIn(message, response.json()['error']['message'])
+                    self.assertTrue(agent.stopped.is_set())
+                    self.assertEqual(agent.stop_reason, 'provider_error')
+                    self.assertFalse(agent.binding.calls)
+                    self.assertEqual(agent.binding.exchanges, 0)
+                    finished = [e for e in events if isinstance(e, ModelRequest) and e.phase == 'finished']
+                    self.assertEqual(len(finished), 1)
+                    self.assertIs(finished[0].success, False)
+                    record = gateway.trace_records[0]
+                    self.assertFalse(record['complete'])
+                    self.assertIn(message, record['error'])
+                    self.assertEqual(record['provider_attempts'], [])
+                    artifacts.close()
+                    archive = root / 'trace/exchange_0000/request.gemini.json.gz'
+                    self.assertEqual(json.loads(gzip.decompress(archive.read_bytes())), body)
+                finally:
+                    gateway.stop()
+                    gateway._client.close()
+                    artifacts.close()

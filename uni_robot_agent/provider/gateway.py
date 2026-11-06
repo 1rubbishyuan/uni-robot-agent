@@ -179,9 +179,8 @@ class ProviderGateway:
 
         try:
             normalized = None
-            if isinstance(self._protocol, RoutedModelProtocol):
-                normalized = self._protocol.normalize_request(request_path, _decode_json(raw_request))
-            if self._protocol.matches(request_path):
+            routed = isinstance(self._protocol, RoutedModelProtocol)
+            if routed or self._protocol.matches(request_path):
                 request_json = _decode_json(raw_request)
                 exchange = {
                     "wire_profile": self._adapter.profile_name,
@@ -222,6 +221,10 @@ class ProviderGateway:
                 )
                 exchange["agent_metadata"] = request_context.metadata
                 self._model_event(exchange, "started")
+                # Rejected model routes and auxiliary operations must be recorded
+                # and stop the owner before a native CLI can enter its retry loop.
+                if routed:
+                    normalized = self._protocol.normalize_request(request_path, request_json)
 
                 # Control model generation only; MCP/runtime owns execution exclusion.
                 # Copy so generation controls do not change the original client request.
