@@ -156,7 +156,7 @@ def main(argv=None):
             artifacts = ArtifactStore(args.output_dir / "artifacts")
             info = EpisodeInfo(episode_id=adapter.episode_id, task=cfg.instruction, integration="robolab",
                 environment=adapter.description, metadata=metadata,
-                capabilities=["pose", "published_observations"])
+                capabilities=["pose", "joints", "joint_preview", "published_observations"])
             service = EnvironmentService(adapter, info, artifacts)
             service.initialize()
             serve_native(service, owner, host=args.host, port=args.port)

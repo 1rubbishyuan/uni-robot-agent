@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 from uni_robot_agent.services.environment.contracts import (
-    ArmCommand, ArmDescription, ArmState, CameraDescription, EnvironmentDescription,
+    ArmCommand, ArmControlCapabilities, ArmDescription, ArmState, CameraDescription, EnvironmentDescription,
     EnvironmentState, JointCommand, Pose, PoseCommand, RequestRejected, StepReceipt,
 )
 from uni_robot_agent.services.environment.snapshots import CameraFrame, CapturedObservation
@@ -65,11 +65,13 @@ class RoboLabAdapter:
         self.description = EnvironmentDescription(
             arms=[ArmDescription(name="right", control_frame="droid_robotiq_base_link",
                 grasp_site_description="Robotiq base_link mounting flange in world coordinates; not the pad midpoint or eef_frame.",
-                rotation_radius_m=.2, joint_names=self.model.arm_names)],
+                rotation_radius_m=.2, joint_names=self.model.arm_names,
+                control=ArmControlCapabilities(commands=["joints", "pose"], joint_preview=True))],
             cameras=[CameraDescription(name=name, has_depth=False,
                 role="wrist" if "wrist" in name else "scene") for name in self._obs.get("image_obs", {})],
             control_frequency_hz=1. / self.controller.dt,
             max_episode_steps=int(self.env.max_episode_length),
+            action_binding="robolab_droid_joint",
             metadata={"observation_mode": "rgb_and_robot_proprioception",
                 "gripper_opening_models": {"right": {"kind": "affine_pad_gap_v1", "command_offset_m": 0.,
                     "command_scale_m": MAX_OPENING_M, "closed_command": 0.,
@@ -184,13 +186,20 @@ class RoboLabAdapter:
             raise
         return StepReceipt(accepted=True, state=state,
             diagnostics={"executed_steps": 1, "applied_joint_positions": row[:7].tolist(),
+                         "commanded_joints": {"right": row[:7].tolist()},
                          "applied_finger_joint_rad": float(row[7] * NATIVE_ANGLE_SCALE)})
 
     def step_native(self, command):
         raise RequestRejected("RoboLab does not advertise raw native action vectors")
 
     def preview_joints(self, commands):
-        raise RequestRejected("RoboLab does not advertise multi-command joint previews")
+        def preview():
+            from .preview import preview_joints
+            self.validate_commands(commands, "preview")
+            if not commands or any(not isinstance(command, JointCommand) for command in commands):
+                raise RequestRejected("DROID joint previews require joint commands")
+            return preview_joints(self.controller, self._robot_state(), commands)
+        return self.owner.run(preview)
 
     def capture(self, cameras=None, *, high_resolution=False):
         return self.owner.run(lambda: self._capture(cameras))
