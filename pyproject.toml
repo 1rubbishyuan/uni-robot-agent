@@ -70,6 +70,7 @@ include = ["uni_robot_agent*"]
 namespaces = false
 
 [tool.setuptools.package-data]
+"uni_robot_agent.agents.opencode" = ["bridge.js"]
 "uni_robot_agent.ui.web" = ["static/*.html", "static/*.js", "static/*.css"]
 "uni_robot_agent" = ["py.typed"]
 "uni_robot_agent.resources" = ["prompts/**/*.md", "prompts/robodojo/task_requirements.json", "prompts/robodojo/instruction_supplements.json", "skills/**/*.md"]

@@ -40,6 +40,7 @@ def get_agent_backend(name: str) -> Any:
 _BUILTIN_AGENTS: dict[str, str] = {
     "claude_code": "uni_robot_agent.agents.claude_code.agent:ClaudeCodeAgent",
     "codex": "uni_robot_agent.agents.codex.agent:CodexAgent",
+    "opencode": "uni_robot_agent.agents.opencode.agent:OpenCodeAgent",
 }
 
 

@@ -46,12 +46,20 @@ class DeliveredToolBinding:
         self.finish_submitted = False
         self.tool_calls = 0
         self.exchanges = 0
+        self.max_exchanges = 0
+        self.limit_reached = False
 
     def configure_tools(self, schemas, prefixes):
         self.specs = {item['name']: item for item in schemas}
         self.routes = {prefix + name: name for prefix in prefixes for name in self.specs}
 
     def request_context(self, request):
+        with self.condition:
+            if self.cancelled:
+                raise RuntimeError('Agent session is cancelled')
+            if self.max_exchanges and self.exchanges >= self.max_exchanges:
+                self.limit_reached = True
+                raise RuntimeError('Agent model exchange limit reached')
         return RequestContext(metadata={'thread_id': self.thread_id})
 
     def prepare_response(self, body, exchange_id, metadata):
@@ -60,11 +68,11 @@ class DeliveredToolBinding:
             ids = [item['call_id'] for item in calls]
             if any(not key or key in self.calls for key in ids) or len(ids) != len(set(ids)):
                 raise ValueError('Model response has missing or reused call IDs')
+            if any(not isinstance(item['arguments'], dict) for item in calls):
+                raise ValueError('Tool arguments must be an object')
             previous = None
             for item in calls:
                 arguments = item['arguments']
-                if not isinstance(arguments, dict):
-                    raise ValueError('Tool arguments must be an object')
                 self.calls[item['call_id']] = DeliveredCall(
                     item['name'], copy.deepcopy(arguments), exchange_id, previous,
                 )
@@ -112,12 +120,14 @@ class DeliveredToolBinding:
 
     def dispatch(self, executor, params):
         """Consume identity before schema validation; it is never model input."""
-        arguments = dict(params.get('arguments') or {})
-        metadata = params.get('_meta') or {}
-        identity = arguments.pop('_uni_robot_agent_call', None) or metadata.get('uni_robot_agent/call_id')
-        name = params.get('name')
         claimed = None
         try:
+            if not isinstance(params.get('arguments', {}), dict) or not isinstance(params.get('_meta', {}), dict):
+                raise ValueError('Tool arguments and metadata must be objects')
+            arguments = dict(params.get('arguments', {}))
+            metadata = params.get('_meta', {})
+            identity = arguments.pop('_uni_robot_agent_call', None) or metadata.get('uni_robot_agent/call_id')
+            name = params.get('name')
             if not isinstance(identity, str) or name not in self.specs:
                 raise ValueError('Robot tool callback requires an explicit call ID')
             claimed = self.claim(identity, name, arguments)
