@@ -89,7 +89,9 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
                        or not option['optionId'] for option in options)):
             raise ValueError('Permission request has invalid options')
         rejects = [option['optionId'] for option in options if option.get('kind') == 'reject_once']
-        if len(rejects) != 1 or len({option['optionId'] for option in options}) != len(options):
+        # This pinned CLI interprets optionId as its native confirmation enum,
+        # independently of kind. Only its Cancel value is a rejection.
+        if rejects != ['cancel'] or len({option['optionId'] for option in options}) != len(options):
             raise ValueError('Permission request requires one unambiguous reject_once option')
         self.rejected_permissions.add(call_id)
         decision = {'session_id': self.session_id, 'tool_call_id': call_id,

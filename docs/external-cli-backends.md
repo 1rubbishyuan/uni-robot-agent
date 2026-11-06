@@ -193,7 +193,8 @@ so native tools can read observation/calibration artifacts and write calculation
 in the episode's scratch directory. Other episodes are outside that allowance.
 In unattended ACP runs, permission requests must match the active session and
 a delivered, pending model tool call. The adapter selects the request's unique
-`reject_once` option and lets the CLI report that tool failure back to the model;
+`reject_once` option with the pinned runtime's `cancel` option ID, and lets the
+CLI report that tool failure back to the model;
 it does not cancel the whole prompt or grant additional permissions. Decisions
 are archived in `gemini_cli/permission-decisions.jsonl`. Invalid identities,
 repeated requests and ambiguous options remain protocol errors. YOLO does not
