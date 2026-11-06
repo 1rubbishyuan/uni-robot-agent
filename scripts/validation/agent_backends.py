@@ -15,7 +15,7 @@ import secrets
 
 from PIL import Image
 
-from uni_robot_agent.artifacts import ArtifactStore
+from uni_robot_agent.artifacts.store import ArtifactStore
 from uni_robot_agent.agents import create_agent
 from uni_robot_agent.context.prompt import Prompt
 from uni_robot_agent.events import EventBus
