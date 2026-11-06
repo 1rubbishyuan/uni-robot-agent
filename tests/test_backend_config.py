@@ -31,3 +31,13 @@ class BackendConfigTest(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 self.session(AgentConfig(**{'agent_backend': 'opencode', 'model': 'qwen',
                     'provider_url': 'https://provider.invalid/v1', 'opencode_version': 'candidate', **change}))
+
+    def test_external_backends_reject_code_policy_before_start(self):
+        for backend, settings in [('opencode', {'opencode_version': 'candidate'}),
+                                  ('gemini_cli', {'gemini_version': 'candidate',
+                                                  'gemini_bridge_manifest': 'manifest.json'})]:
+            with self.subTest(backend=backend), self.assertRaisesRegex(ValueError, 'tool_calling'):
+                SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                    no_sam3=True, interaction_mode='code_as_policy', agent=AgentConfig(
+                        agent_backend=backend, model='qwen', provider_url='https://provider.invalid/v1',
+                        **settings)).resolve()
