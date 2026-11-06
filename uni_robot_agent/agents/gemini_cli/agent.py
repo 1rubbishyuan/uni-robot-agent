@@ -26,6 +26,8 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
         self.transport = None
         self.session_id = None
         self.pending_updates = []
+        self.tool_status = {}
+        self.rejected_permissions = set()
 
     def verify_runtime(self):
         if not self.bridge_manifest:
@@ -62,7 +64,41 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
 
     def request(self, method, params, timeout=None):
         return self.transport.request(method, params, check_running=self.check_running,
-                                      on_notification=self.on_notification, timeout=timeout)
+                                      on_notification=self.on_notification,
+                                      on_request=self.on_request, timeout=timeout)
+
+    def on_request(self, method, params):
+        if method != 'session/request_permission':
+            return None
+        if (not isinstance(params, dict) or self.session_id is None
+                or params.get('sessionId') != self.session_id or self.stopped.is_set()):
+            raise ValueError('Permission request has no active Gemini session')
+        tool = params.get('toolCall')
+        if not isinstance(tool, dict) or not isinstance(tool.get('toolCallId'), str):
+            raise ValueError('Permission request requires a tool call ID')
+        call_id = tool['toolCallId']
+        with self.binding.condition:
+            call = self.binding.calls.get(call_id)
+            if (self.binding.cancelled or call is None or not call.delivered or call.revoked
+                    or tool.get('status') != 'pending' or self.tool_status.get(call_id) != 'pending'
+                    or call_id in self.rejected_permissions):
+                raise ValueError('Permission request does not match an active delivered tool call')
+        options = params.get('options')
+        if (not isinstance(options, list) or not options
+                or any(not isinstance(option, dict) or not isinstance(option.get('optionId'), str)
+                       or not option['optionId'] for option in options)):
+            raise ValueError('Permission request has invalid options')
+        rejects = [option['optionId'] for option in options if option.get('kind') == 'reject_once']
+        if len(rejects) != 1 or len({option['optionId'] for option in options}) != len(options):
+            raise ValueError('Permission request requires one unambiguous reject_once option')
+        self.rejected_permissions.add(call_id)
+        decision = {'session_id': self.session_id, 'tool_call_id': call_id,
+                    'tool_name': call.name, 'option_id': rejects[0], 'decision': 'reject_once'}
+        with (self.directory / 'permission-decisions.jsonl').open('a') as archive:
+            archive.write(json.dumps(decision) + '\n')
+        # The native CLI returns a failed tool result and continues its prompt.
+        # Rejection must not be turned into session/cancel or broader approval.
+        return {'outcome': {'outcome': 'selected', 'optionId': rejects[0]}}
 
     def on_notification(self, method, params):
         if method != 'session/update':
@@ -73,6 +109,10 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
         if params.get('sessionId') != self.session_id:
             raise RuntimeError('Gemini sent an update for another session')
         update = params.get('update', {})
+        if update.get('sessionUpdate') in ('tool_call', 'tool_call_update'):
+            call_id, status = update.get('toolCallId'), update.get('status')
+            if isinstance(call_id, str) and status is not None:
+                self.tool_status[call_id] = status
         if update.get('sessionUpdate') == 'agent_message_chunk':
             content = update.get('content', {})
             if content.get('type') == 'text':

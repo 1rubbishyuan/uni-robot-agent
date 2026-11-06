@@ -41,7 +41,7 @@ class AcpTransport:
     def notify(self, method, params):
         self.send({'method': method, 'params': params})
 
-    def request(self, method, params, *, check_running, on_notification, timeout=None):
+    def request(self, method, params, *, check_running, on_notification, on_request=None, timeout=None):
         # The adapter makes one outstanding request. Notifications (including
         # cancellation from another thread) can still interleave on the pipe.
         self.sequence += 1
@@ -60,12 +60,20 @@ class AcpTransport:
                 raise message
             if 'method' in message:
                 if 'id' in message:
-                    if message['method'] == 'session/request_permission':
-                        self.send({'id': message['id'], 'result': {'outcome': {'outcome': 'cancelled'}}})
-                    else:
+                    try:
+                        result = on_request(message['method'], message.get('params', {})) if on_request else None
+                    except Exception as error:
+                        self.send({'id': message['id'], 'error': {
+                            'code': -32602, 'message': str(error)}})
+                        raise
+                    if result is None:
                         self.send({'id': message['id'], 'error': {
                             'code': -32601, 'message': 'Client capability not supported'}})
-                    raise RuntimeError('Unexpected ACP client request: ' + message['method'])
+                        raise RuntimeError('Unexpected ACP client request: ' + message['method'])
+                    # Incoming client requests have their own ID namespace and do
+                    # not complete our outstanding session/prompt request.
+                    self.send({'id': message['id'], 'result': result})
+                    continue
                 on_notification(message['method'], message.get('params', {}))
                 continue
             if type(message.get('id')) is not int or message['id'] != request_id:

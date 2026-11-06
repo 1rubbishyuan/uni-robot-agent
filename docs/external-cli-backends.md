@@ -190,8 +190,14 @@ patches a globally installed CLI. Its private trust file permits only the sessio
 scratch workspace, allowing native MCP discovery without disabling folder trust.
 The CLI includes only the current episode directory as an additional workspace,
 so native tools can read observation/calibration artifacts and write calculations
-in the episode's scratch directory. Other episodes are outside that allowance;
-unexpected interactive permission requests are still rejected.
+in the episode's scratch directory. Other episodes are outside that allowance.
+In unattended ACP runs, permission requests must match the active session and
+a delivered, pending model tool call. The adapter selects the request's unique
+`reject_once` option and lets the CLI report that tool failure back to the model;
+it does not cancel the whole prompt or grant additional permissions. Decisions
+are archived in `gemini_cli/permission-decisions.jsonl`. Invalid identities,
+repeated requests and ambiguous options remain protocol errors. YOLO does not
+override the native CLI's additional confirmation checks.
 State uses `GEMINI_CLI_HOME`, the assembled system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
 GenerateContent gateway. Provider authentication replaces the local Google key
 with the configured Qwen credential.
