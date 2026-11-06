@@ -70,8 +70,10 @@ interaction. Resume, subagents, Google-native
 grounding, Google thought signatures, arbitrary model routing and validated SFT
 export are unsupported. The CLI's public `skip_thought_signature_validator`
 sentinel is accepted only on model history and omitted from Qwen requests; it
-contains no Google reasoning state. Gemini `countTokens`, upload and caching
-operations are rejected. Unknown generation options fail explicitly. Long-context
+contains no Google reasoning state. Gemini upload and caching operations are
+rejected. The configured Qwen model's `countTokens` endpoint returns a local
+non-retryable HTTP 400 so the reviewed CLI uses its native media-token estimate;
+no exact token count is supplied. Unknown generation options fail explicitly. Long-context
 behavior, inherited system-level CLI settings and image transformations beyond
 the smoke fixture require separate verification. `identity` describes the harness policy, not a guarantee that a
 CLI will never modify its own history.
@@ -204,10 +206,16 @@ is claimed.
 Native long-context compression is not supported by this Qwen integration.
 Disabling experimental context management does not disable the reviewed CLI's
 legacy compression path, which selects a Google auxiliary model. Unsupported
-model routes, auxiliary API operations such as `countTokens`, and malformed
+model routes, other unsupported API operations, and malformed
 Gemini requests are archived as failed exchanges and stop the owning agent
 with `provider_error` before an upstream request or tool callback. No compression
 threshold override is used to imply support.
+
+The configured model's `countTokens` rejection is an auxiliary response: it does
+not consume a model turn, create a generation exchange or cancel the agent.
+Its path and HTTP status appear in the gateway INFO log and, when telemetry is
+enabled, in a `provider.local_response` span. The normal HTTP trace records the
+path but does not record response status. Unknown-model requests remain fatal.
 
 Python callers use the same `AgentConfig` fields: `opencode_binary`,
 `opencode_version`, `gemini_binary`, `gemini_version`, `gemini_bridge_manifest`.

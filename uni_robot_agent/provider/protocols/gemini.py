@@ -4,6 +4,8 @@ import json
 import re
 from urllib.parse import unquote, urlsplit
 
+from uni_robot_agent.provider.contracts import ModelResponse
+
 
 def response_object(body):
     from .sse import decode_events
@@ -35,6 +37,17 @@ class GeminiProtocol:
     def matches(self, path):
         return bool(re.fullmatch(r'/v1(?:beta)?/models/[^/]+:(?:streamGenerateContent|generateContent)',
                                  urlsplit(path).path))
+
+    def local_response(self, path):
+        match = re.fullmatch(r'/v1(?:beta)?/models/([^/]+):countTokens', urlsplit(path).path)
+        if match is None or unquote(match[1]) != self.model:
+            return None
+        # The pinned CLI catches this non-retryable error and estimates locally.
+        # Do not invent Qwen token counts or treat media estimation as generation.
+        body = {'error': {'code': 400, 'status': 'INVALID_ARGUMENT',
+                         'message': 'countTokens is unsupported by the Qwen bridge'}}
+        return ModelResponse(400, {'Content-Type': 'application/json'},
+                             json.dumps(body).encode(), ())
 
     def normalize_request(self, path, body):
         if not self.matches(path):

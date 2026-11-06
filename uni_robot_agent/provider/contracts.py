@@ -73,6 +73,13 @@ class ModelProtocol(Protocol):
 
 
 @runtime_checkable
+class LocalRequestProtocol(Protocol):
+    """Protocol-owned auxiliary replies outside model-generation accounting."""
+
+    def local_response(self, path: str) -> ModelResponse | None: ...
+
+
+@runtime_checkable
 class RoutedModelProtocol(Protocol):
     """Protocols whose model/method is encoded in the URL rather than the body."""
 

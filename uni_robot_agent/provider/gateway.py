@@ -9,6 +9,7 @@ import traceback
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import anyio
 from fastapi import APIRouter, Request
@@ -28,6 +29,7 @@ from uni_robot_agent.provider.recording.exchanges import (
 )
 from uni_robot_agent.services.hosting import HttpServer, create_app
 from uni_robot_agent.telemetry.logging import get_logger
+from uni_robot_agent.telemetry import NullTracer
 
 logger = get_logger("provider.gateway")
 
@@ -79,7 +81,7 @@ class ProviderGateway:
     ) -> None:
         self._upstream_base_url = upstream_base_url.rstrip("/")
         self._host = host
-        self._tracer = tracer
+        self._tracer = tracer or NullTracer()
         self._protocol = protocol or ResponsesProtocol()
         self._adapter = adapter or build_provider_adapter(
             f"passthrough.{self._protocol.name}", client_protocol=self._protocol.name)
@@ -159,7 +161,16 @@ class ProviderGateway:
         return self.base_url
 
     def _forward(self, request_path, raw_request, incoming_headers, request):
-        from uni_robot_agent.provider.contracts import RoutedModelProtocol
+        from uni_robot_agent.provider.contracts import LocalRequestProtocol, RoutedModelProtocol
+        if isinstance(self._protocol, LocalRequestProtocol):
+            local = self._protocol.local_response(request_path)
+            if local is not None:
+                path = urlsplit(request_path).path
+                logger.info('Local %s response: path=%s status=%s',
+                            self._protocol.name, path, local.status)
+                with self._tracer.span('provider.local_response', path=path, status_code=local.status):
+                    return Response(content=local.body, status_code=local.status,
+                                    headers=dict(local.headers))
         target = self._adapter.target_url(
             self._upstream_base_url, request_path
         )
@@ -221,7 +232,7 @@ class ProviderGateway:
                 )
                 exchange["agent_metadata"] = request_context.metadata
                 self._model_event(exchange, "started")
-                # Rejected model routes and auxiliary operations must be recorded
+                # Rejected model routes and unsupported operations must be recorded
                 # and stop the owner before a native CLI can enter its retry loop.
                 if routed:
                     normalized = self._protocol.normalize_request(request_path, request_json)
