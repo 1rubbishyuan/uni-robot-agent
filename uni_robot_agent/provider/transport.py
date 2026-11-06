@@ -131,6 +131,11 @@ class ModelTransport:
             self.cancel()
             if self._thread is not None:
                 if self._startup_error is None:
+                    if self._shutdown_future is not None and self._shutdown_future.done():
+                        if self._shutdown_future.cancelled() or self._shutdown_future.exception() is not None:
+                            # Only completed failed cleanup may be retried. A
+                            # pending timeout still owns its draining tasks.
+                            self._shutdown_future = None
                     if self._shutdown_future is None:
                         self._shutdown_future = asyncio.run_coroutine_threadsafe(self._shutdown(), self._loop)
                     # A timed-out close retains this future; a retry must wait for
