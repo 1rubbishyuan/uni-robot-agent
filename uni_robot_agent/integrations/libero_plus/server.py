@@ -7,9 +7,9 @@ REVISION = "4976dc30028e805ff8094b55501d532c48fec182"
 BUDGETS = {"libero_spatial": 220, "libero_object": 280, "libero_goal": 300, "libero_10": 520}
 
 
-def parser():
-    p = server_parser(__doc__, 18781)
-    p.add_argument("--suite", choices=tuple(BUDGETS), required=True)
+def parser(*, suites=tuple(BUDGETS), description=__doc__, port=18781):
+    p = server_parser(description, port)
+    p.add_argument("--suite", choices=suites, required=True)
     p.add_argument("--init-state-index", type=int, default=0)
     p.add_argument("--settle-steps", type=int, default=10)
     p.add_argument("--max-steps", type=int)

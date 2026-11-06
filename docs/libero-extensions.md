@@ -1,4 +1,4 @@
-# LIBERO-Plus
+# LIBERO-Plus and LIBERO-PRO
 
 Stock LIBERO remains available through `--integration robouse`. The separate
 `libero_plus` integration uses the official LIBERO-Plus task catalog, language,
@@ -70,3 +70,29 @@ run on a single owner thread.
 
 The native source retains its upstream license; no simulator code or assets are
 vendored by this integration.
+
+## LIBERO-PRO
+
+`libero_pro` reuses the same OSC, snapshot and outcome adapter, with a separate
+native process and pinned [LIBERO-PRO source](https://github.com/Zxy-MLlab/LIBERO-PRO).
+Prepare its dependencies and official assets in a separate runtime, then use:
+
+```bash
+git clone https://github.com/Zxy-MLlab/LIBERO-PRO.git /persistent/LIBERO-PRO
+git -C /persistent/LIBERO-PRO checkout eafdb809426b13153aa1e4c42d6601844217dfec
+python -m uni_robot_agent.integrations.libero_pro.server \
+  --native-root /persistent/LIBERO-PRO --suite libero_spatial_swap --task 0 \
+  --init-state-index 0 --seed 0 --run-id pro-spatial-swap-0 \
+  --output-dir /persistent/runs/pro-spatial-swap-0 --no-depth --port 18782
+```
+
+Connect the planner with `--integration libero_pro --env-url http://127.0.0.1:18782`.
+The four base suites and their `_env`, `_object`, `_swap`, `_task`, `_lan` variants
+are admitted. Initial states must exist for the exact selected task; the adapter
+does not borrow another task's states, repair BDDL, generate OOD tasks or relabel
+generated tasks as official. A missing task or asset stops preparation.
+
+For multi-trial evaluation, enumerate official initial-state indices explicitly
+and retain the native revision, suite, task name, seed and budget with each result.
+The Plus one-trial recommendation does not apply to PRO. These integrations do
+not expand RoboUse's separate task-admission list.

@@ -13,10 +13,11 @@ checkpoints remain separate.
 | `robodojo` | Official RoboDojo simulation, task requirements and bundled gripper skills | RoboDojo environment; Hybrid adds an identified Pi0.5 model and a reviewer by default |
 | `robouse` | Direct simulation tasks, including LIBERO and RoboCasa | Prepared profile-specific RoboUse environment |
 | `libero_plus` | Official LIBERO-Plus perturbation tasks, Direct control | [Separate pinned LIBERO-Plus runtime](libero-extensions.md) |
+| `libero_pro` | Selected official LIBERO-PRO suites, Direct control | [Separate pinned LIBERO-PRO runtime](libero-extensions.md#libero-pro) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
 
 These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo supports Direct and Hybrid; RoboUse, RoboLab and LIBERO-Plus support Direct only.
+RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus and LIBERO-PRO support Direct only.
 RoboLab has no automatic setup/deploy recipe. Use
 SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
 localization requires paired depth and calibration; RGB triangulation requires

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a separate Direct LIBERO-PRO entry point for pinned base and perturbation
+  suites, reusing the LIBERO-family controller and native observation path.
+
 - Add a Direct LIBERO-Plus environment adapter with official task/initial-state
   selection, native corrupted images and explicit evaluation budgets.
 
