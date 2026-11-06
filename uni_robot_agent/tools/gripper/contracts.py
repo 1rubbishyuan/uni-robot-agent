@@ -12,13 +12,11 @@ from typing import Literal
 from pydantic import Field
 
 from uni_robot_agent.services.environment.contracts import (
-    ActionCommand,
     Contract,
     FiniteFloat,
 )
 
 Profile = Literal["standard", "approach", "precision"]
-MAX_PREFIX_COMMANDS = 40
 
 
 class MoveTarget(Contract):
@@ -63,16 +61,3 @@ class GripperRequest(Contract):
 
 class HoldRequest(Contract):
     steps: int = Field(default=1, ge=1, le=40, strict=True)
-
-
-class PrefixRequest(Contract):
-    """A tool-side batch of primitive commands.
-
-    This is deliberately not a service request.  ``MotionExecutor`` validates
-    and expands the prefix; each command then crosses the HTTP boundary as a
-    separate low-level ``StepRequest``.
-    """
-
-    commands: list[ActionCommand] = Field(min_length=1, max_length=MAX_PREFIX_COMMANDS)
-    expected_state_version: int = Field(ge=0, strict=True)
-    mode: Literal["student", "edit", "eef"] = "student"
