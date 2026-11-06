@@ -41,7 +41,7 @@ class SessionConfig(BaseModel):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--backend", choices=["pi05"])
+    parser.add_argument("--backend", choices=["pi05", "xpolicylab"])
     parser.add_argument("--runtime", choices=["openpi_jax"])
     parser.add_argument("--profile", choices=["robodojo_pi05"])
     parser.add_argument("--model-config", dest="model_config_name")
@@ -62,7 +62,7 @@ def main():
     session_settings = settings.pop("sessions", {})
     configured_backend = settings.pop("backend", "pi05")
     backend = args.backend or configured_backend
-    if backend != "pi05":
+    if backend not in {"pi05", "xpolicylab"}:
         parser.error(f"Unsupported actor backend: {backend}")
     for field in (
         "runtime",
@@ -84,17 +84,31 @@ def main():
     ):
         if getattr(args, field) is not None:
             batch_settings[config_key] = getattr(args, field)
-    config = Pi05Config.model_validate(settings)
+    if backend == "pi05":
+        config = Pi05Config.model_validate(settings)
+    else:
+        from .backends.xpolicylab.config import XPolicyLabConfig
+
+        config = XPolicyLabConfig.model_validate(settings)
+        batch_settings.setdefault("max_batch_size", 1)
+        session_settings.setdefault("max_sessions", 1)
     http = HttpConfig.model_validate(http_settings)
     batch = BatchConfig.model_validate(batch_settings)
     sessions = SessionConfig.model_validate(session_settings)
+    if backend == "xpolicylab" and (batch.max_batch_size != 1 or sessions.max_sessions != 1):
+        parser.error("XPolicyLab bridge requires max_batch_size=1 and max_sessions=1")
     if batch.max_queue_size < batch.max_batch_size:
         parser.error("max_queue_size must be at least max_batch_size")
     if args.cuda_device is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_device
-    from .backends.pi05.backend import Pi05Backend
+    if backend == "pi05":
+        from .backends.pi05.backend import Pi05Backend
 
-    model = Pi05Backend(config)
+        model = Pi05Backend(config)
+    else:
+        from .backends.xpolicylab.backend import XPolicyLabBackend
+
+        model = XPolicyLabBackend(config)
     service = None
     try:
         service = ActorService(

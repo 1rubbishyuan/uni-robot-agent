@@ -230,6 +230,7 @@ Install the base harness into each prepared runtime environment, alongside its
 native dependencies. Copy and edit the appropriate TOML example:
 
 - [`pi05_robodojo.toml`](../examples/services/pi05_robodojo.toml)
+- [`xpolicylab_x5.toml`](../examples/services/xpolicylab_x5.toml)
 - [`sam3.toml`](../examples/services/sam3.toml)
 
 From the repository root:
@@ -281,6 +282,123 @@ Connect the harness with HTTP URLs, for example:
 The ports are deployment examples, not discovery defaults. A pooled environment
 uses its allocated full episode URL. Independent environments may share an actor
 and perception service through separate clients and actor sessions.
+
+## XPolicyLab X5 bridge
+
+The optional `xpolicylab` backend connects an independently deployed
+[XPolicyLab](https://github.com/XPolicyLab/XPolicyLab) policy to the existing actor
+HTTP API. The harness still owns fresh capture, review and bounded execution;
+the upstream model adapter owns model-specific preprocessing, normalization and
+decoding. One selected model serves one RoboDojo episode. This does not make every
+XPolicyLab model or checkpoint compatible with RoboDojo.
+
+| Boundary | Required convention |
+|---|---|
+| Environment | Two RoboDojo X5 arms, left then right, six joints per arm, 25 Hz |
+| Observation | Current instruction, selected RGB HWC cameras, measured joints in radians and normalized gripper openings |
+| Upstream state | `left_arm_joint_state`, `left_ee_joint_state`, `right_arm_joint_state`, `right_ee_joint_state`, widths 6/1/6/1 |
+| Upstream actions | Exactly `action_horizon` dictionaries containing those same four fields; absolute joint targets and grippers in `[0,1]` |
+| Profile | `robodojo_x5_joint`; explicit units, frame, camera selection and horizon |
+| Review | Existing `student`, `edit`, `eef`, `stop`; full actor identity/profile and at most 50 FK preview steps |
+
+`[cameras]` maps upstream slots (`cam_head`, `cam_high`, `cam_left_wrist`,
+`cam_right_wrist`) to distinct environment views (`head`, `left_wrist`,
+`right_wrist`). The bridge forwards RGB at its captured resolution; resizing,
+padding and channel transforms belong to the model adapter. It does not guess
+delta/EEF semantics, flip joint signs, change control frequency, or clip grippers.
+Different embodiments and delta/EEF outputs need another explicit adapter.
+
+The upstream adapter must condition on the current instruction and generate a
+new proposal from each supplied observation. Policies that return an old queued
+chunk or require uninterrupted action-history execution cannot be declared
+compatible: hybrid may discard a suffix, apply a correction or execute Direct
+actions between predictions. The configuration's language, freshness, frequency
+and exclusivity fields are operator declarations. Verify them against the chosen
+adapter and checkpoint before enabling robot execution.
+
+### Deployment
+
+Prepare the upstream checkout and the model's own environment/weights using its
+instructions. Both client sources and server must use revision
+`6baccd57ff958570d0db1588370289ee36c8bb70`. Keep this checkout separate from the
+existing pinned Pi0.5 runtime. From the prepared XPolicyLab checkout, start its
+official server with the chosen policy's deployment YAML:
+
+```bash
+python -m client_server.ws.model_server \
+  --config-path /absolute/path/to/policy-deploy.yml --host 127.0.0.1 --port 19000
+```
+
+In the harness bridge environment, install `uni-robot-agent[xpolicylab]` (or
+`pip install -e '.[xpolicylab]'` from this source checkout). Copy
+[`xpolicylab_x5.toml`](../examples/services/xpolicylab_x5.toml) and replace the
+model/config labels, checkpoint hash, horizon, path and camera mapping with the
+validated deployment values. The example's all-zero checksum is a placeholder.
+Then start the bridge:
+
+```bash
+python -m uni_robot_agent.services.actor.server \
+  --config /absolute/path/to/xpolicylab_x5.toml \
+  --identity-output /absolute/path/to/actor-identity.json
+```
+
+The bridge uses the pinned official WebSocket client, checks the client import
+closure's source hashes, and calls atomic `INFER` so observation update and
+prediction hold the upstream model lock together. That narrow compatibility
+boundary uses upstream client internals; upgrading XPolicyLab requires reviewing
+and updating its pinned hashes. Native model libraries are not imported by the
+bridge. The upstream process remains responsible for loading its own weights.
+
+The checkpoint SHA256 and model/config labels are deployment-owned assertions;
+the server handshake does not attest them. Client source checks also do not
+verify the running server's revision. The server instance ID only detects a
+process restart during reconnect. Deploy and verify the matching server yourself.
+
+Connect the harness to the bridge's **HTTP** URL, using the checksum from your
+deployment. Configure planner/reviewer credentials as in [Running](running.md):
+
+```bash
+uni-robot-agent run --integration robodojo --model "$MODEL" \
+  --provider-url "$PROVIDER_URL" \
+  --env-url http://127.0.0.1:18760 --no-sam3 \
+  --action-profile hybrid --action-model-binding robodojo_x5_joint \
+  --action-model-url http://127.0.0.1:8601 \
+  --action-model-checkpoint-sha256 "$CHECKPOINT_SHA256"
+```
+
+RoboDojo hybrid retains its default reviewer. A Messages planner needs explicit
+Responses-compatible reviewer settings; `--no-vla-review` explicitly disables
+review. The SDK selects the same behavior through `SessionConfig`:
+
+```python
+integration_options = {
+    "action_profile": "hybrid",
+    "action_model_binding": "robodojo_x5_joint",
+    "action_model_checkpoint_sha256": checkpoint_sha256,
+}
+```
+
+### Ownership and recovery
+
+Use one bridge and one exclusive upstream process per episode, with
+`max_batch_size=1` and `max_sessions=1`. Do not connect other evaluators or bridges
+to that upstream: its model state is global, and the bridge cannot enforce
+exclusivity across processes. Open/reset happens when the actor session is
+created, and normal close invokes `trial_end` before disconnecting. Closed
+session receipts retain the service's sole session slot until expiry; restart
+the bridge for the next episode. Multi-episode pooling is not supported here.
+
+Reset, inference, invalid output, or shutdown failures make the backend unusable
+for new work. After an uncertain or failed call, stop this run and restart the
+upstream and bridge together before a fresh episode. Do not only clear client
+state or reconnect another session: a timed-out upstream operation may still be
+running. HTTP request receipts remain available through the existing API; the
+upstream client's transport retry reuses the same request ID against the pinned
+server's deduplication cache. It never authorizes replaying physical commands.
+
+Full action chunks remain in the archive. FK preview covers only the first
+`min(H,50)` steps; execution stays within `min(H,40)` steps, and corrections stay
+within five steps. Every following chunk captures a fresh observation.
 
 ## Environment protocol and tool orchestration
 

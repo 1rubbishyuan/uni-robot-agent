@@ -353,7 +353,11 @@ and agent completion are recorded separately. See [result inspection](getting-st
 
 `robodojo` accepts `--action-profile direct|hybrid` (default `direct`). Use `direct`
 for explicit gripper and motion tools without an actor. Hybrid adds `actor_act`;
-its action binding comes from the prepared environment description. A RoboDojo
+its action binding defaults to the prepared environment description. Select
+`--action-model-binding robodojo_x5_joint` for a compatible XPolicyLab bridge;
+this option is hybrid-only and RoboDojo-only. The SDK equivalent is
+`integration_options["action_model_binding"]`. See the
+[bridge deployment contract](services.md#xpolicylab-x5-bridge). A RoboDojo
 binding requires `--action-model-checkpoint-sha256`. These binding
 checks happen during session setup, beyond offline CLI validation.
 
@@ -375,6 +379,7 @@ to `min(H, 40)`. Explicit values above that limit are rejected before inference.
 | Binding | Current service output length | Default `actions_per_chunk` | Default `max_chunks` |
 |---|---|---|---|
 | RoboDojo Pi0.5 | 50 actions | 25 | 6 |
+| RoboDojo X5 via XPolicyLab | Declared `H` actions | `min(25,H,40)` | 6 |
 
 `max_chunks` accepts any positive integer; there is no shared ten-chunk cap.
 The call stops at its requested chunk budget or earlier when the native episode
@@ -417,7 +422,7 @@ Environment, actor and perception clients use HTTP(S) URLs. Environment episode
 descriptions declare `protocol_version: "3"` and `tool_schema_version: "7"`;
 actor and perception use their own versioned contracts. For example,
 `--action-model-url http://127.0.0.1:8601` selects the shared actor API for
-the RoboDojo Pi0.5 runtime. Actor sessions carry explicit session, request
+the selected RoboDojo actor runtime. Actor sessions carry explicit session, request
 and sequence identities; policy state belongs to the explicit session.
 See [Services](services.md) for routes, failure recovery and deployment TOML.
 

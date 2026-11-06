@@ -1,4 +1,4 @@
-"""RoboDojo Pi0.5 observation, command and reviewer binding.
+"""RoboDojo X5 observation, command and reviewer bindings.
 
 This model binding owns its 14D dual-arm convention. Native FK is requested
 through the explicit episode API; no simulator package is imported here.
@@ -11,10 +11,11 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from uni_robot_agent.services.actor.backends.pi05.config import CAMERAS, profile_for
+from uni_robot_agent.services.actor.backends.pi05.config import profile_for
 from uni_robot_agent.services.actor.client import ActorClient
 from uni_robot_agent.services.actor.contracts import ActorObservation
 from uni_robot_agent.services.actor.images import encode_image
+from uni_robot_agent.services.actor.profiles import validate_x5_joint_profile
 from uni_robot_agent.services.environment.contracts import (
     ArmCommand,
     JointCommand,
@@ -254,19 +255,42 @@ class ActionBinding:
     reviewer_supported = True
     default_max_chunks = 6
 
-    def __init__(self, args, description):
+    def __init__(self, args, description, *, name="robodojo_pi05"):
+        self.name = name
+        if name not in {"robodojo_pi05", "robodojo_x5_joint"}:
+            raise ValueError(f"Unsupported X5 action binding: {name}")
         if tuple(arm.name for arm in description.environment.arms) != ARMS:
-            raise ValueError("RoboDojo Pi0.5 requires ordered left/right arm descriptors")
+            raise ValueError("RoboDojo actors require ordered left/right arm descriptors")
+        if name == "robodojo_x5_joint" and (
+            description.integration != "robodojo"
+            or description.environment.action_binding != "robodojo_pi05"
+            or description.environment.control_frequency_hz != 25
+            or any(len(arm.joint_names) != 6 for arm in description.environment.arms)
+        ):
+            raise ValueError("robodojo_x5_joint requires the RoboDojo X5 environment at 25 Hz")
         checkpoint = getattr(args, "action_model_checkpoint_sha256", None)
         if not checkpoint:
-            raise ValueError("RoboDojo Pi0.5 requires --action-model-checkpoint-sha256")
-        self.client = ActorClient(args.action_model_url, expected_profile=profile_for("robodojo_pi05"),
+            raise ValueError("RoboDojo actors require --action-model-checkpoint-sha256")
+        expected = profile_for(name) if name == "robodojo_pi05" else name
+        self.client = ActorClient(args.action_model_url, expected_profile=expected,
                                   checkpoint_sha256=checkpoint)
-        info = self.client.info
-        if (info.model != "pi05" or info.runtime != "openpi_jax" or info.policy_rng_seed != 0
-                or info.model_config_name != "pi05_base_aloha_full_sim_arx-x5_seed_0"):
+        try:
+            info = self.client.info
+            if name == "robodojo_pi05":
+                if (info.model != "pi05" or info.runtime != "openpi_jax" or info.policy_rng_seed != 0
+                        or info.model_config_name != "pi05_base_aloha_full_sim_arx-x5_seed_0"):
+                    raise ValueError("RoboDojo requires the pinned Pi0.5 config and per-session seed-zero RNG")
+            else:
+                validate_x5_joint_profile(info.profile)
+                if info.runtime != "xpolicylab_ws":
+                    raise ValueError("robodojo_x5_joint requires the XPolicyLab bridge")
+                available = {camera.name for camera in description.environment.cameras}
+                if not set(info.profile.cameras) <= available:
+                    raise ValueError("Environment lacks the actor's required cameras")
+            self.model_name = info.model if name == "robodojo_x5_joint" else name
+        except Exception:
             self.client.close()
-            raise ValueError("RoboDojo requires the pinned Pi0.5 config and per-session seed-zero RNG")
+            raise
 
     @property
     def action_horizon(self):
@@ -284,10 +308,11 @@ class ActionBinding:
             }
         images = episode.image_paths(manifest)
         camera_map = {"head": "cam_high", "left_wrist": "cam_left_wrist", "right_wrist": "cam_right_wrist"}
-        model_images = {camera_map.get(name, name): path for name, path in images.items()}
+        model_images = ({camera_map.get(name, name): path for name, path in images.items()}
+                        if self.name == "robodojo_pi05" else images)
         from PIL import Image
         encoded = {}
-        for name in CAMERAS:
+        for name in self.client.info.profile.cameras:
             with Image.open(model_images[name]) as image:
                 encoded[name] = encode_image(np.asarray(image.convert("RGB")))
         observation = ActorObservation(
@@ -295,10 +320,13 @@ class ActionBinding:
             images=encoded, instruction=instruction)
         reply = self.client.predict(observation)
         raw_actions = np.asarray(reply.actions, dtype=np.float32)
+        if raw_actions.shape != (self.action_horizon, 14) or not np.isfinite(raw_actions).all():
+            raise ValueError(f"Actor must return finite {self.action_horizon}x14 actions")
         actions = raw_actions.copy()
-        actions[:, [6, 13]] = np.clip(actions[:, [6, 13]], 0, 1)
-        if actions.shape != (50, 14) or not np.isfinite(actions).all():
-            raise ValueError("Pi0.5 must return finite 50x14 actions")
+        if self.name == "robodojo_pi05":
+            actions[:, [6, 13]] = np.clip(actions[:, [6, 13]], 0, 1)
+        elif not ((actions[:, [6, 13]] >= 0) & (actions[:, [6, 13]] <= 1)).all():
+            raise ValueError("X5 actor grippers must be normalized to [0,1]")
         scoped = actions.copy()
         for arm, offset in (("left", 0), ("right", 7)):
             if arm not in active_arms:
@@ -307,10 +335,16 @@ class ActionBinding:
                 scoped[:, offset + 6] = gripper_targets[arm]
         commands = [JointCommand(arms={arm: JointTarget(joints=row[offset:offset + 6].tolist(), gripper=float(row[offset + 6]))
                     for arm, offset in (("left", 0), ("right", 7))}) for row in scoped]
-        preview = episode.env.preview(PreviewRequest(commands=commands, expected_state_version=state["state_version"]))
+        # The environment previews at most 50 steps; executed prefixes are capped at 40.
+        preview = episode.env.preview(PreviewRequest(commands=commands[:50], expected_state_version=state["state_version"]))
+        info = self.client.info
         return {"commands": commands, "preview": preview, "current_state": current,
                 "images": images, "raw_actions": raw_actions, "scoped_actions": scoped,
-                "metadata": {"inference_index": reply.sequence, "checkpoint_sha256": reply.checkpoint_sha256}}
+                "metadata": {"inference_index": reply.sequence, "checkpoint_sha256": reply.checkpoint_sha256,
+                             "model": info.model, "model_id": info.model_id, "runtime": info.runtime,
+                             "model_config_name": info.model_config_name,
+                             "profile": info.profile.model_dump(mode="json"),
+                             "preview_horizon": min(len(commands), 50)}}
 
     def validate_decision(self, decision, context, actions_per_chunk):
         return validate_decision(decision, context, actions_per_chunk)

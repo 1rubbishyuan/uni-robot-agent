@@ -8,6 +8,7 @@ build/
 *.whl
 
 # Test, type-check and coverage caches
+/tests/
 .pytest_cache/
 .mypy_cache/
 .pyright/

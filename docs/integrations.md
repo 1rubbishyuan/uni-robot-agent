@@ -181,13 +181,22 @@ and calibrated multi-view triangulation, with no actor or SAM3 binding.
 
 ## Model bindings and backends
 
-RoboDojo uses `ActorClient`, `ActorService` and `Pi05Backend`.
+RoboDojo uses `ActorClient` and `ActorService`, with `Pi05Backend` by default
+or an explicitly selected `XPolicyLabBackend` bridge.
 Its `action_binding.py` translates snapshots and returned action chunks,
 preserving camera orientation, state layout and gripper conventions.
 
 | Environment | Binding | Actor profile | Native runtime |
 |---|---|---|---|
 | RoboDojo | `robodojo_pi05` | `robodojo_pi05` | `openpi_jax` |
+| RoboDojo X5 | `robodojo_x5_joint` | `robodojo_x5_joint` | `xpolicylab_ws` |
+
+Select `--action-model-binding robodojo_x5_joint` only with `--action-profile hybrid`
+and a compatible X5 actor. The binding validates the environment, complete actor
+profile and camera availability, then shares the existing short-prefix execution
+and reviewer correction paths. Omitting the option preserves the Pi0.5 default.
+See the [XPolicyLab deployment contract](services.md#xpolicylab-x5-bridge) for
+supported semantics and per-model validation requirements.
 
 A compatible checkpoint change is deployment configuration. A new observation
 or action convention requires an explicit binding/profile.
