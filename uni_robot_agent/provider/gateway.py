@@ -352,6 +352,9 @@ class ProviderGateway:
                          and not exchange.get("response_error")) if phase == "finished" else None))
 
     def stop(self, *, drain_timeout_s: float = 5) -> None:
+        # Stop model I/O before draining ASGI workers. Adapter upload/session
+        # cleanup remains in lifespan, after all request workers have finished.
+        self._client.cancel()
         if self._server is None:
             self._client.close()
             return

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import json
+import threading
 import time
 from typing import Any
 from uni_robot_agent.context import ContextManager, PreparedContext
@@ -20,6 +21,7 @@ from uni_robot_agent.provider.registry import (
 )
 from uni_robot_agent.provider.protocols.responses import ResponsesProtocol
 from uni_robot_agent.provider.recording.exchanges import response_error_detail
+from uni_robot_agent.provider.transport import ModelRequestCancelled, ModelTransport
 from uni_robot_agent.services.errors import HttpCallError
 from uni_robot_agent.services.http import HttpTransport
 from uni_robot_agent.telemetry.logging import get_logger
@@ -70,6 +72,8 @@ class ModelClient:
         self._transport = HttpTransport(
             timeout_s=request_timeout_s, trust_env=True, tracer=tracer
         )
+        self._model_transport = ModelTransport(timeout_s=request_timeout_s, tracer=tracer)
+        self._cancelled = threading.Event()
         self._session = (
             self.adapter.open_session(self._transport, self.base_url)
             if isinstance(self.adapter, SessionAdapter)
@@ -87,6 +91,8 @@ class ModelClient:
         *,
         preserve_history: bool = False,
     ) -> tuple[PreparedContext, EncodedRequest]:
+        if self._cancelled.is_set():
+            raise ModelRequestCancelled("Model request cancelled")
         self.protocol.validate_context(self.context_manager)
         if isinstance(self.adapter, RequestValidatingAdapter):
             self.adapter.validate_request(request)
@@ -116,11 +122,15 @@ class ModelClient:
         )
         if 200 <= status < 300 and not exchange.get("response_error"):
             response = self.adapter.decode_response(response, encoded.decode_state).body
+        if self._cancelled.is_set():
+            raise ModelRequestCancelled("Model request cancelled")
         return ModelResponse(
             status, response_headers, response, tuple(exchange["provider_attempts"])
         )
 
     def prepare_wire(self, body: dict, headers: dict, exchange: dict) -> None:
+        if self._cancelled.is_set():
+            raise ModelRequestCancelled("Model request cancelled")
         if self._session is not None:
             self._session.prepare_request(body, headers, exchange)
 
@@ -154,27 +164,32 @@ class ModelClient:
         """Retry one fixed body only before any bytes reach its consumer."""
         attempts = exchange["provider_attempts"] if exchange is not None else []
         for attempt in range(self._max_retries + 1):
+            if self._cancelled.is_set():
+                raise ModelRequestCancelled("Model request cancelled")
             started_at = time.monotonic()
             try:
                 options = {} if self._retry_http_errors else {"raise_http_errors": True}
                 status, response_headers, body = _send_provider_request(
-                    self._transport,
+                    self._model_transport,
                     target,
                     request_bytes=request_bytes,
                     headers=_headers_for_attempt(headers, attempt),
                     **options,
                 )
             except Exception as exc:
+                cancelled_response = exc.response if isinstance(exc, ModelRequestCancelled) else None
                 attempts.append(
                     {
                         "attempt": attempt + 1,
-                        "status": None,
+                        "status": cancelled_response.status_code if cancelled_response is not None else None,
                         "elapsed_s": round(time.monotonic() - started_at, 3),
                         "error": f"{type(exc).__name__}: {exc}",
                     }
                 )
                 if (
-                    attempt >= self._max_retries
+                    self._cancelled.is_set()
+                    or isinstance(exc, ModelRequestCancelled)
+                    or attempt >= self._max_retries
                     or isinstance(exc, HttpCallError)
                     and not self._retry_http_errors
                     or not isinstance(exc, self._retryable_exceptions)
@@ -203,6 +218,8 @@ class ModelClient:
                 if detail := response_error_detail(body, max_chars=500):
                     record["error"] = detail
             attempts.append(record)
+            if self._cancelled.is_set():
+                raise ModelRequestCancelled("Model request cancelled")
             succeeded = 200 <= status < 300 and failure is None
             if succeeded or attempt >= self._max_retries:
                 if failure and exchange is not None:
@@ -220,7 +237,16 @@ class ModelClient:
             )
         raise RuntimeError("provider retry loop ended unexpectedly")
 
+    def cancel(self) -> None:
+        """Cancel model I/O and retry waits; adapter preparation still drains."""
+        self._cancelled.set()
+        self._model_transport.cancel()
+
     def close(self) -> None:
+        self.cancel()
+        # Retain adapter resources if model shutdown fails, so cleanup can be
+        # retried without racing an unfinished request's finish_request callback.
+        self._model_transport.close()
         try:
             if self._session is not None:
                 self._session.close()
@@ -236,8 +262,8 @@ class ModelClient:
             self._max_retries,
             delay_s,
         )
-        if delay_s:
-            time.sleep(delay_s)
+        if self._cancelled.wait(delay_s):
+            raise ModelRequestCancelled("Model request cancelled")
 
 
 def _encode_json(value: dict[str, Any]) -> bytes:
@@ -245,7 +271,7 @@ def _encode_json(value: dict[str, Any]) -> bytes:
 
 
 def _send_provider_request(
-    transport: HttpTransport,
+    transport: ModelTransport,
     target: str,
     *,
     request_bytes: bytes,

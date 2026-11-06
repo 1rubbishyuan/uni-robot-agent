@@ -99,6 +99,12 @@ not stop an executing physical operation. Cleanup drains admitted callbacks and
 reports incomplete cleanup. The ledger is in memory: restarting an interrupted
 episode must not replay uncertain physical work.
 
+Gateway shutdown cancels buffered model HTTP requests and retry waits before
+draining request workers and freezing their records. It waits for the model
+transport's socket, task and thread cleanup. Synchronous adapter preparation,
+including image uploads, still drains normally; exceeding the drain deadline
+remains an explicit cleanup failure and does not claim frozen records.
+
 `max_turns` counts successfully delivered model exchanges, including final text;
 zero disables the cap. Tool calls are counted separately. Provider retry settings
 apply to model requests. Terminal provider failures cancel the adapter to prevent
