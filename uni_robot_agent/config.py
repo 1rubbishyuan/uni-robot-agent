@@ -262,6 +262,7 @@ class SessionConfig(BaseModel):
     no_sam3: bool = False
     output_dir: Path | None = None
     episode_timeout_s: int = Field(default=10800, ge=0)
+    interaction_mode: Literal["tool_calling", "code_as_policy"] = "tool_calling"
     tool_return_mode: Literal["immediate", "background"] = "background"
     resource_scheduling: Literal["per-resource", "global-serial"] = "per-resource"
     observation_profile: str = "none"

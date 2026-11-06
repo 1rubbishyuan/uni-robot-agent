@@ -88,7 +88,7 @@ create the owned environment before the agent connects.
 | `--action-model-url` | Environment or unset | Action-model endpoint required for hybrid actions |
 | `--sam3-url` / `--no-sam3` | Explicit choice | Configure SAM3 or disable it |
 | `--provider-url` | Environment or SDK native provider | Upstream base URL; required for Claude, also accepts `ANTHROPIC_BASE_URL` |
-| `--provider-profile` | Protocol-specific passthrough | See the eight [provider profiles](providers.md#profiles); the selected planner determines input compatibility |
+| `--provider-profile` | Protocol-specific passthrough | See the [provider profiles](providers.md#profiles); the selected planner determines input compatibility |
 | `--provider-timeout-s` | `600` | Main agent HTTP request timeout |
 | `--provider-retries` | `2` | Extra attempts per provider request |
 | `--provider-retry-backoff-s` | `5` | Provider retry backoff |
@@ -353,7 +353,11 @@ and agent completion are recorded separately. See [result inspection](getting-st
 
 `robodojo` accepts `--action-profile direct|hybrid` (default `direct`). Use `direct`
 for explicit gripper and motion tools without an actor. Hybrid adds `actor_act`;
-its action binding comes from the prepared environment description. A RoboDojo
+its action binding defaults to the prepared environment description. Select
+`--action-model-binding robodojo_x5_joint` for a compatible XPolicyLab bridge;
+this option is hybrid-only and RoboDojo-only. The SDK equivalent is
+`integration_options["action_model_binding"]`. See the
+[bridge deployment contract](services.md#xpolicylab-x5-bridge). A RoboDojo
 binding requires `--action-model-checkpoint-sha256`. These binding
 checks happen during session setup, beyond offline CLI validation.
 
@@ -375,6 +379,7 @@ to `min(H, 40)`. Explicit values above that limit are rejected before inference.
 | Binding | Current service output length | Default `actions_per_chunk` | Default `max_chunks` |
 |---|---|---|---|
 | RoboDojo Pi0.5 | 50 actions | 25 | 6 |
+| RoboDojo X5 via XPolicyLab | Declared `H` actions | `min(25,H,40)` | 6 |
 
 `max_chunks` accepts any positive integer; there is no shared ten-chunk cap.
 The call stops at its requested chunk budget or earlier when the native episode
@@ -417,7 +422,7 @@ Environment, actor and perception clients use HTTP(S) URLs. Environment episode
 descriptions declare `protocol_version: "3"` and `tool_schema_version: "7"`;
 actor and perception use their own versioned contracts. For example,
 `--action-model-url http://127.0.0.1:8601` selects the shared actor API for
-the RoboDojo Pi0.5 runtime. Actor sessions carry explicit session, request
+the selected RoboDojo actor runtime. Actor sessions carry explicit session, request
 and sequence identities; policy state belongs to the explicit session.
 See [Services](services.md) for routes, failure recovery and deployment TOML.
 
@@ -462,6 +467,36 @@ Configuration and result files use `agent_backend` and `action_model_url`.
 Deployment scripts use `--action-model-*` flags and `ACTION_MODEL_*` variables.
 Historical `--robot`, `--planner` and `--archive-policy` options are not supported.
 Migrate scripts and result readers together.
+
+### Tencent TokenHub and HY4
+
+Use `tencent.responses` with a Responses planner such as Codex. Select the
+TokenHub model ID available to your account; `hy4` is shown below. Supply your
+own credential through `UNI_ROBOT_AGENT_API_KEY`:
+
+```bash
+export UNI_ROBOT_AGENT_API_KEY='replace-with-tokenhub-api-key'
+uni-robot-agent run --integration robodojo --agent codex \
+  --model hy4 --provider-profile tencent.responses \
+  --provider-url https://tokenhub.tencentmaas.com/v1 \
+  --reasoning-effort high --context-policy identity \
+  --env-url http://127.0.0.1:18760 --action-profile direct --no-sam3 \
+  --validate-config
+```
+
+`--validate-config` checks local configuration without contacting TokenHub or
+robot services. Remove it to run against a prepared environment service.
+This provider is an unreleased addition; use a source checkout containing
+`tencent.responses` until a package release includes it.
+
+The adapter preserves the supplied reasoning fields, reasoning history and
+function-call/result pairing. Supported model IDs and reasoning effort values
+are determined by your upstream service; the adapter does not remap them.
+`--context-policy identity` preserves conversation selection before encoding.
+Inline PNG images become lossless WebP; other images and external URLs remain
+unchanged. Responses, including SSE events, errors and usage, are forwarded
+without protocol conversion. The Hybrid reviewer can also select
+`--vla-review-adapter tencent.responses` with its own model and endpoint.
 
 ### DeepSeek image history
 

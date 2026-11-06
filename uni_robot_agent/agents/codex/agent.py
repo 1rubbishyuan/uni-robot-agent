@@ -17,7 +17,7 @@ from typing import Any
 
 from uni_robot_agent.context.prompt import Prompt
 from uni_robot_agent.events import AssistantText, EventBus, ReasoningSummary, AgentRunStarted
-from uni_robot_agent.agents.contracts import AgentCapabilities, AgentInterrupted, AgentResult
+from uni_robot_agent.agents.contracts import AgentCapabilities, AgentInterrupted, AgentResult, CodePolicyContext
 from uni_robot_agent.execution import ToolExecutor
 from uni_robot_agent.telemetry.logging import get_logger
 from uni_robot_agent.tools.toolkit import Toolkit
@@ -90,6 +90,8 @@ class CodexAgent(CodexConfig):
         return CodexResponsesBinding(event_bus=event_bus, sdk_events=self._sdk_events)
 
     def cancel(self, reason: str) -> None:
+        if getattr(self, "_code_policy", None) is not None:
+            self._code_policy.revoke()
         self._cancel_reason = self._state.get("stop_reason") or reason
         self._state["stop_reason"] = self._cancel_reason
         self._interrupt(self._state)
@@ -120,8 +122,10 @@ class CodexAgent(CodexConfig):
         event_bus: EventBus | None = None,
         session_dir: Path | None = None,
         model_endpoint: str | None = None,
+        code_policy: CodePolicyContext | None = None,
     ) -> AgentResult:
         """Run a Codex SDK session."""
+        self._code_policy = code_policy
         if self._deadline is not None and time.monotonic() >= self._deadline:
             return AgentResult(
                 stop_reason="wall_time_limit",
@@ -142,7 +146,7 @@ class CodexAgent(CodexConfig):
                     instruction=task,
                     model=self._model or "",
                     agent_backend="codex",
-                    tool_event_source=self.capabilities.tool_event_source,
+                    tool_event_source="execution" if code_policy else self.capabilities.tool_event_source,
                 )
             )
 
@@ -186,7 +190,12 @@ class CodexAgent(CodexConfig):
                 ]
             )
 
-        env = {**os.environ}
+        env = {**os.environ, **(code_policy.env if code_policy else {})}
+        if code_policy:
+            config_overrides.extend(
+                f"shell_environment_policy.set.{key}={json.dumps(value)}"
+                for key, value in code_policy.env.items()
+            )
         if self._agent_python is not None:
             python_bin = str(Path(self._agent_python).parent)
             env["PATH"] = python_bin + os.pathsep + env.get("PATH", os.defpath)
@@ -205,7 +214,7 @@ class CodexAgent(CodexConfig):
 
         codex_config = openai_codex.CodexConfig(
             config_overrides=tuple(config_overrides),
-            cwd=self._cwd,
+            cwd=code_policy.cwd if code_policy else self._cwd,
             env=env,
             # Avoid experimental app-server API fields to preserve provider compatibility.
             experimental_api=False,
@@ -213,7 +222,7 @@ class CodexAgent(CodexConfig):
 
         turn_options = {
             "approval_mode": openai_codex.ApprovalMode.deny_all,
-            "cwd": self._cwd,
+            "cwd": code_policy.cwd if code_policy else self._cwd,
             "model": self._model,
             "sandbox": openai_codex.Sandbox.full_access,
         }
@@ -257,7 +266,7 @@ class CodexAgent(CodexConfig):
         turns_used = state.get("turns", 0)
         tool_calls = state.get("tool_calls", 0)
         steps = state.get("steps", 0)
-        finish_request = state.get("finish_request")
+        finish_request = code_policy.finish_request() if code_policy else state.get("finish_request")
 
         if finish_request:
             message = (
@@ -277,6 +286,8 @@ class CodexAgent(CodexConfig):
                 logger.debug("traceback:\n%s", tb)
 
         success = finish_request is not None
+        if code_policy:
+            success = success and bool(state.get("completed")) and not error and not state.get("stop_reason")
 
         result = AgentResult(
             success=success,
@@ -399,6 +410,7 @@ def _consume_main_turn(
         )
 
         if method == "turn/completed":
+            state["completed"] = True
             if state["pending_reasoning"]:
                 logger.warning(
                     "Codex turn completed with reasoning only; "

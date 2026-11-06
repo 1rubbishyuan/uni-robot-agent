@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable
 
+from uni_robot_agent.provider.backends.tencent.responses import TencentResponsesAdapter
 from uni_robot_agent.provider.contracts import ProviderAdapter
 from uni_robot_agent.provider.backends.passthrough import PassthroughAdapter
 from uni_robot_agent.provider.backends.aliyun.chat_completions import (
@@ -57,6 +58,9 @@ _PROFILES = {
         ),
         ProviderProfile(
             "aliyun.messages", "messages", "messages", AliyunMessagesAdapter
+        ),
+        ProviderProfile(
+            "tencent.responses", "responses", "responses", TencentResponsesAdapter
         ),
         ProviderProfile(
             "volcengine.responses", "responses", "responses", VolcengineResponsesAdapter

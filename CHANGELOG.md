@@ -10,6 +10,20 @@
   see [external CLI requirements](docs/external-cli-backends.md).
 - Reject incomplete Chat tool generations and emit complete Responses text events.
   Preserve Codex's Qwen thinking default while disabling it for the new adapters.
+- Add opt-in `code_as_policy` interaction for Codex and Claude Code: run ordinary
+  Python programs against the registered robot tools, with completed feedback,
+  local image paths, and the existing session lifecycle.
+
+- Add an optional XPolicyLab WebSocket bridge for explicitly validated RoboDojo
+  X5 joint policies, with declared camera selection and action horizon.
+- Add `--action-model-binding robodojo_x5_joint` and its SDK option to reuse
+  hybrid review and correction with compatible actors; retain the Pi0.5 default.
+- Record actor identity/profile in proposal archives and reviewer context;
+  preserve full output chunks while bounding FK preview and execution prefixes.
+
+- Add the `tencent.responses` provider for Tencent TokenHub, including HY4,
+  preserving native Responses fields and losslessly encoding inline PNG images.
+- Document provider configuration and validate Tencent support in installed SDKs.
 
 ## 0.1.1 — 2026-11-04
 

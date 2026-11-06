@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from collections.abc import Callable
@@ -27,7 +28,7 @@ from uni_robot_agent.context.prompt import PromptContext, assemble_prompt, get_p
 from uni_robot_agent.events import ErrorEvent, EventBus, AgentRunFinished, Event
 from uni_robot_agent.observation import load_observation_profile
 from uni_robot_agent.agents import AgentResult, create_agent, get_agent_backend
-from uni_robot_agent.agents.contracts import AgentInterrupted
+from uni_robot_agent.agents.contracts import AgentInterrupted, CodePolicyContext
 from uni_robot_agent.integrations import load_integration
 from uni_robot_agent.integrations.base import (
     IntegrationSession,
@@ -166,6 +167,7 @@ def assemble_session(args) -> SessionAssembly:
         prompt_builder = get_prompt_builder(prompt_integration)
         prompt_context = PromptContext(
             integration_name=prompt_integration,
+            interaction_mode=getattr(args, "interaction_mode", "tool_calling"),
             task="",
             action_model_name=session.action_model_name,
             episode=session.episode,
@@ -351,6 +353,7 @@ class Session:
             with assembly.telemetry.tracer.span("agent.run", agent_backend=args.agent_backend, model=args.model):
                 self._agent_result = _run_agent(self._agent,
                     model_config=resolve_agent_model_config(args), context_config=resolve_context_config(args),
+                    interaction_mode=args.interaction_mode,
                     save_raw_request=args.telemetry == "debug", save_exchanges=args.save_exchanges,
                     artifacts=assembly.artifacts, tracer=assembly.telemetry.tracer,
                     prompt=assembly.build_prompt(args.instruction), task=args.instruction,
@@ -604,6 +607,7 @@ def run_tui(args) -> None:
         sys.exit(1)
 
     agent_options = get_agent_backend(args.agent_backend).config_options(args)
+    agent_options["interaction_mode"] = getattr(args, "interaction_mode", "tool_calling")
     agent_options["model_config"] = resolve_agent_model_config(args)
     agent_options["context_config"] = resolve_context_config(args)
     agent_options["save_raw_request"] = args.telemetry == "debug"
@@ -668,6 +672,7 @@ class SingleTaskSession:
         self._agent_backend = agent_backend
         self._model = model
         options = dict(agent_options or {})
+        self._interaction_mode = options.pop("interaction_mode", "tool_calling")
         self._model_config = options.pop("model_config", None)
         self._context_config = options.pop("context_config", {})
         self._save_raw_request = options.pop("save_raw_request", False)
@@ -694,6 +699,7 @@ class SingleTaskSession:
             result = _run_agent(
                 self._agent,
                 model_config=self._model_config,
+                interaction_mode=self._interaction_mode,
                 context_config=self._context_config,
                 save_raw_request=self._save_raw_request,
                 save_exchanges=self._save_exchanges,
@@ -738,6 +744,7 @@ def _run_agent(
     artifacts=None,
     save_raw_request=False,
     save_exchanges=True,
+    interaction_mode="tool_calling",
     tracer=None,
     **request,
 ):
@@ -747,6 +754,7 @@ def _run_agent(
     session_dir = request.get("session_dir")
     event_bus = request.get("event_bus")
     gateway = None
+    code_bridge = None
     model_runtime = None
     if model_config is not None and model_config.base_url:
         model_runtime = agent.model_runtime(model_config.adapter, event_bus)
@@ -779,6 +787,27 @@ def _run_agent(
 
     try:
         endpoint = gateway.start() if gateway is not None else None
+        if interaction_mode == "code_as_policy":
+            from uni_robot_agent.context.code_as_policy import prepare_code_policy
+            from uni_robot_agent.execution.code_as_policy.bridge import CodePolicyBridge, DirectToolsDisabled
+
+            code_bridge = CodePolicyBridge(request["executor"], event_bus=event_bus)
+            code_url = code_bridge.start()
+            code_root = Path(session_dir).resolve()
+            request["prompt"] = prepare_code_policy(
+                code_bridge.get_tool_schemas(), code_root, request["prompt"],
+            )
+            request["code_policy"] = CodePolicyContext(
+                cwd=str(code_root / "scratch"),
+                env={"UNI_ROBOT_AGENT_CODE_URL": code_url,
+                     "UNI_ROBOT_AGENT_CODE_IMAGES": str(code_root / "images" / "code_as_policy"),
+                     # Keep checkout imports available from scratch as well as installed wheels.
+                     "PYTHONPATH": os.pathsep.join(filter(None, [
+                         str(Path(__file__).resolve().parent.parent), os.environ.get("PYTHONPATH"),
+                     ]))},
+                finish_request=lambda: code_bridge.finish_request, revoke=code_bridge.revoke,
+            )
+            request["executor"] = DirectToolsDisabled()
         result = agent.run(model_endpoint=endpoint, **request)
         if result.stop_reason or result.error:
             cancel_agent(result.stop_reason or "agent_error")
@@ -790,10 +819,17 @@ def _run_agent(
         cancel_agent("interrupted")
         raise
     finally:
+        if code_bridge is not None:
+            code_bridge.revoke()
         try:
             agent.close()
         except Exception as exc:
             cleanup_errors.append(f"Agent cleanup failed: {exc}")
+        if code_bridge is not None:
+            try:
+                code_bridge.close()
+            except Exception as exc:
+                cleanup_errors.append(f"Code policy cleanup failed: {exc}")
         if gateway is not None:
             try:
                 gateway.stop()

@@ -28,6 +28,9 @@
 
 ## What's New
 
+**Code as Policy** is here: control robots with code. Enable it with
+`--interaction-mode code_as_policy`. [Learn more](docs/code-as-policy.md).
+
 **v0.1.1** fixes fresh RoboDojo setup with isolated simulator dependencies and automatic robot configuration.
 See [pip and uv installation](#quick-start) below.
 

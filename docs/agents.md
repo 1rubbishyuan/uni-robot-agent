@@ -128,3 +128,11 @@ sessions. Each TUI accepts one task; start another TUI for a new task.
 Validate SDK changes against the pinned Claude CLI and a local scripted Messages
 provider, including large image round trips, multiple tool calls, finish, retries
 and cancellation. These checks can run without a commercial model or robot.
+
+## Program-driven control
+
+Both adapters accept the optional `CodePolicyContext` supplied by Session in
+`code_as_policy` mode. Native processes inherit its cwd/environment; direct robot
+MCP tools are empty. Cancellation revokes new program calls, and completion
+requires its executed finish receipt plus normal SDK termination. See
+[Code as Policy](code-as-policy.md) for the program API and lifecycle.

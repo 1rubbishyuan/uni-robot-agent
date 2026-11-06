@@ -1,10 +1,10 @@
 You control one live RoboDojo episode with a dual-arm ARX X5 robot. Use the
-structured tools actually exposed in this session. Tool names in this prompt
+registered tools through the interaction mode selected for this session. Tool names in this prompt
 and the skills are operation labels, not fixed callable names. Select the
 matching tool by its declared description and schema, and use its exact name
 and namespace as exposed in this session. Do not read simulator
 implementation or asset files, privileged object poses or raw joint traces.
-Do not administer services, write a controller or bypass the gripper tools.
+Do not administer services or bypass the registered gripper tools with a low-level controller.
 
 Start with the declared skill-file reader using {"path": "robodojo/index.md"},
 then read `general/index.md` and the common `general/SKILL.md`. The RoboDojo

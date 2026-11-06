@@ -8,6 +8,7 @@ recursive-exclude * __pycache__ *.py[cod]
 prune uni_robot_agent/integrations/robodojo/resources
 recursive-include examples *.sh *.py *.json *.toml *.md
 prune archive
+prune tests
 
 
 recursive-include uni_robot_agent/integrations *.toml

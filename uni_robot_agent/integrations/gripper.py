@@ -27,6 +27,7 @@ class GripperOptions(IntegrationOptions):
     run_id: str | None = None
     task: str | None = None
     action_profile: Literal["direct", "hybrid"] = "direct"
+    action_model_binding: Literal["robodojo_pi05", "robodojo_x5_joint"] | None = None
     action_model_checkpoint_sha256: str | None = None
     vla_review: bool | None = None
     vla_review_model: str | None = None
@@ -46,6 +47,8 @@ def add_gripper_cli_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--run-id", help="Optional expected episode identity")
     group.add_argument("--task", help="Optional expected native task identity")
     group.add_argument("--action-profile", choices=("direct", "hybrid"), default="direct")
+    group.add_argument("--action-model-binding", choices=("robodojo_pi05", "robodojo_x5_joint"),
+                       help="Explicit actor binding; defaults to the environment's binding")
     group.add_argument("--action-model-checkpoint-sha256",
         dest="action_model_checkpoint_sha256",
     )
@@ -61,6 +64,11 @@ def add_gripper_cli_args(parser: argparse.ArgumentParser) -> None:
 
 def validate_gripper_cli(args: Any) -> None:
     """Validate shared actor, reviewer, and perception endpoint settings."""
+    binding = getattr(args, "action_model_binding", None)
+    if binding and args.action_profile != "hybrid":
+        raise ValueError("--action-model-binding requires the hybrid action profile")
+    if binding and args.integration != "robodojo":
+        raise ValueError("The registered action model bindings require RoboDojo")
     if args.vla_review and args.action_profile != "hybrid":
         raise ValueError("--vla-review requires the hybrid action profile")
     args.vla_review_model = args.vla_review_model or args.model
@@ -104,11 +112,11 @@ def _validate_reviewer_endpoint(args):
 
 
 def create_binding(name, args, description):
-    if name == "robodojo_pi05":
+    if name in {"robodojo_pi05", "robodojo_x5_joint"}:
         from uni_robot_agent.integrations.robodojo.action_binding import ActionBinding
     else:
         raise ValueError(f"No registered action binding: {name!r}")
-    return ActionBinding(args, description)
+    return ActionBinding(args, description, name=name)
 
 
 def configure_tools(session, *, binding_factory=create_binding):
@@ -118,7 +126,8 @@ def configure_tools(session, *, binding_factory=create_binding):
         from uni_robot_agent.services.perception.client import PerceptionClient
         perception = session.own(PerceptionClient(args.sam3_url, tracer=session.context.tracer))
     if args.action_profile == "hybrid":
-        binding = session.own(binding_factory(runtime.description.environment.action_binding, args, runtime.description))
+        name = getattr(args, "action_model_binding", None) or runtime.description.environment.action_binding
+        binding = session.own(binding_factory(name, args, runtime.description))
         enabled = getattr(args, "vla_review", None)
         enabled = binding.reviewer_supported if enabled is None else enabled
         if enabled and not binding.reviewer_supported:
@@ -130,7 +139,7 @@ def configure_tools(session, *, binding_factory=create_binding):
             api_key=args._vla_review_api_key, adapter=args.vla_review_adapter,
             prompt_path=binding.reviewer_prompt,
             validator=binding.validate_decision, tracer=session.context.tracer))
-        session.action_model_name = binding.name
+        session.action_model_name = getattr(binding, "model_name", binding.name)
     return (SkillTools(runtime, writing=getattr(args, "skill_writing", False)), SceneTools(runtime, perception=perception),
             GripperTools(runtime, action_profile=args.action_profile, binding=binding, reviewer=reviewer), EpisodeTools(runtime))
 
