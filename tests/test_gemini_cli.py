@@ -117,6 +117,10 @@ for line in sys.stdin:
                 agent.run(prompt=SimpleNamespace(user='task'), task='task', toolkit=None,
                           executor=None, model_endpoint='http://127.0.0.1:5678/v1')
             env = launch.call_args.kwargs['env']
+            command = launch.call_args.args[0]
+            included = command[command.index('--include-directories') + 1]
+            self.assertEqual(included, str(agent.directory.parent))
+            self.assertEqual(launch.call_args.kwargs['cwd'], agent.workspace)
             trust_path = Path(env['GEMINI_CLI_TRUSTED_FOLDERS_PATH'])
             self.assertTrue(trust_path.is_relative_to(agent.directory))
             self.assertEqual(json.loads(trust_path.read_text()), {

@@ -100,7 +100,8 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
                 UNI_ROBOT_AGENT_MCP_URL=self.mcp_url,
                 UNI_ROBOT_AGENT_MCP_AUTH='Bearer ' + self.mcp_token)
             self.process = subprocess.Popen([self.binary, '--experimental-acp', '--model', self.model,
-                '--approval-mode', 'yolo'], cwd=self.workspace, env=self.env, start_new_session=True,
+                '--approval-mode', 'yolo', '--include-directories', str(self.directory.parent)],
+                cwd=self.workspace, env=self.env, start_new_session=True,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
             self.transport = AcpTransport(self.process, self.directory)
             initialized = self.request('initialize', {'protocolVersion': 1,

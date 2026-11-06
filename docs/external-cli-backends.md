@@ -179,6 +179,10 @@ or changed files. Existing single-file manifests remain supported. The manifest
 detects changes; it is not a signature or proof of an upstream build. Running an episode never
 patches a globally installed CLI. Its private trust file permits only the session's
 scratch workspace, allowing native MCP discovery without disabling folder trust.
+The CLI includes only the current episode directory as an additional workspace,
+so native tools can read observation/calibration artifacts and write calculations
+in the episode's scratch directory. Other episodes are outside that allowance;
+unexpected interactive permission requests are still rejected.
 State uses `GEMINI_CLI_HOME`, the assembled system prompt uses `GEMINI_SYSTEM_MD`, and the Google base URL targets the local
 GenerateContent gateway. Provider authentication replaces the local Google key
 with the configured Qwen credential.
