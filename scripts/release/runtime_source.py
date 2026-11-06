@@ -22,7 +22,11 @@ def stage_runtime(root: Path, destination: Path) -> None:
     project['dependencies'] = [requirement for requirement in project['dependencies']
                                if re.split(r'[<>=!~\[; ]', requirement)[0] not in excluded]
     project.pop('scripts')
-    project.pop('optional-dependencies')
+    # Manual benchmark services need the same lightweight adapter dependencies.
+    # Planner, development and other deployment extras remain excluded.
+    project['optional-dependencies'] = {
+        'benchmarks': project['optional-dependencies']['benchmarks'],
+    }
     # Both distributions own the same modules, but are never dependencies of one
     # another. Keeping the main wheel intact preserves upgrades from 0.1.0.
     destination.mkdir(parents=True, exist_ok=False)
