@@ -172,6 +172,9 @@ def response_json(body: dict[str, Any]) -> dict[str, Any]:
         })
     result = {"id": response_id, "object": "response",
               "status": "incomplete" if reason == 'length' else "completed", "output": output}
+    for source, target in [('created', 'created_at'), ('model', 'model')]:
+        if source in body:
+            result[target] = body[source]
     if reason == 'length':
         result['incomplete_details'] = {'reason': 'max_output_tokens'}
     if usage := body.get("usage"):

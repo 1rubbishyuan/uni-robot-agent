@@ -12,8 +12,9 @@ from uni_robot_agent.provider.image_encoding import lossless_image_url
 class AliyunChatCompletionsAdapter:
     profile_name = "aliyun.chat_completions"
 
-    def __init__(self, *, thinking=True):
+    def __init__(self, *, thinking=True, require_response_metadata=False):
         self.thinking = thinking
+        self.require_response_metadata = require_response_metadata
 
     def target_url(self, upstream_base_url: str, request_path: str) -> str:
         return responses_chat.target_url(upstream_base_url, request_path)
@@ -39,4 +40,13 @@ class AliyunChatCompletionsAdapter:
         return encoded
 
     def decode_response(self, response: bytes, decode_state: dict[str, Any]) -> DecodedResponse:
+        if self.require_response_metadata:
+            from uni_robot_agent.provider.protocols.chat_completions import parse_response
+            body = parse_response(response)
+            usage = body.get('usage') or {}
+            if (not isinstance(body.get('model'), str)
+                    or type(body.get('created')) not in (int, float)
+                    or any(type(usage.get(key)) is not int for key in
+                           ('prompt_tokens', 'completion_tokens', 'total_tokens'))):
+                raise ValueError('OpenCode requires upstream model, creation time and token usage')
         return responses_chat.decode_response(response, decode_state)

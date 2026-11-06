@@ -20,6 +20,22 @@ from uni_robot_agent.provider.protocols.sse import decode_events
 
 
 class OpenCodeTest(unittest.TestCase):
+    def test_stream_preserves_sdk_required_metadata_and_usage(self):
+        adapter = AliyunChatCompletionsAdapter(thinking=False, require_response_metadata=True)
+        encoded = adapter.encode_request({'model': 'qwen', 'input': [], 'stream': True})
+        chunks = [
+            {'id': 'r', 'created': 123, 'model': 'qwen', 'choices': [
+                {'delta': {'content': 'done'}, 'finish_reason': 'stop'}]},
+            {'choices': [], 'usage': {'prompt_tokens': 5, 'completion_tokens': 2, 'total_tokens': 7}},
+        ]
+        raw = ''.join('data: ' + json.dumps(chunk) + '\n\n' for chunk in chunks).encode()
+        events, _ = decode_events(adapter.decode_response(raw, encoded.decode_state).body)
+        self.assertEqual(events[0]['response']['created_at'], 123)
+        self.assertEqual(events[0]['response']['model'], 'qwen')
+        self.assertEqual(events[-1]['response']['usage']['total_tokens'], 7)
+        with self.assertRaisesRegex(ValueError, 'token usage'):
+            adapter.decode_response(('data: ' + json.dumps(chunks[0]) + '\n\n').encode(), encoded.decode_state)
+
     def test_failed_server_startup_reaps_process_and_readers(self):
         with tempfile.TemporaryDirectory() as tmp:
             process = subprocess.Popen([sys.executable, '-u', '-c',

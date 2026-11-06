@@ -32,7 +32,8 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
         self.binding.bus = event_bus
         protocol = ResponsesProtocol()
         protocol.trace_client = 'opencode'
-        return ModelRuntime(self.trace_format, AliyunChatCompletionsAdapter(thinking=False),
+        return ModelRuntime(self.trace_format, AliyunChatCompletionsAdapter(
+                            thinking=False, require_response_metadata=True),
                             protocol, self.binding, finalize_records)
 
     def configuration(self, endpoint, system):
