@@ -67,6 +67,10 @@ def build_parser(integration_spec=None) -> argparse.ArgumentParser:
     )
     execution = common.add_argument_group("Execution and observation")
     execution.add_argument(
+        "--interaction-mode", choices=("tool_calling", "code_as_policy"), default="tool_calling",
+        help="Control through direct tool calls or ordinary scripts run by the agent",
+    )
+    execution.add_argument(
         "--tool-return-mode", choices=("immediate", "background"), default="background",
     )
     execution.add_argument(

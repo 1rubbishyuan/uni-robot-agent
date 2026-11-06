@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add opt-in `code_as_policy` interaction for Codex and Claude Code: run ordinary
+  Python programs against the registered robot tools, with completed feedback,
+  local image paths, and the existing session lifecycle.
+
 - Add an optional XPolicyLab WebSocket bridge for explicitly validated RoboDojo
   X5 joint policies, with declared camera selection and action horizon.
 - Add `--action-model-binding robodojo_x5_joint` and its SDK option to reuse

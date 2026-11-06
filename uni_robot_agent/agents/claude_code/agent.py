@@ -8,7 +8,7 @@ import time
 from urllib.parse import urlsplit
 
 from uni_robot_agent.events import AgentRunStarted
-from uni_robot_agent.agents.contracts import AgentCapabilities, AgentResult
+from uni_robot_agent.agents.contracts import AgentCapabilities, AgentResult, CodePolicyContext
 from uni_robot_agent.agents.runtime import ModelRuntime
 from uni_robot_agent.provider.protocols.messages import MessagesProtocol
 from uni_robot_agent.provider.registry import build_provider_adapter
@@ -36,6 +36,7 @@ class ClaudeCodeAgent(ClaudeConfig):
         self._cancel_reason = None
         self._cleanup_error = None
         self._binding = ClaudeModelBinding()
+        self._code_policy = None
 
     def model_runtime(self, profile, event_bus=None):
         adapter = build_provider_adapter(profile, client_protocol=self.model_protocol)
@@ -48,6 +49,8 @@ class ClaudeCodeAgent(ClaudeConfig):
             result.train_error = "Claude native model records require --provider-url"
 
     def cancel(self, reason):
+        if self._code_policy is not None:
+            self._code_policy.revoke()
         self._cancel_reason = reason
         self._binding.cancel()
         if self._loop is not None and self._task is not None and not self._task.done():
@@ -61,14 +64,15 @@ class ClaudeCodeAgent(ClaudeConfig):
             raise RuntimeError("Claude SDK run has not finished cleanup")
 
     def run(self, *, prompt, task, toolkit, executor, max_turns=0,
-            event_bus=None, session_dir=None, model_endpoint=None):
+            event_bus=None, session_dir=None, model_endpoint=None, code_policy: CodePolicyContext | None = None):
+        self._code_policy = code_policy
         try:
             return asyncio.run(self._run_async(prompt, task, executor, max_turns,
-                                               event_bus, session_dir, model_endpoint))
+                                               event_bus, session_dir, model_endpoint, code_policy))
         finally:
             self._loop = self._task = None
 
-    async def _run_async(self, prompt, task, executor, max_turns, bus, session_dir, model_endpoint):
+    async def _run_async(self, prompt, task, executor, max_turns, bus, session_dir, model_endpoint, code_policy=None):
         import claude_agent_sdk as sdk
         self._loop, self._task = asyncio.get_running_loop(), asyncio.current_task()
         self._cancel_reason = None
@@ -94,6 +98,7 @@ class ClaudeCodeAgent(ClaudeConfig):
                 "CLAUDE_CODE_SUBAGENT_MODEL": self._model,
                 **mcp_description_env(tools.specs.values()),
                 **context_env(),
+                **(code_policy.env if code_policy else {}),
             }
             if model_endpoint:
                 env["ANTHROPIC_BASE_URL"] = model_endpoint.rstrip("/").removesuffix("/v1")
@@ -118,7 +123,7 @@ class ClaudeCodeAgent(ClaudeConfig):
                 # The hook authorizes native tools, including access outside cwd.
                 # Root sessions use hook decisions rather than bypassPermissions.
                 permission_mode="dontAsk", sandbox={"enabled": False},
-                setting_sources=[], skills=[], cwd=self._cwd,
+                setting_sources=[], skills=[], cwd=code_policy.cwd if code_policy else self._cwd,
                 env=env, effort=self._effort,
                 hooks={
                     "PreToolUse": [sdk.HookMatcher(hooks=[tools.pre_tool])],
@@ -151,7 +156,7 @@ class ClaudeCodeAgent(ClaudeConfig):
             except Exception as error:
                 cleanup_error = self._cleanup_error = str(error)
                 state.error = state.error or cleanup_error
-        finish = state.finish_request
+        finish = code_policy.finish_request() if code_policy else state.finish_request
         message = state.error or ((finish.get("summary") or finish.get("message")) if finish else None)
         message = message or "\n".join(state.texts) or "Claude session ended without output"
         return AgentResult(
