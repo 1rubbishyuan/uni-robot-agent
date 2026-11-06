@@ -102,6 +102,10 @@ uses one primary robot agent and disables automatic compaction and title/summary
 agents. Model and MCP credentials use environment substitutions. MCP has a
 per-run bearer token; the control server has a separate password. Native file
 and shell tools remain available. The working directory is not an OS sandbox.
+The robot agent's external-directory rule allows only the current episode tree,
+so native reads can reopen observation images and calculations can use its scratch
+directory. Other episodes remain outside that allowance. The CLI's `TMPDIR` is
+`<episode>/opencode/tmp`, keeping its native temporary files inside the same tree.
 
 OpenCode may snapshot tool arguments while the before hook has attached private
 MCP identity. The messages hook removes that field from copies of robot-tool

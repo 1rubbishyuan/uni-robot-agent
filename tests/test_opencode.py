@@ -1,5 +1,7 @@
 """Responses streaming and OpenCode episode boundaries, without a CLI install."""
 import json
+import fnmatch
+import os
 import queue
 from pathlib import Path
 import subprocess
@@ -143,7 +145,46 @@ class OpenCodeTest(unittest.TestCase):
         self.assertIs(get_agent_backend('opencode'), OpenCodeAgent)
         agent = OpenCodeAgent(model='qwen')
         agent.mcp_url = 'http://127.0.0.1:1234/mcp/'
-        config = agent.configuration('http://127.0.0.1:1235/v1', 'system')
+        config = agent.configuration('http://127.0.0.1:1235/v1', 'system', session_dir='/runs/episode')
         self.assertEqual(config['provider']['ura']['npm'], '@ai-sdk/openai')
         self.assertFalse(config['compaction']['auto'])
         self.assertNotIn('password', json.dumps(config))
+
+    def test_episode_artifacts_and_scratch_are_allowed_without_sibling_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            episode = Path(tmp).resolve() / 'episode'
+            agent = OpenCodeAgent(model='qwen')
+            agent.mcp_url = 'http://127.0.0.1:1234/mcp/'
+            config = agent.configuration('http://127.0.0.1:1235/v1', 'system', session_dir=episode)
+            rules = config['agent']['robot']['permission']['external_directory']
+            def permission(path):
+                return next(action for pattern, action in reversed(list(rules.items()))
+                            if fnmatch.fnmatchcase(str(path), pattern))
+            self.assertEqual(permission(episode / 'images' / '*'), 'allow')
+            self.assertEqual(permission(episode / 'scratch' / '*'), 'allow')
+            self.assertEqual(permission(episode / 'opencode' / 'tmp' / 'opencode' / '*'), 'allow')
+            self.assertEqual(permission(episode.parent / 'another-episode' / 'images' / '*'), 'deny')
+            self.assertEqual(permission(episode.parent / 'episode-other' / '*'), 'deny')
+            self.assertEqual(permission('/tmp/opencode/*'), 'deny')
+
+    def test_cli_scratch_directory_is_owned_by_the_episode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            agent = OpenCodeAgent(model='qwen')
+            agent.directory = Path(tmp).resolve() / 'opencode'
+            agent.directory.mkdir()
+            agent.workspace = agent.directory / 'workspace'
+            agent.workspace.mkdir()
+            agent.env = {}
+            agent.mcp_url = 'http://127.0.0.1:1234/mcp/'
+            agent.mcp_token = 'fixture'
+            inherited_tmp = os.environ.get('TMPDIR')
+            with patch.object(agent, 'begin'), patch(
+                    'uni_robot_agent.agents.opencode.agent.subprocess.Popen',
+                    side_effect=RuntimeError('fixture stops before launching')) as launch:
+                agent.run(prompt=SimpleNamespace(system='system', user='user'), task='task',
+                          toolkit=None, executor=None, session_dir=tmp,
+                          model_endpoint='http://127.0.0.1:1235/v1')
+            scratch = Path(launch.call_args.kwargs['env']['TMPDIR'])
+            self.assertEqual(scratch, agent.directory / 'tmp')
+            self.assertTrue(scratch.is_dir())
+            self.assertEqual(os.environ.get('TMPDIR'), inherited_tmp)

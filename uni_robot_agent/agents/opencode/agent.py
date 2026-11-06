@@ -37,7 +37,8 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
                             thinking=False, require_response_metadata=True),
                             protocol, self.binding, finalize_records)
 
-    def configuration(self, endpoint, system):
+    def configuration(self, endpoint, system, *, session_dir):
+        episode_pattern = str(Path(session_dir).resolve()) + '/**'
         return {'$schema': 'https://opencode.ai/config.json', 'autoupdate': False,
             'share': 'disabled', 'model': 'ura/' + self.model, 'small_model': 'ura/' + self.model,
             'enabled_providers': ['ura'], 'default_agent': 'robot',
@@ -48,7 +49,8 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
                     'options': {'store': False}}}}},
             'agent': {'robot': {'mode': 'primary', 'prompt': system,
                 'permission': {'*': 'deny', 'ura_*': 'allow', 'read': 'allow', 'bash': 'allow',
-                               'edit': 'allow', 'glob': 'allow', 'grep': 'allow'},
+                               'edit': 'allow', 'glob': 'allow', 'grep': 'allow',
+                               'external_directory': {'*': 'deny', episode_pattern: 'allow'}},
                 'tools': {'task': False, 'question': False, 'websearch': False, 'webfetch': False}},
                 'title': {'disable': True}, 'summary': {'disable': True}},
             'compaction': {'auto': False, 'prune': False},
@@ -62,15 +64,18 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
             raise ValueError('OpenCode requires a model gateway endpoint')
         try:
             self.begin(prompt, task, executor, event_bus, session_dir, max_turns, ('ura_',))
+            scratch = self.directory / 'tmp'
+            scratch.mkdir(exist_ok=True)
             password = uuid4().hex
             self.env.update(OPENCODE_SERVER_PASSWORD=password, OPENCODE_SERVER_USERNAME='opencode',
                 OPENCODE_DISABLE_PROJECT_CONFIG='true', OPENCODE_DISABLE_CLAUDE_CODE='true',
                 OPENCODE_DISABLE_EXTERNAL_SKILLS='true', OPENCODE_DISABLE_AUTOCOMPACT='true',
                 OPENCODE_DISABLE_PRUNE='true', OPENCODE_DISABLE_MODELS_FETCH='true',
                 UNI_ROBOT_AGENT_SYSTEM_PROMPT=prompt.system,
+                TMPDIR=str(scratch),
                 UNI_ROBOT_AGENT_MODEL_KEY=self.api_key or 'local',
                 UNI_ROBOT_AGENT_MCP_AUTH='Bearer ' + self.mcp_token)
-            config = self.configuration(model_endpoint, prompt.system)
+            config = self.configuration(model_endpoint, prompt.system, session_dir=self.directory.parent)
             config_path = self.directory / 'opencode.json'
             config_path.write_text(json.dumps(config, indent=2) + '\n')
             self.env['OPENCODE_CONFIG'] = str(config_path)
