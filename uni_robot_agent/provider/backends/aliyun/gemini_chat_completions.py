@@ -1,6 +1,7 @@
 """Convert Gemini requests to Qwen Chat without changing the agent loop."""
 from uni_robot_agent.provider.conversions import gemini_chat
 from uni_robot_agent.provider.contracts import EncodedRequest
+from uni_robot_agent.provider.image_encoding import encode_chat_images
 
 
 class AliyunGeminiChatAdapter:
@@ -20,6 +21,7 @@ class AliyunGeminiChatAdapter:
         encoded.body['enable_thinking'] = False
         encoded.body.setdefault('max_tokens', 8192)
         encoded.body['stream_options'] = {'include_usage': True}
+        encode_chat_images(encoded.body['messages'])
         return EncodedRequest(encoded.body, encoded.decode_state, copy.deepcopy(encoded.body))
 
     decode_response = staticmethod(gemini_chat.decode_response)

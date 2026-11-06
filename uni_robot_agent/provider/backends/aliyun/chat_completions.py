@@ -6,7 +6,7 @@ from typing import Any
 
 from uni_robot_agent.provider.conversions import responses_chat
 from uni_robot_agent.provider.contracts import DecodedResponse, EncodedRequest
-from uni_robot_agent.provider.image_encoding import lossless_image_url
+from uni_robot_agent.provider.image_encoding import encode_chat_images
 
 
 class AliyunChatCompletionsAdapter:
@@ -29,14 +29,7 @@ class AliyunChatCompletionsAdapter:
             body.pop('reasoning_effort', None)
         if body["stream"]:
             body["stream_options"] = {"include_usage": True}
-        messages = body["messages"]
-        for message in messages:
-            if isinstance(message.get("content"), list):
-                for part in message["content"]:
-                    if part.get("type") == "image_url":
-                        part["image_url"] = dict(part["image_url"],
-                            url=lossless_image_url(part["image_url"]["url"]))
-        body["messages"] = messages
+        encode_chat_images(body["messages"])
         return encoded
 
     def decode_response(self, response: bytes, decode_state: dict[str, Any]) -> DecodedResponse:

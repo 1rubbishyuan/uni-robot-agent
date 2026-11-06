@@ -7,6 +7,16 @@ import io
 from functools import lru_cache
 
 
+def encode_chat_images(messages: list[dict]) -> None:
+    """Encode images in a provider-owned Chat body without touching other parts."""
+    for message in messages:
+        if isinstance(message.get("content"), list):
+            for part in message["content"]:
+                if part.get("type") == "image_url":
+                    part["image_url"] = dict(part["image_url"],
+                        url=lossless_image_url(part["image_url"]["url"]))
+
+
 @lru_cache(maxsize=256)
 def lossless_image_url(url: str) -> str:
     """Preserve PNG pixels and dimensions; pass other formats and remote URLs through."""

@@ -22,6 +22,13 @@ Chat Completions parameters, with function calling and image input. Arbitrary
 OpenAI-compatible services are not automatically supported. Existing Codex and
 Claude Code selections retain their defaults.
 
+Both Qwen adapters encode inline PNG images as lossless WebP at the provider
+boundary, preserving decoded pixels and image dimensions. Original CLI requests
+remain unchanged; Gemini's Chat training view records the same encoded images
+sent to Qwen. Other image formats pass through unchanged. Lossless conversion
+does not bound accumulated history or guarantee that a request fits the provider's
+body limit; long image histories can still exceed that limit.
+
 ## Architecture
 
 ```mermaid
