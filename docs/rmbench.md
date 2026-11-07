@@ -45,3 +45,19 @@ directory. Automatic setup/deploy recipes and Hybrid actors are not provided.
   `--max-steps`; overrides belong in reported evaluation settings.
 - Native success is recorded independently of agent `finish`. This is an episode
   integration, not a complete benchmark runner or a leaderboard claim.
+
+## Native validation
+
+A Linux/RTX 5090 probe ran `press_button`, `demo_clean`, seed 0. The upstream
+expert admitted the seed; twenty HTTP EE actions then moved both TCPs by about
+25.0 mm. All four camera snapshots, action-budget termination and teardown
+passed. Head and third-view images were visually inspected. Native task success
+was false; this bounded movement probe did not solve the button task.
+
+The runtime reused SAPIEN 3.0.0b1 and CuRobo 0.7.8 with CUDA 12.8 support.
+Besides task objects and the embodiment, upstream imports require
+`assets/objects/objaverse/list.json` and `assets/objects/same.json`, even for a
+clean scene. Only the tested task's assets were prepared. OIDN invalid-handle
+errors left visible ray-tracing noise, as in the RoboTwin probe; rendering
+quality needs validation before score comparisons. No full model episode or
+complete memory-task suite result is claimed.

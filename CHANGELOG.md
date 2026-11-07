@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add Direct RMBench memory-task episodes with cached four-view observations.
+- Add Direct CALVIN single-task episodes with native task predicates, explicit
+  reset provenance and calibrated RGB; five-task chain evaluation is not included.
+
 - Add a Direct RoboTwin 2.0 adapter with dual-arm TCP control, measured gripper
   state, native seed admission and calibrated cached observations.
 

@@ -70,3 +70,16 @@ This binding does **not** implement CALVIN's 1,000 five-subtask sequences, state
 continuation between subtasks, sequence sampling or average-chain-length metric.
 A default scene reset is an integration probe, not an official evaluation reset.
 Single-task results must not be reported as the standard CALVIN chain score.
+
+## Native validation
+
+A Linux/RTX 5090 EGL probe used scene D's default reset, `open_drawer`, seed 0
+and a 20-action budget. Twenty HTTP pose/gripper actions produced 24.9 mm maximum
+TCP displacement. Both camera images were inspected; snapshot publication,
+budget termination and cleanup passed. The native task verdict was false:
+this was a lift-and-return motion probe, not an attempted drawer solution.
+
+The tested isolated runtime used Python 3.11, PyBullet 3.2.7, Gym 0.23.1 and
+NumPy 1.26.4. Install upstream dependencies including `rich` (imported by the
+pinned environment), Hydra/colorlog and numpy-quaternion. Explicit reset files,
+other scenes and full model episodes require further native validation.
