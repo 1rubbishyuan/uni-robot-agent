@@ -1,7 +1,7 @@
 """Panda OSC backends with measured fingertip-centre reference points."""
 import numpy as np
 from ..control import state, quaternion, rotation
-from uni_robot_agent.services.environment.contracts import RequestRejected
+from uni_robot_agent.services.environment.contracts import ArmControlCapabilities, RequestRejected
 
 
 class OSC:
@@ -13,6 +13,9 @@ class OSC:
         self.model, self.data = backend.mj_model_data()
         self.robots = backend.env.robots
         self.names = tuple("arm" if len(self.robots) == 1 else f"arm{i}" for i in range(len(self.robots)))
+        # Only the reviewed LIBERO controller is admitted for actor control.
+        self.actor_control = ArmControlCapabilities(commands=["pose"]) if kind == "libero" else None
+        self.control_point = "panda_fingerpad_midpoint"
         self.entries = []
         offset = 0
         for robot in self.robots:

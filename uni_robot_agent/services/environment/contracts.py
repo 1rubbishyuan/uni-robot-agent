@@ -31,6 +31,27 @@ class Pose(Contract):
         return tuple(x / length for x in value)
 
 
+class ArmControlCapabilities(Contract):
+    """Native control semantics available to shared action adapters."""
+
+    commands: list[Literal["joints", "pose"]] = Field(min_length=1)
+    pose_solver: Literal["native", "dls"] = "native"
+    rotation: Literal["full", "fixed"] = "full"
+    rotation_reference: Literal["measured", "target"] = "measured"
+    gripper: Literal["continuous", "binary", "fixed"] = "continuous"
+    joint_preview: bool = False
+
+    @model_validator(mode="after")
+    def valid_capabilities(self):
+        if len(set(self.commands)) != len(self.commands):
+            raise ValueError("Control commands must be unique")
+        if self.joint_preview and "joints" not in self.commands:
+            raise ValueError("Joint preview requires joint control")
+        if self.rotation_reference == "target" and self.rotation != "fixed":
+            raise ValueError("A retained rotation target requires fixed rotation control")
+        return self
+
+
 class ArmDescription(Contract):
     name: str
     control_frame: str = Field(min_length=1)
@@ -40,6 +61,7 @@ class ArmDescription(Contract):
     rotation_radius_m: FiniteFloat = Field(ge=0)
     joint_names: list[str] = Field(default_factory=list)
     joint_tracking_tolerance_rad: FiniteFloat | None = None
+    control: ArmControlCapabilities | None = None
 
 
 class CameraDescription(Contract):
@@ -54,7 +76,7 @@ class EnvironmentDescription(Contract):
     cameras: list[CameraDescription] = Field(default_factory=list)
     control_frequency_hz: FiniteFloat = Field(gt=0)
     max_episode_steps: int = Field(gt=0)
-    # Model bindings are selected from the harness's explicit registry.
+    # Optional default selected by the integration's binding factory.
     action_binding: str | None = None
     observation_interval_steps: int = Field(default=5, ge=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -69,8 +91,8 @@ class EnvironmentDescription(Contract):
 
 
 class EpisodeInfo(Contract):
-    protocol_version: Literal["3"] = "3"
-    tool_schema_version: Literal["7"] = "7"
+    protocol_version: Literal["4"] = "4"
+    tool_schema_version: Literal["8"] = "8"
     episode_id: str = Field(min_length=1)
     task: str
     environment: EnvironmentDescription

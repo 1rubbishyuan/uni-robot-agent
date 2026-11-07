@@ -82,7 +82,7 @@ These adaptations do not claim upstream policy or success-rate equivalence.
 ## Shared actor
 
 `services/actor/` uses one shared `BatchWorker` and typed HTTP protocol
-`uni_robot_agent.actor.v1`. Each explicit actor session owns a seed-zero JAX noise
+`uni_robot_agent.actor.v2`. Each explicit actor session owns a seed-zero JAX noise
 sequence and inference index, with one request in flight. The pinned Python
 policy lives in `services/actor/backends/pi05/openpi_jax.py`; it owns no network
 server or separate inference queue. Batching preserves assigned noise
@@ -132,3 +132,7 @@ file (`a31a0d3a957196ea42d216036db2fffdf7678f4f36f65f90a0b69c58daa8d7d0`):
 normalizing CRLF to LF produces identical bytes. Both exact digests are accepted;
 finger mesh digests, joint validation and pad calibration remain unchanged. Setup
 checks these asset digests before publishing a runtime manifest.
+
+Hybrid orchestration is shared in `tools/hybrid/`; the integration binding only
+converts the declared actor and native contracts. Native control and upstream
+provenance remain integration-owned. See [Hybrid design](../../../docs/hybrid.md).

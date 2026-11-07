@@ -24,8 +24,8 @@ def validate_cli(args):
     validate_gripper_cli(args)
     if not args.task:
         raise ValueError("RoboLab requires --task with the expected native task class")
-    if args.action_profile != "direct" or args.action_model_url:
-        raise ValueError("RoboLab supports Direct control; no actor binding is registered")
+    if args.action_model_binding not in (None, "robolab_droid_joint"):
+        raise ValueError("RoboLab supports the robolab_droid_joint binding")
     if args.sam3_url:
         raise ValueError("This RoboLab profile requires --no-sam3")
 

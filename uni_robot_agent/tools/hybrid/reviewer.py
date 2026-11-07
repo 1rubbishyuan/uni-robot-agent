@@ -1,4 +1,4 @@
-"""Review input construction and model calls, independent of physical execution."""
+"""Review transport, independent of robot geometry and physical execution."""
 from __future__ import annotations
 
 import base64
@@ -55,35 +55,3 @@ class ChunkReviewer:
         decision.update(model=self.model, reasoning_effort="medium", provider_attempts=len(reply.attempts),
                         elapsed_s=round(time.monotonic() - started, 3), usage=response.get("usage"))
         return decision
-
-
-def build_review_input(*, episode, proposal, previous, state, session_id, index,
-                       max_chunks, actions_per_chunk, instruction, task_progress,
-                       active_arms, gripper_targets):
-    """Build the review payload without mutating runtime state or writing files."""
-    context = {
-        "request_id": uuid4().hex, "session_id": session_id, "chunk_index": index,
-        "max_chunks": max_chunks, "actions_per_chunk": actions_per_chunk,
-        "task": episode.description.task, "global_instruction": episode.instruction,
-        "local_instruction": instruction, "task_progress": task_progress if index == 0 else
-            (previous.get("assessment") or {}).get("task_progress") if previous else None,
-        "progress_source": "main_agent" if index == 0 and task_progress else "previous_controller",
-        "progress_is_model_reported": True, "active_arms": active_arms, "gripper_targets": gripper_targets,
-        "step_id": state["native_steps"], "remaining_steps": episode.remaining_steps,
-        "arm_descriptions": [arm.model_dump(mode="json") for arm in episode.description.environment.arms],
-        "current_state": proposal["current_state"], "previous_feedback": episode.latest_feedback,
-        "actor": proposal["metadata"],
-        "previous_vla": previous, "recent_observations": episode.recent_observations[-6:],
-        "student_eef_trajectory": proposal["preview"].get("trajectory"),
-        "measured_fk_check": proposal["preview"].get("measured_fk_check"),
-        "fk_interpretation": proposal["preview"].get("interpretation"),
-        "constraints": {"frame": "world", "student_steps": [1, actions_per_chunk],
-            "correction_steps": [1, min(5, actions_per_chunk)], "translation_limit_m": .05,
-            "rotation_limit_rad": .35, "inactive_arms": "hold measured joints and opening"},
-    }
-    if episode.task_requirements:
-        context["additional_task_requirements"] = episode.task_requirements
-    images = {"current/" + name: path for name, path in proposal["images"].items()}
-    if previous:
-        images.update({"previous/" + name: path for name, path in previous["images"].items()})
-    return context, images

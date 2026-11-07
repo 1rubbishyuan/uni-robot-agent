@@ -1,7 +1,7 @@
 """Native pose/aperture conversion for the pinned subprocess backends."""
 import numpy as np
 from ..control import state, rotation, fixed_rotation, axis_angle, latched_grip
-from uni_robot_agent.services.environment.contracts import RequestRejected
+from uni_robot_agent.services.environment.contracts import ArmControlCapabilities, RequestRejected
 
 
 def encode(family, target, current):
@@ -69,6 +69,9 @@ class WorkerControl:
     def __init__(self, backend):
         self.b = backend
         self.hz = 15. if backend.family == "factory" else 20.
+        self.actor_control = (ArmControlCapabilities(commands=["pose"], rotation="fixed", rotation_reference="target")
+                              if backend.family == "robocasa" else None)
+        self.control_point = "robocasa_tcp" if backend.family == "robocasa" else "native_tcp"
         self.constraint = {
             "maniskill_cpu": "Full world TCP pose; latched finger aperture.",
             "maniskill_gpu": "Full world TCP pose; absolute finger aperture.",
@@ -79,7 +82,11 @@ class WorkerControl:
 
     def read(self, commands):
         c = self.b.control()
-        return {"arm": state(c["position"], c["quaternion"], c["opening"], commands["arm"])}
+        measured = state(c["position"], c["quaternion"], c["opening"], commands["arm"])
+        if self.b.family == "robocasa":
+            # Measured orientation may drift; native translation retains this drive target.
+            measured.metadata["target_quaternion"] = list(c["target_quaternion"])
+        return {"arm": measured}
 
     def encode(self, targets):
         return encode(self.b.family, targets["arm"], self.b.control())

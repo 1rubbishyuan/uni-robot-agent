@@ -5,7 +5,6 @@ import json
 import threading
 
 from uni_robot_agent.services.actor.contracts import ActorInfo
-from uni_robot_agent.services.actor.profiles import x5_joint_profile
 from uni_robot_agent.services.errors import ServiceError
 
 from .client import XPolicyLabClient
@@ -21,7 +20,7 @@ class XPolicyLabBackend:
             model_id=hashlib.sha256(json.dumps(config.identity(), sort_keys=True).encode()).hexdigest(),
             checkpoint_sha256=config.checkpoint_sha256,
             model_config_name=config.model_config_name,
-            profile=x5_joint_profile(list(config.cameras.values()), config.action_horizon),
+            profile=config.profile,
         )
         self._lock = threading.Lock()
         self._active = None
@@ -57,7 +56,7 @@ class XPolicyLabBackend:
             try:
                 observation = observation_payload(work.observation, self.config)
                 actions = self._active.infer(observation)
-                return [action_matrix(actions, self.config.action_horizon)]
+                return [action_matrix(actions, self.config)]
             except Exception as error:  # noqa: BLE001 - report upstream failures through actor receipts.
                 # No replay after an ambiguous inference or invalid action result.
                 self._failed = True

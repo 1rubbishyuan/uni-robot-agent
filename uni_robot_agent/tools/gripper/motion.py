@@ -15,7 +15,6 @@ import numpy as np
 
 from uni_robot_agent.services.environment.contracts import (
     GoalRegionRequest,
-    ActionCommand,
     ArmCommand,
     EnvironmentState,
     JointCommand,
@@ -31,7 +30,6 @@ from uni_robot_agent.tools.gripper.contracts import (
     HoldRequest,
     MotionParameters,
     MoveRequest,
-    PrefixRequest,
 )
 from uni_robot_agent.tools.gripper.pose import (
     pose_waypoint,
@@ -427,56 +425,6 @@ class MotionExecutor:
         feedback["action"] = "hold"
         return feedback
 
-    def execute_prefix(
-        self, request: PrefixRequest, *, validate_commands: Callable[[list[ActionCommand], str], None] | None,
-    ) -> dict:
-        start = state = self._state()
-        if state.state_version != request.expected_state_version:
-            raise RequestRejected("Stale action proposal; capture a fresh observation")
-        if request.mode != "student" and len(request.commands) > 5:
-            raise RequestRejected("Corrections contain at most five actions")
-        for command in request.commands:
-            if isinstance(command, (PoseCommand, JointCommand)) and set(command.arms) != set(self.arms):
-                raise RequestRejected("Action prefixes must command every arm")
-        if validate_commands is not None:
-            validate_commands(request.commands, request.mode)
-        executed = 0
-        reason, evidence, max_tracking = "requested_step_budget", None, 0.0
-        for command in request.commands:
-            if state.ended:
-                reason = "native_end"
-                break
-            receipt = self._advance(command)
-            if not receipt.accepted:
-                reason, evidence = "planning_rejected", _rejection_evidence(receipt.diagnostics)
-                break
-            state = receipt.state
-            executed += 1
-            errors = {}
-            commanded = ( {name: target.joints for name, target in command.arms.items()}
-                          if isinstance(command, JointCommand) else receipt.diagnostics.get("commanded_joints", {}))
-            for name, joints in commanded.items():
-                tolerance = self.arms[name].joint_tracking_tolerance_rad
-                error = float(np.max(np.abs(np.asarray(state.arms[name].joints) - joints)))
-                max_tracking = max(max_tracking, error)
-                if tolerance is not None and error > tolerance:
-                    errors[name] = {"tracking_error_rad": error, "tracking_tolerance_rad": tolerance}
-            if state.ended:
-                reason = "native_end"
-                break
-            if errors:
-                reason, evidence = "tracking_interrupted", {"arms": errors}
-                break
-        feedback = {
-            "execution_mode": request.mode,
-            "requested_actions": len(request.commands), "executed_actions": executed,
-            "steps_executed": executed, "executed_native_steps": state.native_steps - start.native_steps,
-            "native_ended": state.ended, "stop_reason": reason, "stop_evidence": evidence,
-            "no_execution": executed == 0,
-            "tracking_interrupted": reason == "tracking_interrupted",
-            "max_tracking_error_rad": max_tracking, "discarded_remaining_proposal": True,
-        }
-        return feedback
 
 
 class ClientPrimitiveBackend:

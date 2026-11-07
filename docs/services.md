@@ -264,12 +264,13 @@ They construct `EnvironmentService` and mount its shared routes after preparing
 the native environment. Use the [existing simulator launchers](running.md#scripts)
 for prepared simulation episodes.
 
-Environment protocol `"3"` exposes `EpisodeInfo.environment` and
-`EnvironmentState`, with tool schema `"7"`. Persisted environment snapshots use
+Environment protocol `"4"` exposes `EpisodeInfo.environment` and
+`EnvironmentState`, with tool schema `"8"`. Persisted environment snapshots use
 `artifact_type = "environment_snapshot"`, integer `schema_version = 2` and the
 `state` field. Upgrade clients and environment services together when changing
-wire contracts; existing run artifacts are not rewritten. Actor clients validate
-the complete profile before opening a session.
+wire contracts; existing run artifacts are not rewritten. Actor clients validate protocol and checkpoint identity before opening a session.
+The integration then validates the complete actor/environment profile before
+inference or physical commands; setup failure closes the owned actor session.
 
 Connect the harness with HTTP URLs, for example:
 
@@ -283,38 +284,46 @@ The ports are deployment examples, not discovery defaults. A pooled environment
 uses its allocated full episode URL. Independent environments may share an actor
 and perception service through separate clients and actor sessions.
 
-## XPolicyLab X5 bridge
+## XPolicyLab bridge
 
 The optional `xpolicylab` backend connects an independently deployed
-[XPolicyLab](https://github.com/XPolicyLab/XPolicyLab) policy to the existing actor
-HTTP API. The harness still owns fresh capture, review and bounded execution;
-the upstream model adapter owns model-specific preprocessing, normalization and
-decoding. One selected model serves one RoboDojo episode. This does not make every
-XPolicyLab model or checkpoint compatible with RoboDojo.
+[XPolicyLab](https://github.com/XPolicyLab/XPolicyLab) policy to the actor HTTP
+API. The harness owns fresh capture, review and bounded execution. The upstream
+model adapter owns preprocessing, normalization and decoding. One selected model
+serves one episode. Checkpoint compatibility must be validated for that episode's
+observation and control semantics; equal vector dimensions are insufficient.
 
-| Boundary | Required convention |
+Actor protocol **`uni_robot_agent.actor.v2`** deliberately replaces v1. Upgrade
+clients and actor services together. `ActorProfile.observation_fields` and
+`action_fields` independently list scalar names, units, semantics, optional frame,
+control point, delta reference and bounds. The profile also declares cameras,
+control frequency, action horizon and image convention. There is no required arm,
+gripper or equality between observation and action dimensions.
+
+| Configuration | Responsibility |
 |---|---|
-| Environment | Two RoboDojo X5 arms, left then right, six joints per arm, 25 Hz |
-| Observation | Current instruction, selected RGB HWC cameras, measured joints in radians and normalized gripper openings |
-| Upstream state | `left_arm_joint_state`, `left_ee_joint_state`, `right_arm_joint_state`, `right_ee_joint_state`, widths 6/1/6/1 |
-| Upstream actions | Exactly `action_horizon` dictionaries containing those same four fields; absolute joint targets and grippers in `[0,1]` |
-| Profile | `robodojo_x5_joint`; explicit units, frame, camera selection and horizon |
-| Review | Existing `student`, `edit`, `eef`, `stop`; full actor identity/profile and at most 50 FK preview steps |
+| `[profile]` and its field arrays | Complete semantic contract validated by the integration binding |
+| `[camera_mapping]` | Upstream camera key to profile camera name, covering each view once |
+| `[observation_mapping]` | Upstream state key to ordered observation field names |
+| `[action_mapping]` | Upstream action key to ordered action field names |
 
-`[cameras]` maps upstream slots (`cam_head`, `cam_high`, `cam_left_wrist`,
-`cam_right_wrist`) to distinct environment views (`head`, `left_wrist`,
-`right_wrist`). The bridge forwards RGB at its captured resolution; resizing,
-padding and channel transforms belong to the model adapter. It does not guess
-delta/EEF semantics, flip joint signs, change control frequency, or clip grippers.
-Different embodiments and delta/EEF outputs need another explicit adapter.
+Mappings must cover every declared field exactly once. The bridge does not select
+an integration, change units or frequency, interpret deltas, clip values, or load
+robot drivers. Output dictionaries must match the declared action keys and widths.
+The X5 example remains a deployment configuration, not a backend restriction.
+
+For existing bridge configurations, replace top-level `action_horizon`, `cameras`,
+`action_semantics`, `control_frequency_hz` and `gripper_convention` with the full
+profile and the three explicit mappings in the updated example. There is no
+silent v1 fallback. The pinned Pi0.5 backend keeps its legacy profile, transforms
+and binding-side clipping as a separate compatibility path under actor v2.
 
 The upstream adapter must condition on the current instruction and generate a
 new proposal from each supplied observation. Policies that return an old queued
 chunk or require uninterrupted action-history execution cannot be declared
 compatible: hybrid may discard a suffix, apply a correction or execute Direct
-actions between predictions. The configuration's language, freshness, frequency
-and exclusivity fields are operator declarations. Verify them against the chosen
-adapter and checkpoint before enabling robot execution.
+actions between predictions. Language, freshness and exclusivity are operator
+declarations; verify them against the chosen adapter and checkpoint.
 
 ### Deployment
 
@@ -409,7 +418,8 @@ one command, records the receipt, and publishes a snapshot. It knows nothing
 about whether a caller is trying to reach a pose, close a gripper, or execute a
 recovery sequence.
 
-`tools/gripper/motion.py` is the client-side program layer. It reads the
+`tools/gripper/motion.py` owns Direct motion programs, while
+`tools/hybrid/execution.py` owns the independent bounded actor-prefix loop. It reads the
 latest typed state, plans bounded waypoints, calls `EnvironmentClient.step`
 repeatedly, checks feedback, and stops on tolerance, divergence, native
 termination, or a step budget. This is why high-level orchestration is in the
@@ -456,8 +466,8 @@ class MyActorBackend:
 ```
 
 `info` declares the model/checkpoint identity and complete profile: cameras,
-state/action fields, units, horizon, coordinate frame and gripper/image
-conventions. The backend returns one action matrix or exception per request in
+separate observation/action fields, their units, semantics, frames, control points
+and delta references, plus frequency, horizon and image conventions. The backend returns one action matrix or exception per request in
 input order. A stateful model returns per-session state from `create_session`
 and consumes `ActorWork.state` during prediction.
 

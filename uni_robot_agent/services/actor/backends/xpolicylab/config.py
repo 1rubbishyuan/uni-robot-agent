@@ -1,4 +1,4 @@
-"""Explicit deployment declarations for the X5 XPolicyLab bridge."""
+"""Explicit model wire mappings for the pinned XPolicyLab transport."""
 
 from pathlib import Path
 from typing import Literal
@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from uni_robot_agent.services.actor.profiles import x5_joint_profile
+from uni_robot_agent.services.actor.contracts import ActorProfile
 
 XPOLICYLAB_REVISION = "6baccd57ff958570d0db1588370289ee36c8bb70"
 
@@ -20,12 +20,11 @@ class XPolicyLabConfig(BaseModel):
     model: str = Field(min_length=1)
     model_config_name: str = Field(min_length=1)
     checkpoint_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    action_horizon: int = Field(gt=0, le=1024, strict=True)
-    # Keys are upstream slots; values name the environment cameras.
-    cameras: dict[str, str]
-    action_semantics: Literal["absolute_joint_positions"]
-    control_frequency_hz: Literal[25]
-    gripper_convention: Literal["0=closed,1=open"]
+    profile: ActorProfile
+    # Wire keys select ordered scalar fields, independently for input and output.
+    camera_mapping: dict[str, str]
+    observation_mapping: dict[str, list[str]]
+    action_mapping: dict[str, list[str]]
     language_conditioned: Literal[True]
     fresh_observation_predictions: Literal[True]
     exclusive_upstream: Literal[True]
@@ -37,12 +36,18 @@ class XPolicyLabConfig(BaseModel):
         if (address.scheme not in {"ws", "wss"} or not address.hostname
                 or address.username or address.password or address.query or address.fragment):
             raise ValueError("upstream_url must be a credential-free WS(S) URL")
-        slots = {"cam_head", "cam_high", "cam_left_wrist", "cam_right_wrist"}
-        if not self.cameras or not set(self.cameras) <= slots:
-            raise ValueError("Declare supported XPolicyLab RGB camera slots")
-        if len(set(self.cameras.values())) != len(self.cameras):
-            raise ValueError("Each upstream camera must map to a distinct environment view")
-        x5_joint_profile(list(self.cameras.values()), self.action_horizon)
+        if any(not key for key in self.camera_mapping):
+            raise ValueError("Camera wire keys must be nonempty")
+        cameras = list(self.camera_mapping.values())
+        if len(set(cameras)) != len(cameras) or set(cameras) != set(self.profile.cameras):
+            raise ValueError("Camera mapping must cover each profile camera exactly once")
+        for mapping, fields in ((self.observation_mapping, self.profile.observation_fields),
+                                (self.action_mapping, self.profile.action_fields)):
+            names = [name for group in mapping.values() for name in group]
+            if any(not key or not group for key, group in mapping.items()):
+                raise ValueError("Wire mappings require nonempty keys and field groups")
+            if len(set(names)) != len(names) or set(names) != {field.name for field in fields}:
+                raise ValueError("Wire mapping must cover each profile field exactly once")
         return self
 
     def identity(self) -> dict:

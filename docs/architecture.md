@@ -115,11 +115,12 @@ Package paths are relative to [`uni_robot_agent/`](../uni_robot_agent/).
 ## Shared tools and episode ownership
 
 `PreparedEpisodeSession` owns connections and creates one `Episode` shared by
-four providers:
+independently composed providers:
 
 | Provider | Public tools |
 |---|---|
-| `GripperTools` | `move`, `grasp`, `release`, `hold`; Hybrid adds `actor_act` |
+| `GripperTools` | `move`, `grasp`, `release`, `hold` |
+| `HybridTools` | `actor_act`, when an actor and compatible binding are configured |
 | `SceneTools` | `view_env_state`, `capture_scene`, `locate` |
 | `SkillTools` | `list_skills` discovers shared general/ and current-environment Markdown; `read_skill` reads either scope; optional `write_skill` writes only environment-local experience |
 | `EpisodeTools` | `finish` |
@@ -137,12 +138,22 @@ shared composition code, not a selectable integration.
 Physical actions, `capture_scene` and `finish` share the exclusive `episode`
 resource queue. `locate` operates on immutable historical snapshots and can
 overlap motion; the result is evidence about that snapshot, not a guarantee of
-an object's current position. `GripperTools` delegates Hybrid chunks to
-[`ActorRunner`](../uni_robot_agent/tools/gripper/actor.py), which owns execution
-progress and previous-chunk context. The [reviewer](../uni_robot_agent/tools/gripper/reviewer.py)
-builds model inputs and evaluates proposals; [`ActorArchive`](../uni_robot_agent/artifacts/actor.py)
-persists proposals, decisions and execution receipts. Robot-specific action
-bindings retain their existing decoding and correction rules.
+an object's current position. [`HybridTools`](../uni_robot_agent/tools/hybrid/provider.py)
+owns actor collaboration independently of scalar-gripper tools. Its runner captures,
+calls the actor service, requests a review and executes a bounded prefix through
+[`execution.py`](../uni_robot_agent/tools/hybrid/execution.py). Every acknowledged
+primitive immediately updates the existing episode; later failures retain that
+confirmed progress. Sample completion, acknowledged commands, elapsed action
+duration and partial or unknown execution are separate evidence.
+
+An integration binding encodes already captured observations, validates the actor
+profile, interprets predictions, assembles optional capabilities and compiles rows.
+It owns neither inference nor an execution loop. The optional shared
+`tools/hybrid/adapters/arm_gripper.py` component handles arm scope, opening and
+command conversion. `tools/hybrid/corrections/cartesian.py` handles bounded pose
+geometry. The core imports neither component nor a concrete integration.
+Native FK, IK, calibration, limits and physical stepping remain in environment
+adapters. See [the extension contract](hybrid.md).
 
 ## Service boundaries
 
@@ -272,7 +283,7 @@ Prompts, skills and tool descriptions use local labels; actual calls use the
 exact declared name, including its namespace or server prefix.
 
 
-### Registered grasp-site boundary (environment protocol 3)
+### Registered grasp-site boundary (environment protocol 4)
 
 Each integration registers one grasp site per arm in `EnvironmentDescription.arms`.
 `control_frame` names it; `grasp_site_description` explains the point, axes and opening
@@ -287,7 +298,7 @@ The shared motion tools do not load URDF or solve IK. Robot-model loading and na
 conversion stay inside the integration: X5 URDF plus fixed-site extension for
 RoboDojo FK/DLS and native grasp-site/OSC conversion in RoboUse.
 Actor joint/native action vectors and camera extrinsics retain their native
-conventions. Environment protocol 3 / tool schema 7 requires coordinated client/service upgrades.
+conventions. Environment protocol 4 / tool schema 8 requires coordinated client/service upgrades.
 Native task grading remains in its original frame, including finite return tolerances.
 
 Provider profiles, protocol conversions, and vendor implementation ownership are
