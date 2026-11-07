@@ -298,7 +298,8 @@ checkpoint, run archive, or other large directory needs copying.
 ### Context
 
 `--context-policy identity` preserves history without window tuning.
-`sliding_window` requires the Codex provider gateway and both
+`sliding_window` supports Codex Responses and Gemini CLI GenerateContent through
+the provider gateway. Both require
 `--context-max-input-tokens` and `--context-target-input-tokens`.
 
 | Sliding-window option | Default |
@@ -313,6 +314,12 @@ counts refer to context blocks. `--context-min-recent-tool-images` controls the
 image-eviction phase; whole-block trimming can still remove those images.
 Explicit context budget/image options are rejected with `identity`. Choose
 budgets within the limits supported by your model and provider.
+
+Gemini trims native `contents` while keeping user prompts, system instructions,
+tool definitions and generation settings. Call batches and all matching results
+are indivisible; only images with tool-result provenance enter the image window.
+The native CLI still retains its own history. See [external CLI context](external-cli-backends.md#gemini-context)
+for retention and native-compression limits.
 
 ### Timeouts and outcomes
 

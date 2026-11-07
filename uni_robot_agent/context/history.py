@@ -12,23 +12,28 @@ from typing import Any, Protocol
 
 @dataclass(frozen=True)
 class ContextRequest:
-    """Responses request snapshot consumed by a context policy."""
+    """Native wire request snapshot consumed by a context policy."""
 
     body: dict[str, Any]
     preserve_history: bool = False
+    wire_format: str = "responses"
 
     @classmethod
     def from_dict(cls, body: dict[str, Any]) -> "ContextRequest":
         return cls(copy.deepcopy(body))
 
     @property
+    def items_key(self) -> str:
+        return {"gemini": "contents", "messages": "messages"}.get(self.wire_format, "input")
+
+    @property
     def items(self) -> tuple[Any, ...]:
-        value = self.body.get("input", [])
+        value = self.body.get(self.items_key, [])
         return tuple(value) if isinstance(value, list) else ()
 
     def with_items(self, items: list[Any]) -> "ContextRequest":
         body = copy.deepcopy(self.body)
-        body["input"] = items
+        body[self.items_key] = items
         return replace(self, body=body)
 
 
@@ -91,6 +96,7 @@ class ContextDecision:
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.policy,
+            "wire_format": self.request.wire_format,
             "version": self.version,
             "decision_id": self.decision_id,
             "truncated": self.truncated,
@@ -187,11 +193,13 @@ class ContextManager:
 
     def prepare(
         self, body: dict[str, Any], *, preserve_history: bool = False,
+        wire_format: str = "responses",
     ) -> PreparedContext:
         original = copy.deepcopy(body)
         request = replace(
             ContextRequest.from_dict(body),
             preserve_history=preserve_history,
+            wire_format=wire_format,
         )
         decision = self._policy.select(request)
 

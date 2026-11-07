@@ -9,6 +9,7 @@ import traceback
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import anyio
 from fastapi import APIRouter, Request
@@ -28,6 +29,7 @@ from uni_robot_agent.provider.recording.exchanges import (
 )
 from uni_robot_agent.services.hosting import HttpServer, create_app
 from uni_robot_agent.telemetry.logging import get_logger
+from uni_robot_agent.telemetry import NullTracer
 
 logger = get_logger("provider.gateway")
 
@@ -79,7 +81,7 @@ class ProviderGateway:
     ) -> None:
         self._upstream_base_url = upstream_base_url.rstrip("/")
         self._host = host
-        self._tracer = tracer
+        self._tracer = tracer or NullTracer()
         self._protocol = protocol or ResponsesProtocol()
         self._adapter = adapter or build_provider_adapter(
             f"passthrough.{self._protocol.name}", client_protocol=self._protocol.name)
@@ -159,6 +161,16 @@ class ProviderGateway:
         return self.base_url
 
     def _forward(self, request_path, raw_request, incoming_headers, request):
+        from uni_robot_agent.provider.contracts import LocalRequestProtocol, RoutedModelProtocol
+        if isinstance(self._protocol, LocalRequestProtocol):
+            local = self._protocol.local_response(request_path)
+            if local is not None:
+                path = urlsplit(request_path).path
+                logger.info('Local %s response: path=%s status=%s',
+                            self._protocol.name, path, local.status)
+                with self._tracer.span('provider.local_response', path=path, status_code=local.status):
+                    return Response(content=local.body, status_code=local.status,
+                                    headers=dict(local.headers))
         target = self._adapter.target_url(
             self._upstream_base_url, request_path
         )
@@ -177,7 +189,9 @@ class ProviderGateway:
         request_bytes = raw_request
 
         try:
-            if self._protocol.matches(request_path):
+            normalized = None
+            routed = isinstance(self._protocol, RoutedModelProtocol)
+            if routed or self._protocol.matches(request_path):
                 request_json = _decode_json(raw_request)
                 exchange = {
                     "wire_profile": self._adapter.profile_name,
@@ -200,12 +214,6 @@ class ProviderGateway:
                         self._context_manager.policy_metadata
                     ),
                 }
-                request_context = (
-                    self._model_binding.request_context(request_json)
-                    if self._model_binding
-                    else RequestContext()
-                )
-                exchange["agent_metadata"] = request_context.metadata
                 attach_wire_views(
                     exchange,
                     client_request=request_json,
@@ -217,11 +225,24 @@ class ProviderGateway:
                 )
                 # Persist raw requests first so policy or adapter failures remain diagnosable.
                 self._trace.begin(exchange, request_bytes=raw_request)
+                request_context = (
+                    self._model_binding.request_context(request_json)
+                    if self._model_binding
+                    else RequestContext()
+                )
+                exchange["agent_metadata"] = request_context.metadata
                 self._model_event(exchange, "started")
+                # Rejected model routes and unsupported operations must be recorded
+                # and stop the owner before a native CLI can enter its retry loop.
+                if routed:
+                    normalized = self._protocol.normalize_request(request_path, request_json)
 
                 # Control model generation only; MCP/runtime owns execution exclusion.
                 # Copy so generation controls do not change the original client request.
-                source = self._protocol.generation_request(request_json, self._model_parallel_tool_calls)
+                source = self._protocol.generation_request(
+                    normalized if normalized is not None else request_json,
+                    self._model_parallel_tool_calls,
+                )
                 # Select context before encoding the upstream protocol and vendor fields.
                 prepared, encoded = self._client.prepare_request(
                     source,
@@ -297,6 +318,9 @@ class ProviderGateway:
                 exchange["response"] = decoded.training_body
                 exchange["provider_complete"] = True
 
+            if normalized is not None and not failure and status == 200:
+                response_headers = self._protocol.response_headers(normalized, response_headers)
+
             return _GatewayResponse(
                 self, request, exchange, reply,
                 status=502 if failure else status,
@@ -328,6 +352,9 @@ class ProviderGateway:
                          and not exchange.get("response_error")) if phase == "finished" else None))
 
     def stop(self, *, drain_timeout_s: float = 5) -> None:
+        # Stop model I/O before draining ASGI workers. Adapter upload/session
+        # cleanup remains in lifespan, after all request workers have finished.
+        self._client.cancel()
         if self._server is None:
             self._client.close()
             return

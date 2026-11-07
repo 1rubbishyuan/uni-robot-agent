@@ -1,0 +1,1 @@
+"""OpenCode robot-agent adapter."""

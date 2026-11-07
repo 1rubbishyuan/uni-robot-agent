@@ -17,7 +17,7 @@ EXCLUDED_INTEGRATIONS = {'robodojo_internal', 'efe', 'franka_robotiq',
 ROOT_FILES = ('README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'AGENTS.md',
               'CLAUDE.md', 'LICENSE', 'MANIFEST.in', 'pyproject.toml', 'pyrightconfig.json')
 SOURCE_SUFFIXES = {'.py', '.md', '.toml', '.json', '.sh', '.txt', '.png', '.pdf',
-                   '.html', '.css', '.js', '.urdf', '.npz', '.npy', '.typed', '.yml'}
+                   '.html', '.css', '.js', '.ts', '.urdf', '.npz', '.npy', '.typed', '.yml'}
 
 
 def public_files(root: Path) -> dict[str, bytes]:

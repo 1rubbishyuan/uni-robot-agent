@@ -235,6 +235,11 @@ class AgentConfig(BaseModel):
     context_min_recent_tool_images: int = Field(default=3, ge=0)
     context_image_eviction_batch_size: int = Field(default=20, gt=0)
     agent_python: str | None = None
+    opencode_binary: str = "opencode"
+    opencode_version: str | None = None
+    gemini_binary: str = "gemini"
+    gemini_version: str | None = None
+    gemini_bridge_manifest: str | None = None
     codex_base_prompt: Literal["default", "robot"] = "robot"
     codex_web_search: Literal["disabled", "cached", "live"] | None = None
     mcp_parallel_dispatch: bool = False
@@ -290,6 +295,14 @@ class SessionConfig(BaseModel):
         explicit = {"--" + name.replace("_", "-") for name in self.model_fields_set}
         if self.agent:
             explicit.update("--" + name.replace("_", "-") for name in agent.model_fields_set)
+            if agent.agent_backend != 'gemini_cli' and any(
+                name.startswith('gemini_') for name in agent.model_fields_set
+            ):
+                raise ValueError("Gemini settings require agent_backend='gemini_cli'")
+            if agent.agent_backend != 'opencode' and any(
+                name.startswith('opencode_') for name in agent.model_fields_set
+            ):
+                raise ValueError("OpenCode settings require agent_backend='opencode'")
             if agent.agent_backend != "codex" and any(
                 name == "agent_python" or name.startswith(("codex_", "mcp_"))
                 for name in agent.model_fields_set

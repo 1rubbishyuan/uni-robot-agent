@@ -146,7 +146,8 @@ def locate(episode, *, perception, method, snapshot_id, camera=None, prompt=None
         pixels[mask, 0] = 255
         pixels[mask, 1:] = (pixels[mask, 1:] * .5).astype(np.uint8)
         overlay = Image.fromarray(pixels)
-        payload = {**common, "found": True, "score": result.score, "box": result.box_xyxy}
+        payload = {**common, "coordinate_order": "xyxy", "found": True,
+                   "score": result.score, "box": result.box_xyxy}
         if depth_enabled:
             geometry = project_mask(frame, mask)
             quality = mask_geometry_quality(geometry, workspace_bounds=episode.description.environment.metadata.get("workspace_bounds"))

@@ -143,22 +143,40 @@ def decode_response(response: bytes, decode_state: dict[str, Any]) -> DecodedRes
 
 def response_json(body: dict[str, Any]) -> dict[str, Any]:
     response_id = body.get("id") or "resp_chat"
-    message = (body.get("choices") or [{}])[0].get("message") or {}
+    choice = (body.get("choices") or [{}])[0]
+    reason = choice.get('finish_reason')
+    if reason not in {'stop', 'tool_calls', 'length'}:
+        raise ValueError('Chat response has no supported terminal reason')
+    message = choice.get("message") or {}
     output = []
     if reasoning := str(message.get("reasoning_content") or "").strip():
         output.append({"id": f"rs_{response_id}", "type": "reasoning", "status": "completed",
                        "summary": [{"type": "summary_text", "text": reasoning}]})
     if message.get("content"):
-        output.append({"type": "message", "role": "assistant",
-                       "content": [{"type": "output_text", "text": message["content"]}]})
+        output.append({"id": f"msg_{response_id}", "type": "message", "role": "assistant",
+                       "status": "completed",
+                       "content": [{"type": "output_text", "text": message["content"], "annotations": []}]})
+    identities = set()
     for call in message.get("tool_calls") or []:
         function = call.get("function") or {}
+        identity = call.get('id')
+        if (not identity or identity in identities or reason == 'length'
+                or not function.get('name')
+                or not isinstance(json.loads(function.get('arguments', '')), dict)):
+            raise ValueError('Invalid, duplicate or truncated Chat tool call')
+        identities.add(identity)
         output.append({
             "id": f"fc_{call.get('id') or function.get('name') or 'tool'}",
             "type": "function_call", "status": "completed", "call_id": call.get("id"),
             "name": function.get("name"), "arguments": function.get("arguments", "{}"),
         })
-    result = {"id": response_id, "status": "completed", "output": output}
+    result = {"id": response_id, "object": "response",
+              "status": "incomplete" if reason == 'length' else "completed", "output": output}
+    for source, target in [('created', 'created_at'), ('model', 'model')]:
+        if source in body:
+            result[target] = body[source]
+    if reason == 'length':
+        result['incomplete_details'] = {'reason': 'max_output_tokens'}
     if usage := body.get("usage"):
         result["usage"] = {
             "input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"],
@@ -173,10 +191,21 @@ def response_json(body: dict[str, Any]) -> dict[str, Any]:
 def encode_response(response: dict[str, Any], *, stream: bool) -> bytes:
     if not stream:
         return json.dumps(response, ensure_ascii=False).encode()
-    events = []
+    events = [{'type': 'response.created', 'response': dict(response, status='in_progress', output=[])}]
     for index, item in enumerate(response["output"]):
         kind = item.get("type")
-        if kind in {"function_call", "custom_tool_call"}:
+        if kind == 'message':
+            events.append({'type': 'response.output_item.added', 'output_index': index,
+                           'item': dict(item, status='in_progress', content=[])})
+            for content_index, part in enumerate(item.get('content', [])):
+                location = {'output_index': index, 'item_id': item['id'], 'content_index': content_index}
+                events.extend([
+                    {'type': 'response.content_part.added', **location, 'part': dict(part, text='')},
+                    {'type': 'response.output_text.delta', **location, 'delta': part['text']},
+                    {'type': 'response.output_text.done', **location, 'text': part['text']},
+                    {'type': 'response.content_part.done', **location, 'part': part},
+                ])
+        elif kind in {"function_call", "custom_tool_call"}:
             field = "arguments" if kind == "function_call" else "input"
             event_prefix = "response.function_call_arguments" if kind == "function_call" else "response.custom_tool_call_input"
             started = dict(item, status="in_progress", **{field: ""})
@@ -189,7 +218,7 @@ def encode_response(response: dict[str, Any], *, stream: bool) -> bytes:
                      "item_id": item.get("id"), field: item[field]},
                 ])
         events.append({"type": "response.output_item.done", "output_index": index, "item": item})
-    events.append({"type": "response.completed", "response": response})
+    events.append({"type": "response." + response['status'], "response": response})
     for sequence, event in enumerate(events):
         event["sequence_number"] = sequence
     return encode_events(events, has_done=True)

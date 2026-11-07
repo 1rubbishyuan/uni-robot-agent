@@ -50,6 +50,8 @@ def tool_specs(cameras, *, segmentation_enabled=True, depth_cameras=None, calibr
             if depth_cameras else
             "method=segment requires camera and exactly one text prompt or refinement point=[row,col]. "
             "Returns found, score, a 2D box and overlay; inspect identity in the overlay.")
+        descriptions.append("A returned segment box uses [x_min,y_min,x_max,y_max] (xyxy): "
+                            "x is column, y is row. Input points remain [row,col].")
     if depth_cameras:
         methods.append("pixels")
         descriptions.insert(0,

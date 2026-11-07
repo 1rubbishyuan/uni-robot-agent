@@ -11,6 +11,7 @@ from uni_robot_agent.provider.backends.aliyun.chat_completions import (
     AliyunChatCompletionsAdapter,
 )
 from uni_robot_agent.provider.backends.aliyun.messages import AliyunMessagesAdapter
+from uni_robot_agent.provider.backends.aliyun.gemini_chat_completions import AliyunGeminiChatAdapter
 from uni_robot_agent.provider.backends.volcengine.responses import (
     VolcengineResponsesAdapter,
 )
@@ -36,6 +37,7 @@ class ProviderProfile:
 _PROFILES = {
     profile.name: profile
     for profile in (
+        ProviderProfile('aliyun.gemini_chat_completions', 'gemini', 'chat_completions', AliyunGeminiChatAdapter),
         ProviderProfile(
             "passthrough.responses",
             "responses",
