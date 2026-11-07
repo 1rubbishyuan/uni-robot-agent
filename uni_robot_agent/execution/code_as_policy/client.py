@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from functools import partial
+from functools import cached_property, partial
 import hashlib
 import json
 import os
@@ -14,14 +14,57 @@ from uuid import uuid4
 
 import httpx
 
+from uni_robot_agent.tools.presentation import receipt_summary
+from uni_robot_agent.tools.results import MotionFeedback, ResultFields, ResultState
+
 
 @dataclass(frozen=True)
 class CodeResult:
-    """Original model-visible tool data plus locally readable image paths."""
+    """Original payload/images with optional typed feedback and explicit summary.
+
+    Treat data as a receipt, not mutable robot state. Typed views are constructed
+    lazily; neither inspecting them nor summarizing them performs robot calls.
+    """
 
     data: dict[str, Any]
     images: tuple[Path, ...]
     call_id: str
+
+    @cached_property
+    def _fields(self) -> ResultFields:
+        return ResultFields.model_validate(self.data)
+
+    @property
+    def call_ok(self) -> bool | None:
+        return self._fields.call_ok
+
+    @property
+    def error(self) -> str | None:
+        return self._fields.error
+
+    @property
+    def remaining_steps(self) -> int | None:
+        return self._fields.remaining_steps
+
+    @property
+    def snapshot_id(self) -> str | None:
+        return self._fields.snapshot_id
+
+    @property
+    def artifact_error(self) -> str | None:
+        return self._fields.artifact_error
+
+    @property
+    def state(self) -> ResultState | None:
+        return self._fields.state
+
+    @property
+    def feedback(self) -> MotionFeedback | None:
+        return self._fields.feedback
+
+    def summary(self) -> str:
+        """Return compact receipt JSON for explicit printing; open images separately."""
+        return receipt_summary(self._fields, data=self.data, images=self.images, call_id=self.call_id)
 
 
 class ToolCallError(RuntimeError):
