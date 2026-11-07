@@ -135,6 +135,8 @@ for remote-host access and other options.
 |---|---|---|
 | **RoboDojo** | Dual-arm manipulation with Direct tools or Hybrid Pi0.5 control | [Setup](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/deployment.md) |
 | **RoboUse** | Selected tasks from LIBERO, RoboCasa, MetaWorld, RoboSuite, ManiSkill, Tabletop, Fetch and Kitchen; also Menagerie, composed-robot, Genesis and Factory task adapters | [Tasks](https://github.com/Open-RUA/uni-robot-agent/blob/main/scripts/robouse/README.md) |
+| **LIBERO-Plus / PRO** | Official perturbation suites through separately prepared Direct services | [Integration](docs/libero-extensions.md) |
+| **RoboTwin 2.0** | ALOHA AgileX dual-arm tasks through a separately prepared Direct service | [Integration](docs/robotwin.md) |
 | **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
 
 ### Real robots

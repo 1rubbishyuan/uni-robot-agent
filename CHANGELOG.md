@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add a Direct RoboTwin 2.0 adapter with dual-arm TCP control, measured gripper
+  state, native seed admission and calibrated cached observations.
+
+- Add a separate Direct LIBERO-PRO entry point for pinned base and perturbation
+  suites, reusing the LIBERO-family controller and native observation path.
+
+- Add a Direct LIBERO-Plus environment adapter with official task/initial-state
+  selection, native corrupted images and explicit evaluation budgets.
 - Extract Hybrid into an independent tool family with one receipt-aware execution
   loop, capability-derived schemas and integration-owned semantic bindings.
 - Generalize XPolicyLab wire mappings; actor v2 separates observation/action
