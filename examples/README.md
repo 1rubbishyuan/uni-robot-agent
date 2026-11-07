@@ -138,3 +138,12 @@ python -m uni_robot_agent monitor --run-dir ./runs/robodojo
 For Python integration, see [SDK examples](sdk/). The separate
 [Hybrid example](robodojo_hybrid.sh) and [service configurations](services/)
 cover optional action-model and segmentation services.
+
+## Hybrid across environments
+
+- [RoboLab DROID](robolab_hybrid.sh) uses the joint/physical-gap profile.
+- [RoboUse](robouse_hybrid.sh) uses admitted LIBERO or RoboCasa Cartesian control.
+
+Both require separately prepared environment and compatible actor services. Supply
+the actual checkpoint SHA256 and planner/reviewer configuration. Task count does
+not determine binding count. See [Hybrid contracts and migration](../docs/hybrid.md).

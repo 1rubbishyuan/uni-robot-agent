@@ -32,12 +32,12 @@ class ActorArchive:
         try:
             if proposal is not None:
                 self.directory.mkdir(parents=True, exist_ok=True)
-                np.savez_compressed(path, raw_actions=proposal["raw_actions"], scoped_actions=proposal["scoped_actions"])
+                np.savez_compressed(path, raw_actions=proposal.raw_actions, scoped_actions=proposal.scoped_actions)
             path = self.directory / f"{index:02d}.json"
-            archived = {**record, "review_images": self._relative_images(record["review_images"])}
-            previous = record["context"]["previous_vla"]
+            archived = {"schema": "hybrid.v2", **record, "review_images": self._relative_images(record["review_images"])}
+            previous = record["context"]["previous_actor"]
             if previous is not None:
-                archived["context"] = {**record["context"], "previous_vla": {
+                archived["context"] = {**record["context"], "previous_actor": {
                     **previous, "images": self._relative_images(previous["images"]),
                 }}
             path.write_text(json.dumps(archived, indent=2, allow_nan=False) + "\n")

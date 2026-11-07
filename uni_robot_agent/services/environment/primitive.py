@@ -1,6 +1,6 @@
 """Primitive physical execution for the environment service.
 
-High-level motion programs live in :mod:`uni_robot_agent.tools.gripper.motion`.
+Direct and hybrid programs compose these primitives in their tool layers.
 This module contains only the primitive executor used by the service boundary.
 """
 

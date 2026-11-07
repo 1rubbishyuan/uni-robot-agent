@@ -35,8 +35,10 @@ def create_session(context):
     from uni_robot_agent.integrations.gripper import create_session as build
     from uni_robot_agent.integrations.robodojo.prompt import load_task_requirements
 
+    from uni_robot_agent.integrations.robodojo.action_binding import create_binding
+
     loader = load_task_requirements if context.args.include_extra_task_requirements else None
-    return build(context, requirements_loader=loader)
+    return build(context, requirements_loader=loader, binding_factory=create_binding)
 
 
 def get_integration_spec():

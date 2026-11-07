@@ -27,12 +27,13 @@ class RoboUseAdapter:
             self.camera = CameraCapture(self.binding.model, self.binding.data, views, depth_enabled=depth_enabled)
         self.closed = False
         self.description = EnvironmentDescription(
-            arms=[ArmDescription(name=n, control_frame="world", grasp_site_description=(
+            arms=[ArmDescription(name=n, control_frame=getattr(self.binding, "control_point", "world"), grasp_site_description=(
                 "Native measured grasp reference; OSC backends use the midpoint of finger pads."),
-                rotation_radius_m=.15) for n in self.binding.names],
+                rotation_radius_m=.15, control=getattr(self.binding, "actor_control", None)) for n in self.binding.names],
             cameras=[CameraDescription(name=n, has_depth=depth_enabled) for n in cameras],
             control_frequency_hz=float(self.binding.hz), max_episode_steps=episode.max_steps,
             observation_interval_steps=snapshot_interval,
+            action_binding="robouse_cartesian" if getattr(self.binding, "actor_control", None) else None,
             metadata={"backend": kind, "control_constraints": self.binding.constraint,
                       "observation_mode": "rgb_and_robot_proprioception", "depth_enabled": depth_enabled,
                       "yaw_enabled": bool(getattr(episode.backend, "yaw_enabled", False)),

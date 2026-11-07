@@ -16,6 +16,7 @@ from .contracts import (
     PredictRequest,
     Receipt,
     SessionInfo,
+    validate_vector,
 )
 
 
@@ -85,6 +86,8 @@ class ActorClient:
             )
         ):
             raise ValueError("Actor response identity or action profile mismatch")
+        for row in reply.actions:
+            validate_vector(row, self.info.profile.action_fields, "action")
         return reply
 
     def predict(self, observation: ActorObservation) -> PredictReply:
@@ -97,6 +100,9 @@ class ActorClient:
                 raise ActorUncertain(
                     "Actor request is uncertain; reconcile its receipt before continuing"
                 )
+            if set(observation.images) != set(self.info.profile.cameras):
+                raise ValueError("Actor observation cameras differ from its profile")
+            validate_vector(observation.state, self.info.profile.observation_fields, "observation")
             request = PredictRequest(
                 session_id=self.session.session_id,
                 request_id=uuid4().hex,

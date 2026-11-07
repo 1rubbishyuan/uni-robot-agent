@@ -13,3 +13,7 @@ The current implementation uses the shared prepared-episode service, scene and
 gripper providers. Robot-specific geometry and control stay within the adapter;
 HTTP transport, episode state and image storage use shared services. See the
 [integration guide](../../../docs/robolab.md) for supported capabilities and limits.
+
+Hybrid orchestration is shared in `tools/hybrid/`; the integration binding only
+converts the declared actor and native contracts. Native control and upstream
+provenance remain integration-owned. See [Hybrid design](../../../docs/hybrid.md).

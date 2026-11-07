@@ -143,3 +143,19 @@ outcomes with your assets and runtime.
 When changing this adapter, check frame conversion, nonlinear jaw calibration,
 blocked-grasp command retention, owner-thread dispatch, camera refresh,
 one-time finalization, fault latching and video timestamps.
+
+## Hybrid joint policies
+
+Use [the Hybrid example](../examples/robolab_hybrid.sh) with a separately deployed
+actor and its checkpoint SHA256. `robolab_droid_joint` validates seven Panda joints,
+the Robotiq mounting-flange control point, actor cameras and the actual environment
+frequency. Model observations use the measured finger joint divided by pi/4;
+action openings use physical pad gap divided by 0.085 m. These are distinct
+nonlinear conventions, not a `1 - x` conversion.
+
+The native preview runs FK on a controller snapshot and reports both requested
+and nominal slew-limited targets. It advances no physics and does not change live
+controller history. Later nominal samples assume perfect tracking; preview is not
+object, contact or collision prediction. The real controller still validates
+measured state, limits and robot clearance before each acknowledged tick.
+No pretrained checkpoint or native benchmark result is implied by this binding.

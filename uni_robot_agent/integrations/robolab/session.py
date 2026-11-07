@@ -6,12 +6,13 @@ from uni_robot_agent.services.environment.client import EnvironmentRequestError,
 
 
 def configure(session):
+    from .action_binding import create_binding
     info = session.episode.description
     if info.integration != "robolab":
         raise ValueError("RoboLab requires a prepared robolab environment")
     if info.metadata.get("instruction_type") != session.args.instruction_type:
         raise ValueError("Episode instruction type does not match the expected CLI value")
-    return configure_tools(session)
+    return configure_tools(session, binding_factory=create_binding)
 
 
 class Session(PreparedEpisodeSession):
