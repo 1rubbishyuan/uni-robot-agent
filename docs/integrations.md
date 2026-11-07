@@ -15,10 +15,12 @@ checkpoints remain separate.
 | `libero_plus` | Official LIBERO-Plus perturbation tasks, Direct control | [Separate pinned LIBERO-Plus runtime](libero-extensions.md) |
 | `robotwin` | RoboTwin 2.0 dual-arm tasks, Direct control | [Pinned RoboTwin runtime and assets](robotwin.md) |
 | `libero_pro` | Selected official LIBERO-PRO suites, Direct control | [Separate pinned LIBERO-PRO runtime](libero-extensions.md#libero-pro) |
+| `rmbench` | Memory-dependent dual-arm manipulation, Direct control | [Pinned RMBench runtime and assets](rmbench.md) |
+| `calvin` | Single-task Panda episodes, Direct control | [Pinned CALVIN environment and annotations](calvin.md) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
 
 These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus, LIBERO-PRO and RoboTwin support Direct only.
+RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus, LIBERO-PRO, RoboTwin, RMBench and CALVIN support Direct only.
 RoboLab has no automatic setup/deploy recipe. Use
 SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
 localization requires paired depth and calibration; RGB triangulation requires
