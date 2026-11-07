@@ -12,7 +12,8 @@ from uni_robot_agent.services.errors import ServiceError
 from uni_robot_agent.telemetry.logging import get_logger
 
 from .backend import ActorBackend, ActorWork
-from .contracts import CreateSession, PredictReply, PredictRequest, Receipt, SessionInfo
+from .contracts import (CreateSession, PredictReply, PredictRequest, Receipt, SessionInfo,
+                        validate_vector)
 
 
 @dataclass
@@ -188,12 +189,16 @@ class ActorService:
             profile = self.info.profile
             if set(request.observation.images) != set(profile.cameras) or len(
                 request.observation.state
-            ) != len(profile.state_fields):
+            ) != len(profile.observation_fields):
                 raise self._error(
                     "invalid_observation",
                     "Actor cameras or state dimensions differ from its profile",
                     status=422,
                 )
+            try:
+                validate_vector(request.observation.state, profile.observation_fields, "observation")
+            except ValueError as exc:
+                raise self._error("invalid_observation", str(exc), status=422) from exc
             try:
                 model_future = self.worker.enqueue(
                     ActorWork(session.state, request.observation)
@@ -242,6 +247,8 @@ class ActorService:
                 for row in reply.actions
             ):
                 raise ValueError("Actor returned actions outside its declared profile")
+            for row in reply.actions:
+                validate_vector(row, self.info.profile.action_fields, "action")
         except BaseException as exc:  # noqa: BLE001 - always complete admitted requests.
             error = ServiceError(
                 "inference_failed",

@@ -63,6 +63,17 @@ print('Installed SDK:', uni_robot_agent.__file__)
                  '--agent', backend, '--model', 'qwen-validation',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
                  '--provider-url', 'https://provider.invalid/v1', *runtime_options, '--validate-config'])
+    for integration, binding in (('robodojo', 'robodojo_pi05'),
+                                 ('robodojo', 'robodojo_x5_joint'),
+                                 ('robolab', 'robolab_droid_joint'),
+                                 ('robouse', 'robouse_cartesian')):
+        command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
+                 '--task', 'validation-task', '--model', 'validation-model',
+                 '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
+                 '--action-profile', 'hybrid', '--action-model-binding', binding,
+                 '--action-model-url', 'http://127.0.0.1:18761',
+                 '--action-model-checkpoint-sha256', 'a' * 64, '--no-vla-review',
+                 '--agent-python', python, '--validate-config'])
     command([python, '-m', 'uni_robot_agent', 'run', '--integration', 'robodojo',
              '--agent', 'codex', '--model', 'hy4', '--provider-profile', 'tencent.responses',
              '--provider-url', 'https://tokenhub.tencentmaas.com/v1',
@@ -76,6 +87,13 @@ from uni_robot_agent import Session, SessionConfig, SetupConfig, DeploymentConfi
 from uni_robot_agent.context.prompt import get_prompt_builder
 from uni_robot_agent.provider.registry import build_provider_adapter
 assert build_provider_adapter('tencent.responses', client_protocol='responses').profile_name == 'tencent.responses'
+from uni_robot_agent.integrations.robodojo.action_binding import create_binding as x5_binding
+from uni_robot_agent.integrations.robolab.action_binding import create_binding as droid_binding
+from uni_robot_agent.integrations.robouse.action_binding import create_binding as cartesian_binding
+from uni_robot_agent.tools.hybrid.provider import HybridTools
+import sys
+assert all(callable(factory) for factory in (x5_binding, droid_binding, cartesian_binding))
+assert not any(name in sys.modules for name in ('isaacsim', 'mujoco', 'torch', 'scipy'))
 root = Path(uni_robot_agent.__file__).parent
 assert callable(get_prompt_builder('robodojo'))
 assert callable(get_prompt_builder('robouse'))

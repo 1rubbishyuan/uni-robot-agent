@@ -45,7 +45,8 @@ For Direct calls, preserve the holding hand's closed command during each
 phase. For VLA, describe one phase at a time near closure and release; inspect
 the result after each whole actor_act call. Use separate calls when an enclosure
 or retention check must precede the next phase; the main agent does not inspect
-between internal chunks. `gripper_targets` fixes a hand's opening throughout the
+between internal chunks. `constraints.gripper_openings_m` (or normalized `constraints.gripper_targets`,
+when declared by the schema) fixes a hand's opening throughout the
 whole call, so do not fix a hand that must close or release during that call.
 
 ## Recover without losing the remaining support

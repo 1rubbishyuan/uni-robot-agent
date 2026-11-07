@@ -32,6 +32,7 @@ from uni_robot_agent.services.environment.contracts import (
     ActionCommand,
     ArmCommand,
     ArmDescription,
+    ArmControlCapabilities,
     ArmState,
     CameraDescription,
     EnvironmentDescription,
@@ -94,6 +95,7 @@ class Adapter:
                 grasp_site_description=GRASP_SITE_DESCRIPTION,
                 rotation_radius_m=float(np.linalg.norm(T_NATIVE_FROM_GRASP[:3, 3])),
                 joint_names=list(self.robots[name].arm_joints_name), joint_tracking_tolerance_rad=.35,
+                control=ArmControlCapabilities(commands=["joints", "pose"], pose_solver="dls", joint_preview=True),
             ) for name in ("left", "right")],
             cameras=[CameraDescription(name=name, role="scene" if name == "head" else "wrist",
                                        has_depth=depth_enabled, has_calibration=calibration_enabled)

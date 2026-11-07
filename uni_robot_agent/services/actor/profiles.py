@@ -1,6 +1,6 @@
-"""Model-independent observation and action profiles for supported embodiments."""
+"""Explicit model-independent profiles for supported observation/control semantics."""
 
-from .contracts import ActorProfile
+from .contracts import ActorField, ActorProfile
 
 X5_CAMERAS = ("head", "left_wrist", "right_wrist")
 X5_FIELDS = tuple(
@@ -10,20 +10,26 @@ X5_FIELDS = tuple(
 )
 
 
+def x5_fields(*, bounded_gripper: bool = True) -> list[ActorField]:
+    """Measured or absolute-target X5 joints and normalized scalar openings."""
+    fields = []
+    for arm in ("left", "right"):
+        fields.extend(ActorField(name=f"{arm}_joint_{index}", unit="rad",
+            semantics="joint_position", frame="arx_x5_joint") for index in range(6))
+        fields.append(ActorField(name=f"{arm}_gripper", unit="normalized",
+            semantics="normalized_opening", minimum=0 if bounded_gripper else None,
+            maximum=1 if bounded_gripper else None))
+    return fields
+
+
 def x5_joint_profile(cameras: list[str], horizon: int) -> ActorProfile:
     """Absolute X5 joint targets at 25 Hz, with normalized scalar grippers."""
     if not cameras or not set(cameras) <= set(X5_CAMERAS):
         raise ValueError("X5 actor cameras must select head, left_wrist or right_wrist")
     return ActorProfile(
-        name="robodojo_x5_joint",
-        cameras=cameras,
-        state_fields=list(X5_FIELDS),
-        action_fields=list(X5_FIELDS),
-        action_horizon=horizon,
-        state_units=(["rad"] * 6 + ["normalized"]) * 2,
-        action_units=(["rad"] * 6 + ["normalized"]) * 2,
-        coordinate_frame="arx_x5_joint_absolute_25hz",
-        gripper_convention="0=closed,1=open; continuous normalized opening",
+        name="robodojo_x5_joint", cameras=cameras,
+        observation_fields=x5_fields(), action_fields=x5_fields(),
+        action_horizon=horizon, control_frequency_hz=25,
         image_convention="RGB HWC; model preprocessing belongs to the upstream adapter",
     )
 

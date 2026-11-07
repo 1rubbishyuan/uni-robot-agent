@@ -1,7 +1,6 @@
 """Prepare one pinned RoboUse task and serve the shared environment protocol."""
 import argparse
 import json
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from importlib.metadata import version
 
@@ -12,29 +11,8 @@ from uni_robot_agent.artifacts.store import ArtifactStore
 from uni_robot_agent.services.environment.contracts import EpisodeInfo
 from uni_robot_agent.services.environment.routes import build_router
 from uni_robot_agent.services.environment.service import EnvironmentService
+from uni_robot_agent.services.environment.owner import OwnedAdapter
 from uni_robot_agent.services.hosting import create_app, serve
-
-
-class OwnedAdapter:
-    """Keep MuJoCo/OpenGL creation, stepping, capture and teardown on one thread."""
-    def __init__(self, factory):
-        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="robouse-owner")
-        try:
-            self.backend = self.pool.submit(factory).result()
-            self.description = self.backend.description
-        except BaseException:
-            self.pool.shutdown()
-            raise
-
-    def __getattr__(self, name):
-        method = getattr(self.backend, name)
-        return lambda *a, **kw: self.pool.submit(method, *a, **kw).result()
-
-    def close(self):
-        try:
-            self.pool.submit(self.backend.close).result()
-        finally:
-            self.pool.shutdown()
 
 
 def create_episode(spec, run_dir, seed):

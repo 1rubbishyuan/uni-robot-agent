@@ -5,8 +5,7 @@ from uni_robot_agent.context.prompt import PromptContribution
 from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
 from uni_robot_agent.services.environment.contracts import RequestRejected
 from uni_robot_agent.tools.toolkit import ToolOutput, ToolProvider, ToolSpec, bind_tools, schema
-from uni_robot_agent.tools.gripper.actor import ActorRunner, actor_action_limits
-from uni_robot_agent.tools.gripper.contracts import MOTION_PROFILES, GripperRequest, HoldRequest, MoveRequest, PrefixRequest
+from uni_robot_agent.tools.gripper.contracts import MOTION_PROFILES, GripperRequest, HoldRequest, MoveRequest
 from uni_robot_agent.tools.gripper.opening import native_opening
 from uni_robot_agent.tools.gripper.motion import ClientPrimitiveBackend, MotionExecutor
 from uni_robot_agent.tools.presentation import round_physical, state_for_model
@@ -15,7 +14,7 @@ from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_met
 POSE6 = {"type": "array", "items": {"type": "number"}, "minItems": 6, "maxItems": 6,
          "description": "Absolute world grasp-site [x,y,z,roll,pitch,yaw]; metres and fixed-axis XYZ radians, R=Rz(yaw)@Ry(pitch)@Rx(roll)."}
 OPENING = {"type": "number", "minimum": 0, "maximum": 1, "description": "Normalized opening: 0=closed, 1=open."}
-NAMES = ("move", "grasp", "release", "hold", "actor_act")
+NAMES = ("move", "grasp", "release", "hold")
 
 
 def tool_policies():
@@ -23,7 +22,7 @@ def tool_policies():
             concurrency="exclusive", mutates_world=True) for name in NAMES}
 
 
-def tool_specs(arms, *, action_profile="hybrid", binding=None, reviewer_enabled=False, opening_models=None):
+def tool_specs(arms, *, opening_models=None):
     opening_models = opening_models or {}
     if opening_models and set(opening_models) != set(arms):
         raise ValueError("Opening calibration must cover all tool arms")
@@ -61,37 +60,11 @@ def tool_specs(arms, *, action_profile="hybrid", binding=None, reviewer_enabled=
             "Advance physics holding measured arm poses and existing gripper commands. steps=1..40; native termination stops early. Returns snapshot_id and the first scene camera RGB image when available. Inspect completed feedback and images; this consumes action steps.",
             schema({"steps": {"type": "integer", "minimum": 1, "maximum": 40, "default": 1}})),
     ]
-    if action_profile == "hybrid":
-        action_budget = {"type": "integer", "minimum": 1}
-        chunk_budget = {"type": "integer", "minimum": 1}
-        budget_notes = "No action model is configured; actor_act is unavailable in this action profile."
-        if binding is not None:
-            default_actions, maximum_actions = actor_action_limits(binding)
-            action_budget.update(maximum=maximum_actions, default=default_actions)
-            chunk_budget["default"] = binding.default_max_chunks
-            budget_notes = (f"actions_per_chunk defaults to {default_actions}, maximum {maximum_actions}; "
-                            f"max_chunks defaults to {binding.default_max_chunks}.")
-        action_budget["description"] = "Maximum actions to execute from each fresh prediction."
-        chunk_budget["description"] = "Maximum observation, inference and execution cycles in this call; execution may stop earlier."
-        review = "enabled" if reviewer_enabled else "disabled"
-        specs.append(ToolSpec("actor_act",
-            f"Execute a bounded local subskill with the configured action model. Reviewer is {review}; it does not change chunk budgets. {budget_notes} Each chunk observes afresh, infers a new proposal, reviews when enabled, and executes only a selected prefix. Discard unused actions. Keep instruction fixed throughout this call. Inactive arms hold measured joints and retained gripper drive targets; active_arms and gripper_targets constrain all reviewer modes. gripper_targets overrides those openings throughout the whole call. Review execution totals, uncertainty, stop_reason and latest snapshot images. Model-specific correction modes require declared capabilities.",
-            schema({"instruction": {"type": "string", "minLength": 1},
-                    "active_arms": {"type": "array", "items": arm, "minItems": 1, "maxItems": len(arms), "uniqueItems": True},
-                    "actions_per_chunk": action_budget,
-                    "max_chunks": chunk_budget,
-                    ("gripper_openings_m" if opening_models else "gripper_targets"): schema({name: opening for name in arms}),
-                    "task_progress": schema({"verified_completed": {"type": "array", "items": {"type": "string"}},
-                                             "currently_attempting": {"type": "string", "minLength": 1},
-                                             "remaining": {"type": "array", "items": {"type": "string"}}},
-                                            ("verified_completed", "currently_attempting", "remaining"))},
-                   ("instruction", "active_arms"))))
     if opening_models:
         from dataclasses import replace
         notes = {
             "move": " gripper_opening_m is a full pad gap in metres; omit to retain the drive target.",
             "release": " Optional opening_m per target requests a partial opening in metres; omission opens fully.",
-            "actor_act": " gripper_openings_m overrides full pad gaps in metres; native action vectors remain normalized.",
         }
         specs = [replace(spec, description=spec.description.replace("gripper_targets", "gripper_openings_m")
                          + notes.get(spec.name, "")) for spec in specs]
@@ -101,15 +74,13 @@ def tool_specs(arms, *, action_profile="hybrid", binding=None, reviewer_enabled=
 class GripperTools(ToolProvider):
     provider_id = "gripper"
 
-    def __init__(self, episode, *, action_profile="hybrid", binding=None, reviewer=None):
+    def __init__(self, episode):
         self.episode = episode
-        self.action_profile = action_profile
-        self.actor = ActorRunner(episode, binding, reviewer, self.execute_prefix)
         self.opening_models = episode.description.environment.metadata.get("gripper_opening_models", {})
 
     @property
     def prompt_contributions(self):
-        names = NAMES if self.action_profile == "hybrid" else NAMES[:-1]
+        names = NAMES
         localization_image = "depth" if any(camera.has_depth for camera in self.episode.description.environment.cameras) else "RGB"
         return (PromptContribution(system=(
             "Gripper operation labels (not fixed callable names): " + ", ".join(names) + ". "
@@ -126,16 +97,14 @@ class GripperTools(ToolProvider):
         ), source="tools/gripper"),)
 
     def get_tools(self):
-        return self._bind_tools(action_profile=self.action_profile)
+        return self._bind_tools()
 
     def get_declared_tools(self):
-        return self._bind_tools(action_profile="hybrid")
+        return self._bind_tools()
 
-    def _bind_tools(self, *, action_profile):
+    def _bind_tools(self):
         specs = tool_specs([arm.name for arm in self.episode.description.environment.arms],
-                           action_profile=action_profile,
-                           binding=self.actor.binding,
-                           reviewer_enabled=bool(self.actor.reviewer and self.actor.reviewer.enabled), opening_models=self.opening_models)
+                           opening_models=self.opening_models)
         return bind_tools(specs, provider_id=self.provider_id,
                           handlers={name: getattr(self, name) for name in NAMES}, invoke=self.invoke)
 
@@ -185,23 +154,6 @@ class GripperTools(ToolProvider):
             "feedback": feedback,
         })
         return self.action_output(reply, cameras=cameras)
-
-    def execute_prefix(self, commands, *, expected_state_version, mode="student"):
-        """Execute a model-generated prefix as individual primitive steps."""
-        request = PrefixRequest(commands=commands, expected_state_version=expected_state_version, mode=mode)
-        self.episode.require_active()
-        if request.expected_state_version != self.episode.state.state_version:
-            raise RequestRejected("Stale action proposal; capture a fresh observation")
-        start_state = self.episode.state.model_copy(deep=True)
-        backend = ClientPrimitiveBackend(self.episode.env, start_state, on_reply=self.episode.accept_primitive)
-        feedback = MotionExecutor(backend).execute_prefix(request, validate_commands=None)
-        reply = backend.last_reply
-        if reply is None:
-            raise RequestRejected("The action prefix did not execute a primitive step")
-        return reply.model_copy(update={
-            "state_before": start_state,
-            "feedback": feedback,
-        })
 
     def _metric_targets(self, targets, *, key="gripper_opening_m"):
         converted, feedback = [], {}
@@ -254,45 +206,3 @@ class GripperTools(ToolProvider):
         cameras = [camera.name for camera in self.episode.description.environment.cameras if camera.role == "scene"]
         request = HoldRequest(steps=steps)
         return self._run_motion_program(request, "hold", cameras=cameras[:1] or None)
-
-    def actor_act(self, **arguments):
-        if self.opening_models and "gripper_targets" in arguments:
-            raise RequestRejected("Use gripper_openings_m for calibrated actor overrides")
-        feedback = {}
-        if "gripper_openings_m" in arguments:
-            targets, feedback = self._metric_targets([
-                {"arm": arm, "gripper_opening_m": value} for arm, value in arguments.pop("gripper_openings_m").items()])
-            arguments["gripper_targets"] = {row["arm"]: row["gripper"] for row in targets}
-        output = self.actor_output(self.actor.run(**arguments))
-        if feedback:
-            output.extra["opening_requests"] = round_physical(feedback)
-        return output
-
-    def actor_output(self, summary):
-        chunk = summary["chunks"][-1] if summary["chunks"] else None
-        decision = chunk["decision"] if chunk else {}
-        assessment = decision.get("assessment") or {}
-        image_error = None
-        image_metadata = {}
-        try:
-            images = [] if self.episode.latest_snapshot is None else snapshot_images(
-                self.episode.env, self.episode.latest_snapshot, mirror=self.episode.artifact_mirror
-            )
-            if images:
-                image_metadata = snapshot_metadata(self.episode.latest_snapshot, [image.name for image in images],
-                                                   mirror=self.episode.artifact_mirror)
-        except Exception as image_failure:  # noqa: BLE001 - image transport errors must not replay physical work.
-            images = []
-            image_error = f"{type(image_failure).__name__}: {image_failure}"
-        error = summary["error"]
-        artifact_error = "; ".join(filter(None, (summary["artifact_error"], image_error))) or None
-        uncertain = summary["execution_uncertain"]
-        return ToolOutput(success=error is None, error=error, extra={
-            "state": state_for_model(self.episode.state.model_dump(mode="json")), "step": self.episode.state.native_steps,
-            "remaining_steps": self.episode.remaining_steps,
-            "execution": {**{key: summary[key] for key in ("executed_actions", "chunks_executed", "stop_reason", "execution_uncertain")},
-                          "no_execution": summary["executed_actions"] == 0 and not uncertain},
-            "assessment": {"observed_step": chunk["before_step"] if assessment else None,
-                "execution_status": assessment.get("execution_status"), "execution_evidence": assessment.get("execution_evidence"),
-                "stop_evidence": error or (decision.get("reason") if decision.get("mode") == "stop" else None)},
-            **image_metadata, "image_cameras": [image.name for image in images], "artifact_error": artifact_error}, images=images)

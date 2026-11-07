@@ -12,10 +12,13 @@ checkpoints remain separate.
 |---|---|---|
 | `robodojo` | Official RoboDojo simulation, task requirements and bundled gripper skills | RoboDojo environment; Hybrid adds an identified Pi0.5 model and a reviewer by default |
 | `robouse` | Direct simulation tasks, including LIBERO and RoboCasa | Prepared profile-specific RoboUse environment |
+| `libero_plus` | Official LIBERO-Plus perturbation tasks, Direct control | [Separate pinned LIBERO-Plus runtime](libero-extensions.md) |
+| `robotwin` | RoboTwin 2.0 dual-arm tasks, Direct control | [Pinned RoboTwin runtime and assets](robotwin.md) |
+| `libero_pro` | Selected official LIBERO-PRO suites, Direct control | [Separate pinned LIBERO-PRO runtime](libero-extensions.md#libero-pro) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
 
 These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo supports Direct and Hybrid; RoboUse and RoboLab support Direct only.
+RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus, LIBERO-PRO and RoboTwin support Direct only.
 RoboLab has no automatic setup/deploy recipe. Use
 SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
 localization requires paired depth and calibration; RGB triangulation requires
@@ -53,6 +56,7 @@ provides its task instruction, arms, cameras, calibration and action binding.
 | Completion | `finish` submits termination; the official task outcome stays outside model-visible feedback |
 
 Tool definitions live in [`tools/gripper/`](../uni_robot_agent/tools/gripper/),
+[`tools/hybrid/`](../uni_robot_agent/tools/hybrid/),
 [`tools/scene/`](../uni_robot_agent/tools/scene/), [`tools/skills.py`](../uni_robot_agent/tools/skills.py)
 and [`tools/episode.py`](../uni_robot_agent/tools/episode.py).
 
@@ -136,7 +140,7 @@ and converts site targets once for native link6 IK. RoboUse supplies backend-spe
 grasp-site and controller conversions.
 The site is a geometric convention, not object attachment evidence.
 
-Environment protocol 3 and tool schema 7 define this interface. Upgrade services
+Environment protocol 4 and tool schema 8 define this interface. Upgrade services
 and clients together. When replaying saved commands, verify that their recorded
 coordinate conventions and schema match the target environment.
 
@@ -159,8 +163,12 @@ External runtime trees are not packaged.
 ## RoboUse
 
 `--integration robouse` composes the shared scene, gripper, skill and episode tools
-for RoboUse tasks, including LIBERO and RoboCasa. It supports Direct control;
-there is no registered Hybrid actor binding. Each native backend keeps its own
+for RoboUse tasks, including LIBERO and RoboCasa. The `robouse_cartesian` binding
+supports public world-frame absolute poses or latest-ACK-relative deltas on
+admitted LIBERO and RoboCasa controllers. RoboCasa retains the controller target
+orientation and rejects rotation. Other RoboUse families remain Direct-only until
+their native capability contracts are explicitly validated. Tasks and seeds reuse
+the same binding when those contracts match. Each native backend keeps its own
 dependencies, task admission, step budget, scoring and camera configuration.
 
 Use `setup --integration robouse --runtime-profile PROFILE` to prepare a native
@@ -177,30 +185,30 @@ See [deployment profiles](deployment.md#environment-profiles-and-limits),
 `--integration robolab` composes the shared scene, gripper, skill and finish providers
 for a prepared single-DROID episode. See [RoboLab setup](robolab.md) for runtime
 requirements, coordinate frames and supported features. The integration uses RGB
-and calibrated multi-view triangulation, with no actor or SAM3 binding.
+and calibrated multi-view triangulation, with the optional `robolab_droid_joint`
+actor binding and no SAM3 binding.
 
 ## Model bindings and backends
 
-RoboDojo uses `ActorClient` and `ActorService`, with `Pi05Backend` by default
-or an explicitly selected `XPolicyLabBackend` bridge.
-Its `action_binding.py` translates snapshots and returned action chunks,
-preserving camera orientation, state layout and gripper conventions.
+All Hybrid integrations share `ActorClient`, `ActorService`, `HybridTools` and
+one execution loop. The integration selects its binding through a factory;
+`integrations/hybrid.py` owns actor/reviewer connections.
 
-| Environment | Binding | Actor profile | Native runtime |
-|---|---|---|---|
-| RoboDojo | `robodojo_pi05` | `robodojo_pi05` | `openpi_jax` |
-| RoboDojo X5 | `robodojo_x5_joint` | `robodojo_x5_joint` | `xpolicylab_ws` |
+| Environment | Binding | Actor semantics |
+|---|---|---|
+| RoboDojo | `robodojo_pi05` | Explicit legacy Pi0.5 config, images, RNG and clipping |
+| RoboDojo X5 | `robodojo_x5_joint` | Absolute X5 joints and continuous normalized openings at 25 Hz |
+| RoboLab DROID | `robolab_droid_joint` | Seven measured joints plus normalized finger angle; joint and physical-gap targets |
+| RoboUse LIBERO / RoboCasa | `robouse_cartesian` | World public-control-point absolute poses or latest-ACK-relative deltas; native rotation constraints |
 
-Select `--action-model-binding robodojo_x5_joint` only with `--action-profile hybrid`
-and a compatible X5 actor. The binding validates the environment, complete actor
-profile and camera availability, then shares the existing short-prefix execution
-and reviewer correction paths. Omitting the option preserves the Pi0.5 default.
-See the [XPolicyLab deployment contract](services.md#xpolicylab-x5-bridge) for
-supported semantics and per-model validation requirements.
-
-A compatible checkpoint change is deployment configuration. A new observation
-or action convention requires an explicit binding/profile.
-See [service profiles](services.md#pi05-deployment-profiles).
+Except for the pinned legacy Pi0.5 path, bindings validate semantics without
+requiring a particular backend runtime. XPolicyLab can serve any of these
+contracts when its configured model actually implements them. A compatible
+checkpoint change is deployment configuration. A new representation needs an
+explicit binding conversion or reusable capability, not another actor loop.
+See [Hybrid extension and migration](hybrid.md), the
+[XPolicyLab bridge](services.md#xpolicylab-bridge), and
+[service profiles](services.md#pi05-deployment-profiles).
 
 ## Integration contract
 

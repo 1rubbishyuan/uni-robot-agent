@@ -9,19 +9,20 @@ chunk limits. Internal chunks obtain fresh observations and proposals. Review
 before execution occurs only when the tool declares an enabled reviewer. A
 chunk budget is not evidence of completion or failure.
 
-Choose active arms for the whole phase. A gripper override applies throughout
-the entire call, starting with its first action, including the approach. Omit
-it when the policy needs to open and later close.
+Choose active control groups for the whole phase. Use only constraints declared
+by the tool schema. They apply throughout the call, starting with its first
+action and including reviewer corrections. Omit a persistent actuator override
+when the policy needs to vary that actuator during the phase.
 
 One actor_act call is one main-agent decision boundary. Inspect its total
 execution, stop_reason, state and images after it returns. If a phase needs a
-main-agent check or a different gripper override midway, split it into separate
+main-agent check or different constraints midway, split it into separate
 calls. Do not plan to insert actions between internal chunks. An interruption
 or partial execution can follow earlier completed chunks; totals describe
 confirmed execution and do not resolve an uncertain request.
 
-Verify attachment, placement and final effects with the evidence required for
-direct actions. For an unfinished phase, reassess motion and intended effect
+Verify final effects with the evidence required for the environment's Direct
+actions. For an unfinished phase, reassess motion and intended effect
 and revise the instruction, viewpoint or approach. A short unsuccessful prefix
 does not establish that the action model cannot perform the task. Continue only
 while the integration's recovery and operator-handoff conditions permit it.
