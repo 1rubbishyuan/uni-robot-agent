@@ -38,6 +38,7 @@ Documentation = "https://uni-robot-agent.com/docs"
 Homepage = "https://uni-robot-agent.com/"
 
 [project.optional-dependencies]
+antigravity = ["google-antigravity==0.1.23"]
 benchmarks = ["scipy>=1.10", "PyYAML>=6,<7"]
 xpolicylab = ["websockets>=14,<18", "msgpack>=1,<2", "msgpack-numpy==0.4.8"]
 # Compatibility extras: the base package already includes these features.

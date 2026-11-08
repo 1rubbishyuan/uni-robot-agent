@@ -46,6 +46,8 @@ the dashboard are included in the package.
 Experimental [OpenCode and Gemini CLI adapters](docs/external-cli-backends.md)
 add Qwen-backed runtime options. They require separate CLI installations and
 live compatibility validation; Gemini also requires the documented ACP bridge.
+The optional [Antigravity SDK backend](docs/antigravity.md) adds a pinned Python
+SDK runtime for Qwen tool-calling runs.
 
 The harness follows four design principles:
 

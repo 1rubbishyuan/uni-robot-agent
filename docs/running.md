@@ -649,3 +649,10 @@ Live monitors add `monitor.json`, `monitor_frames.jsonl` and content-addressed
 
 Keep the associated environment `artifacts/` and `images/` directories for full
 physical-step replay; planner tool-output images alone omit intermediate views.
+
+## Antigravity SDK
+
+Install `uni-robot-agent[antigravity]` and select `--agent antigravity` with
+`--provider-url`, `--provider-profile aliyun.gemini_chat_completions`,
+`--reasoning-effort none` and `--context-policy identity`. The initial backend
+supports `tool_calling` with Qwen. See [setup, constraints and smoke validation](antigravity.md).

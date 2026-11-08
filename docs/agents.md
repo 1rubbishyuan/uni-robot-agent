@@ -4,6 +4,9 @@ Experimental OpenCode and Gemini CLI adapters are described in
 [External CLI backends](external-cli-backends.md), including Qwen conversion,
 runtime requirements, tool identity and outstanding live validation.
 
+The optional [Antigravity SDK backend](antigravity.md) uses the same executor and
+Qwen gateway with its own lifecycle and pinned GenerateContent dialect.
+
 `uni_robot_agent/agents/` owns agent-specific configuration, SDK lifecycle,
 tool dispatch, event interpretation and native artifact export. `session.py`
 invokes a registered agent without switching on its name. Robot tools and
@@ -29,7 +32,7 @@ This setting requires the Codex backend; Claude Code rejects it.
 ## Adding an agent
 
 1. Add a package under `agents/<name>/` with `__init__.py`.
-2. Declare `model_protocol` (`responses` or `messages`) on the agent configuration
+2. Declare `model_protocol` (`responses`, `messages` or `gemini`) on the agent configuration
    and implement the synchronous, single-task contract in `agents/contracts.py`. An SDK may
    use an event loop internally; it must finish cleanup before `run` returns.
 3. Add its lazy import path to `agents/registry.py`. SDK imports belong in
