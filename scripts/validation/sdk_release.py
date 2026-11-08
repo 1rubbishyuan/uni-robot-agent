@@ -18,6 +18,7 @@ def main():
     parser.add_argument('wheel', type=Path)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--installer', choices=('pip', 'uv'), default='pip')
+    parser.add_argument('--antigravity', action='store_true', help='Also install and check the optional SDK')
     parser.add_argument('--wheelhouse', type=Path)
     parser.add_argument('--upgrade-from', help='Install this published main-package version before upgrading')
     args = parser.parse_args()
@@ -37,7 +38,7 @@ def main():
     source = ['--no-index', '--find-links', args.wheelhouse.resolve()] if args.wheelhouse else []
     if args.upgrade_from:
         command([*install, *source, f'uni-robot-agent=={args.upgrade_from}'])
-    command([*install, *source, wheel])
+    command([*install, *source, str(wheel) + ('[antigravity]' if args.antigravity else '')])
     command([python, '-I', '-c', '''import pathlib,sys,uni_robot_agent
 for name in uni_robot_agent.__all__:
     getattr(uni_robot_agent, name)
@@ -55,6 +56,7 @@ print('Installed SDK:', uni_robot_agent.__file__)
                  '--model', 'validation-model', '--env-url', 'http://127.0.0.1:18760',
                  '--no-sam3', '--agent-python', python, '--validate-config'])
     for backend, runtime_options in (
+        ('antigravity', []),
         ('opencode', ['--opencode-version', 'offline-candidate']),
         ('gemini_cli', ['--gemini-version', 'offline-candidate',
                         '--gemini-bridge-manifest', 'offline-manifest.json']),
@@ -63,6 +65,17 @@ print('Installed SDK:', uni_robot_agent.__file__)
                  '--agent', backend, '--model', 'qwen-validation',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
                  '--provider-url', 'https://provider.invalid/v1', *runtime_options, '--validate-config'])
+    if args.antigravity:
+        command([python, '-I', '-c', '''from importlib.metadata import distribution
+from pathlib import Path
+from google.antigravity import Agent, LocalAgentConfig
+from uni_robot_agent.agents.antigravity.config import SDK_VERSION
+dist = distribution('google-antigravity')
+assert dist.version == SDK_VERSION
+assert Path(dist.locate_file('google/antigravity/bin/localharness')).is_file()
+assert callable(Agent) and callable(LocalAgentConfig)
+print('Optional Antigravity SDK:', dist.version)
+'''])
     for integration, binding in (('robodojo', 'robodojo_pi05'),
                                  ('robodojo', 'robodojo_x5_joint'),
                                  ('robolab', 'robolab_droid_joint'),

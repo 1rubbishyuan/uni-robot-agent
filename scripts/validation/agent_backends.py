@@ -1,4 +1,4 @@
-"""Exercise an installed external CLI against Qwen with inert text/image tools.
+"""Exercise an installed agent runtime against Qwen with inert text/image tools.
 
 This makes real provider calls, starts loopback servers, and writes a fresh run
 directory. It does not connect to a robot or simulator. Run after installing the
@@ -74,9 +74,9 @@ def has_image(value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--agent', choices=['opencode', 'gemini_cli'], required=True)
-    parser.add_argument('--binary', required=True)
-    parser.add_argument('--version', required=True)
+    parser.add_argument('--agent', choices=['opencode', 'gemini_cli', 'antigravity'], required=True)
+    parser.add_argument('--binary')
+    parser.add_argument('--version')
     parser.add_argument('--bridge-manifest')
     parser.add_argument('--model', required=True, help='Qwen model with function calling and image input')
     parser.add_argument('--provider-url', default=os.environ.get('UNI_ROBOT_AGENT_PROVIDER_URL'))
@@ -87,6 +87,8 @@ def main():
         parser.error('--provider-url or UNI_ROBOT_AGENT_PROVIDER_URL is required')
     if args.agent == 'gemini_cli' and not args.bridge_manifest:
         parser.error('--bridge-manifest is required for Gemini CLI')
+    if args.agent != 'antigravity' and (not args.binary or not args.version):
+        parser.error('--binary and --version are required for CLI backends')
     args.output.mkdir(parents=True, exist_ok=False)
     toolkit, calls = fixture_tools()
     bus = EventBus()
@@ -94,9 +96,14 @@ def main():
     executor = SerialToolExecutor(toolkit)
     executor.bind_event_bus(bus)
     options = {'bridge_manifest': args.bridge_manifest} if args.agent == 'gemini_cli' else {}
-    agent = create_agent(args.agent, model=args.model, binary=args.binary, expected_version=args.version,
+    if args.agent != 'antigravity':
+        options.update(binary=args.binary, expected_version=args.version)
+    else:
+        from importlib.metadata import version
+        args.version = version('google-antigravity')
+    agent = create_agent(args.agent, model=args.model,
         timeout_s=args.timeout, api_key=os.environ.get('UNI_ROBOT_AGENT_API_KEY'), **options)
-    profile = 'aliyun.gemini_chat_completions' if args.agent == 'gemini_cli' else 'aliyun.chat_completions'
+    profile = 'aliyun.gemini_chat_completions' if args.agent in {'gemini_cli', 'antigravity'} else 'aliyun.chat_completions'
     runtime = agent.model_runtime(profile, bus)
     trace_dir = args.output / runtime.trace_directory
     artifacts = ArtifactStore(args.output)
