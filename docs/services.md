@@ -78,7 +78,7 @@ uni_robot_agent/
 │   │   ├── backend.py          # ActorBackend, ActorWork
 │   │   ├── images.py
 │   │   ├── server.py           # configured model loading and serving
-│   │   └── backends/pi05/
+│   │   └── backends/openpi/
 │   │       ├── backend.py      # one Pi05Backend
 │   │       ├── config.py
 │   │       └── openpi_jax.py   # native runtime adapter
@@ -208,21 +208,54 @@ messages, including tool calls and unsupported cancellation notifications, are
 rejected with HTTP 400 and no JSON-RPC response. The bridge does not implement
 generic JSON-RPC fire-and-forget execution or tool cancellation.
 
-## Pi0.5 deployment profiles
+## OpenPI deployment profiles
 
-| Profile | Native runtime | Observation | Action chunk |
+The `openpi` backend runs native OpenPI/JAX diffusion policies through one implementation.
+Model recipes supply pinned source and checkpoint identities, the training
+configuration, image mapping and the complete physical observation/action profile.
+Integration bindings validate those physical meanings and compile environment
+commands. Upstream policy transforms retain normalization, tokenization, padding
+and action decoding.
+
+| Recipe | Observation | Action chunk | Native inference |
 |---|---|---|---|
-| `robodojo_pi05` | `openpi_jax` | Three cameras, fourteen joint/gripper values | Fifty rows of fourteen joint/gripper targets |
+| `robodojo_pi05` | Three cameras and fourteen X5 joint/gripper values | 50 × 14 absolute joint/gripper targets | True batches with per-session noise |
+| `dexjoco_pick_bucket` | Two cameras, measured TCP xyz/wxyz and sixteen finger positions | 30 × 22 absolute TCP xyz/rotation-vector and finger targets | Single observation per inference call |
 
-The profile uses `Pi05Backend`, `ActorService` and `ActorClient`. Action bindings own
-camera orientation and environment-specific state/action conversions. The runtime
-adapters own native model loading, transforms and inference. RoboDojo also
-retains its pinned source and checkpoint identity validation.
+Recipes can map named physical fields into one or several model input arrays
+with `observation_mapping`; omitted mapping retains the `state` key. Every
+observation field must appear exactly once. `prompt_key`, `image_container`,
+`image_keys` and `image_layout` describe the remaining wire layout without
+embedding robot-specific key names in the backend. These mappings do not perform
+physical frame or unit conversions; those remain in the integration binding.
 
-A compatible checkpoint change is configuration. A different native runtime
-or observation/action convention requires an explicit adapter/profile; copying
-a service or weakening profile validation is unnecessary. Importing a client,
-contract, or CLI help does not import JAX, Torch, SAM3 or a simulator.
+Both recipes instantiate `OpenpiBackend`, `ActorService` and `ActorClient`.
+Observation width, physical action width and the model's internal sampling width
+are independent: X5 uses a 32-wide latent space for 14-wide physical actions;
+DexJoCo single-arm uses a 32-wide latent space for 22-wide physical actions.
+The loaded training configuration supplies the internal sampling dimensions.
+The native model must accept explicit diffusion noise; Pi0-FAST uses a different
+sampling API and is not admitted by this backend.
+
+The pinned X5 batch API and single-observation OpenPI API are explicit runtime
+capabilities. A single-observation recipe requires `max_batch_size=1`; separate
+sessions still own separate noise sequences. Unsupported batching is rejected.
+Different native batch shapes can produce floating-point differences, so
+regressions compare each execution mode with its matching reference.
+
+`backend="pi05"` and its `xpolicylab_root` option remain compatibility aliases for
+the original RoboDojo recipe. New configurations use `backend="openpi"` and
+`native_root`. The old `backends.pi05` Python modules have moved to
+`backends.openpi`; X5 profile helpers now belong to `integrations.robodojo`.
+RoboDojo's legacy binding retains its model/config/seed and image contract.
+Model IDs now include effective source, preprocessing and sampling configuration;
+clients establish fresh sessions after upgrading the service. Checkpoint hashes
+and the legacy physical profile keep their existing meanings.
+
+A compatible checkpoint needs configuration and a matching binding, not another
+backend. A different model serving protocol can implement `ActorBackend`, as the
+existing XPolicyLab bridge does. Importing clients, configuration or CLI help
+never loads JAX, Torch or a simulator.
 
 ## Start services
 
@@ -230,6 +263,7 @@ Install the base harness into each prepared runtime environment, alongside its
 native dependencies. Copy and edit the appropriate TOML example:
 
 - [`pi05_robodojo.toml`](../examples/services/pi05_robodojo.toml)
+- [`openpi_dexjoco_single.toml`](../examples/services/openpi_dexjoco_single.toml)
 - [`xpolicylab_x5.toml`](../examples/services/xpolicylab_x5.toml)
 - [`sam3.toml`](../examples/services/sam3.toml)
 
@@ -248,7 +282,10 @@ PYTHON=/absolute/path/to/sam3/bin/python \
 The equivalent Python entrypoints are `uni_robot_agent.services.actor.server` and
 `uni_robot_agent.services.perception.server`. Actor TOML selects `backend`, `runtime`,
 `profile`, `model_config_name`, `checkpoint`, and optional pinned source/hash
-fields. `[http]`, `[batching]` and `[sessions]` configure host, queue and session
+fields. A string `profile` selects a packaged model recipe; a full profile table
+can accompany an explicit native model configuration. Recipes with a required
+working directory must be launched there; managed deployment sets it automatically.
+`[http]`, `[batching]` and `[sessions]` configure host, queue and session
 limits. CLI arguments override the corresponding TOML values; see each
 entrypoint's `--help`. The actor's `--identity-output` writes the resolved
 identity for launchers and episode configuration.

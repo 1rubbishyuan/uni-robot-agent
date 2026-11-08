@@ -106,3 +106,23 @@ Keep a selected checkpoint's training semantics, normalization, camera identity,
 control point and timing consistent with the declared profile. CPU fixtures verify
 contracts, receipts, ordering and conversion. They do not establish physical
 safety, task success, or pretrained VLA quality on new environments.
+
+## Coordinated dexterous devices
+
+DexJoCo uses `dexjoco_tcp_hand` with the same actor/reviewer runner and bounded
+execution loop as other integrations. Its environment publishes arm, hand and
+assembly devices. `CoordinatedDeviceStep` carries named TCP poses and named finger
+joint targets; the native adapter validates the entire target before advancing
+one control step. One acknowledged step completes one model sample.
+
+The binding preserves the model's physical semantics, converts rotation vectors
+to quaternions, and explicitly records the native actuator clipping applied to
+finger targets. It never substitutes scalar gripper openings or an IK controller.
+Capabilities admit student/stop review; Direct and EEF corrections are unavailable.
+The first released model recipe and native task are single-arm `pick_bucket`.
+Dual-arm layout fixtures do not establish dual-arm native task validation.
+
+Model loading belongs to the generic OpenPI backend; source, training config,
+normalizer and image mapping belong to its recipe. A new compatible environment
+provides an environment adapter and binding, while reusing the backend and runner.
+See [DexJoCo](dexjoco.md) for the reproducible single-task checks.

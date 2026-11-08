@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import venv
+from pathlib import Path
 
 
 def main():
@@ -79,7 +79,8 @@ print('Optional Antigravity SDK:', dist.version)
     for integration, binding in (('robodojo', 'robodojo_pi05'),
                                  ('robodojo', 'robodojo_x5_joint'),
                                  ('robolab', 'robolab_droid_joint'),
-                                 ('robouse', 'robouse_cartesian')):
+                                 ('robouse', 'robouse_cartesian'),
+                                 ('dexjoco', 'dexjoco_tcp_hand')):
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
                  '--task', 'validation-task', '--model', 'validation-model',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
@@ -104,8 +105,10 @@ from uni_robot_agent.integrations.robodojo.action_binding import create_binding 
 from uni_robot_agent.integrations.robolab.action_binding import create_binding as droid_binding
 from uni_robot_agent.integrations.robouse.action_binding import create_binding as cartesian_binding
 from uni_robot_agent.tools.hybrid.provider import HybridTools
+from uni_robot_agent.integrations.dexjoco.action_binding import create_binding as dexjoco_binding
+from uni_robot_agent.services.actor.backends.openpi.config import resolve_config, recipe_settings
 import sys
-assert all(callable(factory) for factory in (x5_binding, droid_binding, cartesian_binding))
+assert all(callable(factory) for factory in (x5_binding, droid_binding, cartesian_binding, dexjoco_binding))
 assert not any(name in sys.modules for name in ('isaacsim', 'mujoco', 'torch', 'scipy'))
 root = Path(uni_robot_agent.__file__).parent
 assert callable(get_prompt_builder('robodojo'))
@@ -113,11 +116,29 @@ assert callable(get_prompt_builder('robouse'))
 for resource in ('ui/web/static/index.html', 'ui/web/static/app.js',
                  'agents/opencode/bridge.js', 'agents/gemini_cli/robotBridge.ts',
                  'integrations/robodojo/deployment.toml',
-                 'integrations/robouse/recipes/libero.toml'):
+                 'integrations/robouse/recipes/libero.toml',
+                 'integrations/dexjoco/deployment.toml', 'integrations/dexjoco/SOURCE.md',
+                 'resources/prompts/dexjoco/hybrid.md', 'resources/skills/dexjoco/index.md',
+                 'services/actor/recipes/robodojo_pi05.toml',
+                 'services/actor/recipes/dexjoco_pick_bucket.toml'):
     assert (root / resource).is_file(), resource
 session = Session(SessionConfig(integration='robouse',
     env_url='http://127.0.0.1:18760', no_sam3=True))
 session.close()  # Validate configuration only; do not connect or finalize an episode.
+for profile, widths in (("robodojo_pi05", (14,14,50)), ("dexjoco_pick_bucket", (23,22,30))):
+    config = resolve_config(dict(profile=profile, native_root="/unused/source",
+        checkpoint="/unused/checkpoint", checkpoint_sha256="a" * 64))
+    assert (len(config.profile.observation_fields), len(config.profile.action_fields),
+            config.profile.action_horizon) == widths
+    assert recipe_settings(profile)["actor"]["model"] == "pi05"
+    SetupConfig(service="actor", profile=profile).resolve()
+from uni_robot_agent.services.environment.device_contracts import CoordinatedDeviceStep, DeviceRequest
+step = CoordinatedDeviceStep(device="robot", joints={"hand": {"finger": .1}})
+assert DeviceRequest.model_validate_json(DeviceRequest(command=step,
+    expected_state_version=0).model_dump_json()).command == step
+SetupConfig(integration="dexjoco").resolve()
+DeploymentConfig(integration="dexjoco", task="pick_bucket", depth=False).resolve()
+assert not any(name in sys.modules for name in ("mujoco", "jax", "openpi", "torch", "scipy"))
 SetupConfig(integration='robodojo')
 DeploymentConfig(integration='robodojo', task='stack_bowls')
 rgb = DeploymentConfig(integration='robodojo', task='stack_bowls',

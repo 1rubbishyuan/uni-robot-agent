@@ -147,3 +147,11 @@ cover optional action-model and segmentation services.
 Both require separately prepared environment and compatible actor services. Supply
 the actual checkpoint SHA256 and planner/reviewer configuration. Task count does
 not determine binding count. See [Hybrid contracts and migration](../docs/hybrid.md).
+
+## DexJoCo Hybrid
+
+[`dexjoco_hybrid.sh`](dexjoco_hybrid.sh) connects a planner to prepared DexJoCo
+and OpenPI services. Set `ENV_URL`, `ACTOR_URL` and `ACTOR_CHECKPOINT_SHA256`, then
+pass the planner model/provider options. The first admitted task is `pick_bucket`.
+See [setup, native semantics and validation](../docs/dexjoco.md). The model service
+example is [`openpi_dexjoco_single.toml`](services/openpi_dexjoco_single.toml).
