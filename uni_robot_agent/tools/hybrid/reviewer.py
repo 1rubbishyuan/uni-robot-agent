@@ -5,11 +5,12 @@ import base64
 import json
 import time
 from pathlib import Path
-from uuid import uuid4
 
 import httpx
 
 from uni_robot_agent.provider import ModelClient, build_provider_adapter
+
+from .decisions import decision_schema
 
 
 class ChunkReviewer:
@@ -42,16 +43,35 @@ class ChunkReviewer:
             content.extend([{"type": "input_text", "text": "Observation: " + name},
                             {"type": "input_image", "image_url": "data:image/png;base64," + encoded}])
         started = time.monotonic()
-        reply = self._client.request({"model": self.model, "reasoning": {"effort": "medium"}, "input": [
+        reply = self._client.request({"model": self.model, "reasoning": {"effort": "medium"},
+            "tools": [{"type": "function", "name": "submit_review",
+                       "description": "Submit exactly one review decision for the current proposal.",
+                       "parameters": decision_schema(context, actions_per_chunk)}],
+            "tool_choice": {"type": "function", "name": "submit_review"},
+            "parallel_tool_calls": False, "input": [
             {"role": "system", "content": [{"type": "input_text", "text": self.prompt}]},
             {"role": "user", "content": content}]},
             headers={"Authorization": "Bearer " + self.api_key, "Content-Type": "application/json"})
         response = json.loads(reply.body)
-        if response.get("status") != "completed":
-            raise RuntimeError("Reviewer response did not complete")
-        body = response.get("output_text") or "".join(item.get("text", "") for row in response.get("output", [])
-                                                   for item in row.get("content", []) if item.get("type") == "output_text")
-        decision = self.validator(json.loads(body), context, actions_per_chunk)
+        decision = self.validator(review_arguments(response), context, actions_per_chunk)
         decision.update(model=self.model, reasoning_effort="medium", provider_attempts=len(reply.attempts),
                         elapsed_s=round(time.monotonic() - started, 3), usage=response.get("usage"))
         return decision
+
+
+def review_arguments(response):
+    """Accept one explicit decision call; reasoning and prose cannot authorize motion."""
+    if response.get("status") != "completed":
+        raise ValueError("Reviewer response did not complete")
+    output = response.get("output", [])
+    calls = [item for item in output if item.get("type") == "function_call"]
+    if (len(calls) != 1 or calls[0].get("name") != "submit_review"
+            or any(item.get("type") not in {"function_call", "reasoning"} for item in output)):
+        raise ValueError("Reviewer must return exactly one submit_review function call")
+    arguments = calls[0].get("arguments")
+    if not isinstance(arguments, str):
+        raise TypeError("Reviewer function arguments must be a JSON string")
+    decision = json.loads(arguments)
+    if not isinstance(decision, dict):
+        raise TypeError("Reviewer function arguments must contain one JSON object")
+    return decision
