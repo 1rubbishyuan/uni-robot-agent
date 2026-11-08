@@ -59,21 +59,22 @@ def camera_frames(observation, names, depth_enabled):
 
 
 class RoboTwinAdapter:
-    def __init__(self, env, *, episode_id, instruction, metadata, depth_enabled):
+    def __init__(self, env, *, episode_id, instruction, metadata, depth_enabled, cameras=CAMERAS):
         self.env, self.episode_id = env, episode_id
         self.instruction, self.metadata = instruction, metadata
         self.depth_enabled = depth_enabled
+        self.camera_names = tuple(cameras)
         self.closed, self.finished, self.outcome = False, False, None
-        self.obs = env.get_obs()
-        if set(CAMERAS) - self.obs["observation"].keys():
-            raise ValueError("RoboTwin requires head and both wrist cameras")
+        self.obs = self.observe()
+        if set(self.camera_names) - self.obs["observation"].keys():
+            raise ValueError("The native observation is missing a configured camera")
         # Validate embodiment geometry before exposing the episode service.
         for name in ARMS:
             measured_arm(env.robot, name)
         self.description = EnvironmentDescription(
             arms=[ArmDescription(name=name, control_frame="world", rotation_radius_m=.15,
                 grasp_site_description="Native gripper TCP centre, local X approach axis; normalized scalar opening.") for name in ARMS],
-            cameras=[CameraDescription(name=name, has_depth=depth_enabled) for name in CAMERAS],
+            cameras=[CameraDescription(name=name, has_depth=depth_enabled) for name in self.camera_names],
             control_frequency_hz=30.0, max_episode_steps=int(env.step_lim), observation_interval_steps=1,
             metadata={"control_constraints": "Both arms receive coordinated absolute TCP poses and scalar openings.",
                       "step_unit": "native_policy_action", "native_action_type": "ee",
@@ -82,6 +83,9 @@ class RoboTwinAdapter:
 
     def episode_identity(self):
         return self.instruction, self.metadata
+
+    def observe(self):
+        return self.env.get_obs()
 
     def read_state(self):
         steps = int(self.env.take_action_cnt)
@@ -109,7 +113,7 @@ class RoboTwinAdapter:
         self.env.take_action(native_ee_action(command.arms), action_type="ee")
         if self.env.take_action_cnt != before + 1:
             raise RuntimeError("Native action did not advance exactly one policy action")
-        self.obs = self.env.get_obs()
+        self.obs = self.observe()
         return StepReceipt(accepted=True, state=self.read_state(), diagnostics={"executed_steps": 1})
 
     def step_joints(self, command):
@@ -122,8 +126,8 @@ class RoboTwinAdapter:
         raise RequestRejected("Joint previews are unavailable")
 
     def capture(self, cameras=None, *, high_resolution=False):
-        names = list(CAMERAS) if cameras is None else cameras
-        if not names or len(names) != len(set(names)) or set(names) - set(CAMERAS):
+        names = list(self.camera_names) if cameras is None else cameras
+        if not names or len(names) != len(set(names)) or set(names) - set(self.camera_names):
             raise RequestRejected("Select unique configured cameras")
         state = self.read_state()
         return CapturedObservation(self.episode_id, state.state_version, time.time(),
