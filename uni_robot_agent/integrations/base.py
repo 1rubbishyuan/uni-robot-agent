@@ -11,7 +11,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict
 
 from uni_robot_agent.artifacts.store import ArtifactStore
-from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
+from uni_robot_agent.integrations.composition import ToolAssembly, ToolModule
 from uni_robot_agent.tools.toolkit import ToolProvider
 
 
@@ -36,8 +36,9 @@ class IntegrationSpec:
     name: str
     create_session: Callable[[Any], Any]
     add_cli_args: Callable[[argparse.ArgumentParser], None] = _add_no_cli_args
-    eval_tool_names: tuple[str, ...] = ()
-    tool_policies: Mapping[str, ToolExecutionPolicy] = field(default_factory=dict)
+    tool_profiles: Mapping[str, tuple[ToolModule, ...]] = field(default_factory=dict)
+    default_tool_profile: str = "direct"
+    debug_modules: tuple[ToolModule, ...] = ()
     validate_cli: Callable[[Any], None] = _validate_no_cli_args
     allow_automatic_retry: bool = True
     requires_env_url: bool = True
@@ -53,6 +54,7 @@ class IntegrationContext:
     session_dir: Path
     artifacts: ArtifactStore
     tracer: Any
+    tool_modules: tuple[ToolModule, ...]
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,9 @@ class EpisodeOutcome:
 
 class IntegrationSession(Protocol):
     """Own environment and model connections, toolkits, and the episode lifecycle."""
+
+    @property
+    def tool_assembly(self) -> ToolAssembly: ...
 
     @property
     def tool_providers(self) -> tuple[ToolProvider, ...]: ...

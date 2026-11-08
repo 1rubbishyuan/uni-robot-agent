@@ -75,8 +75,9 @@ progress-based motion stopping, actionable feedback and visual context managemen
 
 1. The CLI resolves and validates configuration. `--print-config` and
    `--validate-config` exit before opening services or creating run output.
-2. `session.py` loads an `IntegrationSpec`, starts its `IntegrationSession`,
-   registers tools and assembles the prompt.
+2. Configuration resolves an integration's declared tool profile. `session.py`
+   passes its modules to `IntegrationSession`, registers the assembled tools and
+   policies, and builds the prompt from their contributions.
 3. Codex or Claude Code invokes tools through its MCP adapter and the executor.
    Each provider owns its schemas and handlers; `Toolkit` registers them.
 4. Tools read one shared `Episode` projection. Motion tools compose primitive
@@ -154,6 +155,28 @@ command conversion. `tools/hybrid/corrections/cartesian.py` handles bounded pose
 geometry. The core imports neither component nor a concrete integration.
 Native FK, IK, calibration, limits and physical stepping remain in environment
 adapters. See [the extension contract](hybrid.md).
+
+### Explicit tool composition
+
+`IntegrationSpec.tool_profiles` maps names to ordered `ToolModule` tuples;
+`default_tool_profile` selects the default. Each module owns a provider factory,
+execution policies and optional runtime prompt resource names. The prepared
+session assembles the selected modules against one Episode and owns their clients.
+`ToolAssembly` supplies providers, policies and prompt resources to the session.
+It replaces the fixed provider tuple and the separate evaluation-name whitelist.
+
+Each of the eight environment entry points declares its supported profiles.
+Shared `DIRECT_TOOLS` and `HYBRID_TOOLS` definitions avoid copying tool lists.
+Hybrid is instantiated only when selected; environment bindings still own native
+semantic conversion. Duplicate module names and overlapping policy names fail
+validation, and Toolkit continues to reject duplicate tool names.
+
+Job controls remain owned by the executor, with visibility determined by return
+mode unless debugging supplies an explicit selection. Debug-only declarations
+can expose unavailable tools without opening their services. Prompt resources
+follow the configured composition before debug visibility filtering, preserving
+the existing ablation contract. Workspace and Observation retain their existing
+session-level assembly paths.
 
 ## Service boundaries
 

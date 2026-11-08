@@ -20,7 +20,9 @@ checkpoints remain separate.
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
 
 These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus, LIBERO-PRO, RoboTwin, RMBench and CALVIN support Direct only.
+RoboDojo, RoboUse and RoboLab declare Direct and Hybrid tool profiles; Hybrid
+requires an admitted environment/controller and actor binding. LIBERO-Plus,
+LIBERO-PRO, RoboTwin, RMBench and CALVIN declare Direct only.
 RoboLab has no automatic setup/deploy recipe. Use
 SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
 localization requires paired depth and calibration; RGB triangulation requires
@@ -255,9 +257,10 @@ Shared tools and HTTP protocols stay in `tools/` and
 
 ### Prepared episode composition
 
-Reuse `PreparedEpisodeSession(context, configure_tools=...)` for URL-backed
-episodes. Its callback creates providers against `session.episode` and registers
-auxiliary clients with `session.own()`. The session closes them even if later
+Declare ordered tool modules on `IntegrationSpec.tool_profiles` and reuse
+`PreparedEpisodeSession(context, binding_factory=...)` for URL-backed episodes.
+The selected `context.tool_modules` create providers against `session.episode`
+and register auxiliary clients with `session.own()`. The session closes them even if later
 setup fails, then releases its environment client. The outer session owns
 `IntegrationContext.artifacts`; integrations use that store without closing it
 or creating their own image copies.

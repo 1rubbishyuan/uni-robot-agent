@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from uni_robot_agent.artifacts.run import write_json_atomic
 from uni_robot_agent.integrations.base import EpisodeOutcome
+from uni_robot_agent.integrations.composition import assemble_tools
 from uni_robot_agent.services.environment.client import EnvironmentClient, EnvironmentRequestError
 from uni_robot_agent.services.environment.contracts import FinishRequest, RequestRejected
 from uni_robot_agent.services.environment.device_contracts import DeviceEpisodeInfo, parse_state, parse_reply
@@ -119,9 +120,11 @@ class Episode:
 class PreparedEpisodeSession:
     """Own connections and assemble explicitly supplied tool providers."""
 
-    def __init__(self, context, *, configure_tools, requirements_loader=None):
+    def __init__(self, context, *, binding_factory=None, requirements_loader=None, validate_episode=None):
         self.context, self.args = context, context.args
-        self.configure_tools = configure_tools
+        self.binding_factory = binding_factory
+        self.validate_episode = validate_episode
+        self.tool_assembly = None
         self.requirements_loader = requirements_loader
         self.episode = self.result = None
         self.tool_providers = ()
@@ -151,7 +154,10 @@ class PreparedEpisodeSession:
                 self.episode.instruction = args.instruction
             if self.requirements_loader is not None:
                 self.episode.task_requirements = self.requirements_loader(info.task)
-            self.tool_providers = tuple(self.configure_tools(self))
+            if self.validate_episode is not None:
+                self.validate_episode(self)
+            self.tool_assembly = assemble_tools(self, self.context.tool_modules)
+            self.tool_providers = self.tool_assembly.providers
         except BaseException:
             self.close()
             if self.episode is None:

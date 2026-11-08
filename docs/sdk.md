@@ -83,8 +83,8 @@ that calls environment-specific tools still depends on those capabilities.
 can remain available when the environment supplies the required camera data.
 To enable segmentation on a supported integration, supply `sam3_url` instead.
 Hybrid action models use `action_model_url` and
-`integration_options={"action_profile": "hybrid", ...}`. A reviewer in a tool-only
-session needs its own model, endpoint and compatible profile. No agent model is
+`tool_profile="hybrid"` with the binding/reviewer fields in `integration_options`.
+A reviewer in a tool-only session needs its own model, endpoint and compatible profile. No agent model is
 invented for it. Existing integration restrictions continue to apply.
 
 ## Run a built-in agent
@@ -263,3 +263,23 @@ multiple-run cards. Tool-only sessions have no model request/batch activity;
 the viewer only shows what the records contain. Session itself does not start a
 Web host or a live camera collector. See [monitoring and replay](running.md#local-web-monitor)
 for the artifacts needed for synchronized camera replay.
+
+## Select a tool composition
+
+```python
+config = SessionConfig(
+    integration="robouse",
+    env_url="http://localhost:18760",
+    no_sam3=True,
+    tool_profile="direct",
+    tool_return_mode="background",
+)
+```
+
+`tool_profile` selects an integration-declared module combination independently
+of `tool_return_mode`. Unsupported profiles fail during `resolve()` without
+opening services. For compatibility, `integration_options={"action_profile":
+"direct"}` still works; conflicting old/new selectors fail validation.
+Resolved settings include the effective profile and ordered module names.
+Workspace, observation, skill-writing and debug visibility retain their existing
+configuration. See [tool profiles](running.md#tool-composition-profiles).
