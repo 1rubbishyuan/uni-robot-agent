@@ -28,6 +28,8 @@
 
 ## What's New
 
+**Minimal mode** offers a simple RGB-only baseline for studying robot-use agents with just `move`, `hold`, and `finish` ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
+
 **Code as Policy** is here: control robots with code. Enable it with
 `--interaction-mode code_as_policy`. [Learn more](docs/code-as-policy.md).
 
