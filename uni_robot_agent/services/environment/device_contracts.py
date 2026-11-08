@@ -1,8 +1,17 @@
 """Optional device protocol; no scalar gripper or simulated step counters."""
 
 from typing import Annotated, Any, Literal
+
 from pydantic import Field, model_validator
-from .contracts import Contract, CameraDescription, FiniteFloat, Pose, RequestIdentity, Vector3
+
+from .contracts import (
+    CameraDescription,
+    Contract,
+    FiniteFloat,
+    Pose,
+    RequestIdentity,
+    Vector3,
+)
 
 
 class DeviceDescription(Contract):

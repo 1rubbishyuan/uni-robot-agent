@@ -1,0 +1,5 @@
+name = "env-dexjoco-pick-bucket"
+python = "python3.11"
+repository = "https://github.com/brave-eai/dexjoco.git"
+revision = "8d23b0fab23b17a58c4b55f3942e17013aaf8267"
+constraints = ["jax==0.4.35", "jaxlib==0.4.35", "opencv-python==4.11.0.86", "dm-robotics-transformations==0.9.0"]
