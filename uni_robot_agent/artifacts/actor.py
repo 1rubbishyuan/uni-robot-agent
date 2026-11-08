@@ -1,10 +1,13 @@
 """Actor proposal, review and execution archives; no physical execution policy."""
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
+
+from uni_robot_agent.artifacts.run import write_json_atomic
 
 
 class ActorArchive:
@@ -46,10 +49,28 @@ class ActorArchive:
             self.error = f"Actor recording failed: {type(error).__name__}: {error}"
             raise
 
+    def write_review(self, index, attempt, evidence):
+        """Persist original provider bytes before a rejected review can be retried."""
+        path = self.directory / f"{index:02d}.review-{attempt:02d}.json"
+        try:
+            self.directory.mkdir(parents=True, exist_ok=True)
+            evidence = dict(evidence)
+            raw = evidence.pop("raw_response", None)
+            if raw is not None:
+                response_path = path.with_suffix(".response")
+                response_path.write_bytes(raw)
+                evidence["response"] = {"path": response_path.name,
+                    "sha256": hashlib.sha256(raw).hexdigest(), "size_bytes": len(raw)}
+            write_json_atomic(path, {"schema": "hybrid.review.v1", "session_id": self.directory.name,
+                "chunk_index": index, "attempt": attempt, **evidence}, allow_nan=False, trailing_newline=True)
+        except Exception as error:
+            self._record_error(path, error)
+            raise
+
     def write_summary(self, summary):
         path = self.directory / "summary.json"
         try:
             self.directory.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - preserve summary persistence diagnostics
             self._record_error(path, error)

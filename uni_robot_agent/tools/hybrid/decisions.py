@@ -66,3 +66,36 @@ def validate_decision(decision, context, actions_per_chunk):
     if mode in modes and status != "failed" and intent != "misaligned":
         raise ValueError("Correction requires observed failure or misaligned intent")
     return deepcopy(decision)
+
+
+def decision_schema(context, actions_per_chunk):
+    """Describe the current review contract; validation also enforces mode semantics."""
+    def object_schema(properties, required=None):
+        return {"type": "object", "properties": properties,
+                "required": list(properties) if required is None else required,
+                "additionalProperties": False}
+
+    string = {"type": "string", "minLength": 1}
+    strings = {"type": "array", "items": string}
+    statuses = ["not_started", "progressing", "failed", "uncertain", "recovered"]
+    if "episode_started" in context:
+        statuses = statuses[1:] if context["episode_started"] else statuses[:1]
+    progress = object_schema({"verified_completed": strings,
+                              "currently_attempting": string, "remaining": strings})
+    assessment = object_schema({"task_progress": progress, "current_subgoal": string,
+        "execution_status": {"type": "string", "enum": statuses},
+        "execution_evidence": string, "expected_next_intent": string,
+        "predicted_next_intent": string,
+        "intent_status": {"type": "string", "enum": ["aligned", "misaligned", "uncertain"]},
+        "intent_evidence": string})
+    modes = context["capabilities"]["corrections"]
+    properties = {"request_id": {"type": "string", "enum": [context["request_id"]]},
+        "mode": {"type": "string", "enum": ["student", "stop", *modes]},
+        "steps": {"type": "integer", "minimum": 0, "maximum": actions_per_chunk},
+        "reason": string,
+        "continuation": {"type": "string", "enum": ["continue", "stop", "phase_complete", "failure"]},
+        "assessment": assessment}
+    required = list(properties)
+    for capability in modes.values():
+        properties[capability["field"]] = deepcopy(capability["schema"])
+    return object_schema(properties, required)

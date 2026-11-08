@@ -1,0 +1,23 @@
+# Managed setup/deploy fills paths and verifies the checkpoint automatically.
+# For direct launches, run the actor interpreter from <native_root>/openpi.
+backend = "openpi"
+profile = "dexjoco_pick_bucket"
+native_root = "/path/to/pinned/dexjoco"
+checkpoint = "/path/to/pi05_dexjoco_ckpt/pick_bucket"
+checkpoint_sha256 = "REPLACE_WITH_VERIFIED_CHECKPOINT_SHA256"
+
+[http]
+host = "127.0.0.1"
+port = 18761
+
+[batching]
+max_batch_size = 1
+max_wait_ms = 5
+max_queue_size = 64
+
+[sessions]
+max_sessions = 1024
+idle_timeout_s = 1800
+receipt_ttl_s = 3600
+max_receipts = 128
+max_session_requests = 4096

@@ -1,8 +1,10 @@
 """RoboDojo semantic policy over reusable hybrid arm capabilities."""
-from uni_robot_agent.services.actor.backends.pi05.config import profile_for
-from uni_robot_agent.services.actor.profiles import validate_x5_joint_profile
-from uni_robot_agent.tools.hybrid.adapters.arm_gripper import ArmActionLayout, ArmGripperBinding
+from uni_robot_agent.tools.hybrid.adapters.arm_gripper import (
+    ArmActionLayout,
+    ArmGripperBinding,
+)
 
+from .actor_profiles import profile_for, validate_x5_joint_profile
 
 X5_JOINT_NAMES = tuple(f"joint{index}" for index in range(1, 7))
 

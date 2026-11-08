@@ -7,17 +7,13 @@ from urllib.parse import urlsplit
 
 from uni_robot_agent.integrations.base import IntegrationSpec
 from uni_robot_agent.integrations.composition import ToolModule
+from uni_robot_agent.integrations.episode_tools import EPISODE_MODULE, SCENE_MODULE, SKILLS_MODULE
 from uni_robot_agent.integrations.hybrid import (
     HYBRID_MODULE, HybridOptions, add_hybrid_cli_args, validate_hybrid_cli,
 )
 from uni_robot_agent.integrations.prepared_episode import PreparedEpisodeSession
 from uni_robot_agent.tools.gripper.provider import GripperTools
-from uni_robot_agent.tools.scene.provider import SceneTools
-from uni_robot_agent.tools.skills import SkillTools
-from uni_robot_agent.tools.episode import EpisodeTools
 from uni_robot_agent.tools.gripper import provider as gripper
-from uni_robot_agent.tools.scene import provider as scene
-from uni_robot_agent.tools import skills, episode
 
 
 class GripperOptions(HybridOptions):
@@ -42,20 +38,7 @@ def validate_gripper_cli(args: Any) -> None:
             raise ValueError("Perception endpoint must be an absolute HTTP(S) base URL")
 
 
-def configure_scene(session):
-    perception = None
-    if session.args.sam3_url:
-        from uni_robot_agent.services.perception.client import PerceptionClient
-        perception = session.own(PerceptionClient(session.args.sam3_url, tracer=session.context.tracer))
-    return SceneTools(session.episode, perception=perception)
-
-
-SKILLS_MODULE = ToolModule("skills",
-    lambda session: SkillTools(session.episode, writing=session.args.skill_writing),
-    skills.tool_policies())
-SCENE_MODULE = ToolModule("scene", configure_scene, scene.tool_policies())
 GRIPPER_MODULE = ToolModule("gripper", lambda session: GripperTools(session.episode), gripper.tool_policies())
-EPISODE_MODULE = ToolModule("episode", lambda session: EpisodeTools(session.episode), episode.tool_policies())
 
 MINIMAL_GRIPPER_MODULE = ToolModule("minimal_gripper",
     lambda session: GripperTools(session.episode, names=("move", "hold")),

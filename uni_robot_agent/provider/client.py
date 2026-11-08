@@ -1,26 +1,29 @@
 """Upstream model calls, context preparation and bounded exchange retries."""
 
 from __future__ import annotations
+
 import json
 import threading
 import time
+from collections.abc import Callable
 from typing import Any
+
 from uni_robot_agent.context import ContextManager, PreparedContext
 from uni_robot_agent.context.history import create_context_policy
 from uni_robot_agent.provider.contracts import (
-    ProviderAdapter,
-    SessionAdapter,
-    RequestValidatingAdapter,
+    EncodedRequest,
     ModelProtocol,
     ModelResponse,
-    EncodedRequest,
+    ProviderAdapter,
+    RequestValidatingAdapter,
+    SessionAdapter,
 )
+from uni_robot_agent.provider.protocols.responses import ResponsesProtocol
+from uni_robot_agent.provider.recording.exchanges import response_error_detail
 from uni_robot_agent.provider.registry import (
     build_provider_adapter,
     validate_provider_profile,
 )
-from uni_robot_agent.provider.protocols.responses import ResponsesProtocol
-from uni_robot_agent.provider.recording.exchanges import response_error_detail
 from uni_robot_agent.provider.transport import ModelRequestCancelled, ModelTransport
 from uni_robot_agent.services.errors import HttpCallError
 from uni_robot_agent.services.http import HttpTransport
@@ -107,19 +110,30 @@ class ModelClient:
         *,
         headers: dict[str, str],
         request_path: str | None = None,
+        on_response: Callable[[ModelResponse], None] | None = None,
     ) -> ModelResponse:
         """Run one direct request with this role's context, adapter, and retry policy."""
         _, encoded = self.prepare_request(body)
         exchange: dict[str, Any] = {"provider_attempts": []}
         self.prepare_wire(encoded.body, headers, exchange)
-        status, response_headers, response = self.send(
-            target=self.adapter.target_url(
-                self.base_url, request_path or f"/{self.protocol.name}"
-            ),
-            request_bytes=_encode_json(encoded.body),
-            headers=headers,
-            exchange=exchange,
-        )
+        try:
+            status, response_headers, response = self.send(
+                target=self.adapter.target_url(
+                    self.base_url, request_path or f"/{self.protocol.name}"
+                ),
+                request_bytes=_encode_json(encoded.body),
+                headers=headers,
+                exchange=exchange,
+            )
+        except HttpCallError as error:
+            if on_response is not None:
+                on_response(ModelResponse(error.status, {}, error.content,
+                                          tuple(exchange["provider_attempts"])))
+            raise
+        # Observe original bytes before a codec can reject or transform the response.
+        if on_response is not None:
+            on_response(ModelResponse(status, response_headers, response,
+                                      tuple(exchange["provider_attempts"])))
         if 200 <= status < 300 and not exchange.get("response_error"):
             response = self.adapter.decode_response(response, encoded.decode_state).body
         if self._cancelled.is_set():

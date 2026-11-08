@@ -1,36 +1,28 @@
-"""One Pi0.5 backend with explicit runtime and checkpoint selection."""
-
+"""One native OpenPI actor, independent of the environment integration."""
 import hashlib
 import json
 
 from uni_robot_agent.services.actor.contracts import ActorInfo
 
-from .config import Pi05Config, profile_for
+from .config import OpenpiConfig
 
 
-class Pi05Backend:
-    def __init__(self, config: Pi05Config):
+class OpenpiBackend:
+    def __init__(self, config: OpenpiConfig):
         from .openpi_jax import OpenpiJaxRuntime
 
         self.runtime = OpenpiJaxRuntime(config)
         checkpoint_sha256 = self.runtime.identity["checkpoint_sha256"]
-        profile = profile_for(config.profile)
-        model_identity = {
-            "checkpoint_sha256": checkpoint_sha256,
-            "runtime": config.runtime,
-            "model_config": config.model_config_name,
-            "profile": profile.model_dump(),
-        }
+        # Paths locate artifacts; checksums and all inference settings identify behavior.
+        model_identity = config.model_dump(exclude={"native_root", "checkpoint"})
         self.info = ActorInfo(
-            model="pi05",
+            model=config.model,
             runtime=config.runtime,
-            model_id=hashlib.sha256(
-                json.dumps(model_identity, sort_keys=True).encode()
-            ).hexdigest(),
+            model_id=hashlib.sha256(json.dumps(model_identity, sort_keys=True).encode()).hexdigest(),
             checkpoint_sha256=checkpoint_sha256,
-            profile=profile,
+            profile=config.profile,
             model_config_name=config.model_config_name,
-            policy_rng_seed=0,
+            policy_rng_seed=config.policy_rng_seed,
         )
 
     def create_session(self):

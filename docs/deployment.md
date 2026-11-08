@@ -227,3 +227,30 @@ and action mappings for any integration. Its pinned upstream checkout is needed
 only in the bridge/model deployment, not on each planner machine. Keep the older
 pinned Pi0.5 runtime separate. See [Hybrid compatibility](hybrid.md) before
 selecting camera, frequency, frame, control-point or delta conventions.
+
+## Native OpenPI and DexJoCo
+
+Actor setup/deploy select a model recipe using `--profile`. The actor deployment
+adapter reads its source, installation, weight selection and native configuration
+from that recipe; it does not select an environment implementation.
+
+```bash
+uni-robot-agent setup --service actor --profile robodojo_pi05
+uni-robot-agent setup --service actor --profile dexjoco_pick_bucket
+uni-robot-agent setup --integration dexjoco
+uni-robot-agent deploy actor --profile dexjoco_pick_bucket --gpu 0
+uni-robot-agent deploy env --integration dexjoco --task pick_bucket --seed 0 --gpu 1
+```
+
+For an unreleased build, pass the matching runtime wheel to both setup commands.
+An explicit `--checkpoint` reuses local weights. Setup downloads only the selected
+inference parameters and normalizer when weights are not supplied. Existing
+interpreters can be adopted with `--runtime-python`, `--native-root` and, for the
+actor, `--checkpoint`; adoption does not install dependencies.
+
+Keep the DexJoCo simulator and actor in separate environments: their upstream
+NumPy requirements differ. The actor recipe records its exact native dependency
+compatibility exception, and setup rejects other `pip check` failures. The pinned
+OpenPI configuration reads a source-relative YAML file, so managed deployment sets
+its working directory and validates that file's checksum. Direct server launches
+must use the same working directory. See [DexJoCo](dexjoco.md).

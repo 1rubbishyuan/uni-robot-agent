@@ -18,6 +18,7 @@ checkpoints remain separate.
 | `rmbench` | Memory-dependent dual-arm manipulation, Direct control | [Pinned RMBench runtime and assets](rmbench.md) |
 | `calvin` | Single-task Panda episodes, Direct control | [Pinned CALVIN environment and annotations](calvin.md) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
+| `dexjoco` | MuJoCo Panda/Allegro manipulation through Hybrid | Pinned DexJoCo environment and an identified OpenPI actor |
 
 These simulation integrations share scene, gripper, skill and episode tools.
 RoboDojo, RoboUse and RoboLab declare Direct and Hybrid tool profiles; Hybrid
@@ -227,6 +228,19 @@ requirements, coordinate frames and supported features. The integration uses RGB
 and calibrated multi-view triangulation, with the optional `robolab_droid_joint`
 actor binding and no SAM3 binding.
 
+## DexJoCo
+
+`--integration dexjoco` connects a prepared native device episode to the shared
+Hybrid tools. The first admitted task is `pick_bucket`, using the public
+single-arm Pi0.5 checkpoint. The binding maps measured TCP/finger state and
+absolute TCP/finger actions to one coordinated native control step. The native
+OSC and Allegro controllers retain their original physics and task budget.
+
+The integration requires Hybrid and exposes actor execution with optional
+student/stop review. Direct motion and geometric action corrections are not
+provided. Official task success is recorded only at finalization. See
+[DexJoCo setup and validation](dexjoco.md) for exact support and baseline limits.
+
 ## Model bindings and backends
 
 All Hybrid integrations share `ActorClient`, `ActorService`, `HybridTools` and
@@ -239,6 +253,7 @@ one execution loop. The integration selects its binding through a factory;
 | RoboDojo X5 | `robodojo_x5_joint` | Absolute X5 joints and continuous normalized openings at 25 Hz |
 | RoboLab DROID | `robolab_droid_joint` | Seven measured joints plus normalized finger angle; joint and physical-gap targets |
 | RoboUse LIBERO / RoboCasa | `robouse_cartesian` | World public-control-point absolute poses or latest-ACK-relative deltas; native rotation constraints |
+| DexJoCo | `dexjoco_tcp_hand` | Absolute world TCP pose plus named Allegro finger positions in one native step |
 
 Except for the pinned legacy Pi0.5 path, bindings validate semantics without
 requiring a particular backend runtime. XPolicyLab can serve any of these
@@ -247,7 +262,7 @@ checkpoint change is deployment configuration. A new representation needs an
 explicit binding conversion or reusable capability, not another actor loop.
 See [Hybrid extension and migration](hybrid.md), the
 [XPolicyLab bridge](services.md#xpolicylab-bridge), and
-[service profiles](services.md#pi05-deployment-profiles).
+[service profiles](services.md#openpi-deployment-profiles).
 
 ## Integration contract
 

@@ -1,6 +1,6 @@
 """Explicit model-independent profiles for supported observation/control semantics."""
 
-from .contracts import ActorField, ActorProfile
+from uni_robot_agent.services.actor.contracts import ActorField, ActorProfile
 
 X5_CAMERAS = ("head", "left_wrist", "right_wrist")
 X5_FIELDS = tuple(
@@ -39,3 +39,20 @@ def validate_x5_joint_profile(profile: ActorProfile) -> None:
     expected = x5_joint_profile(profile.cameras, profile.action_horizon)
     if profile != expected:
         raise ValueError("Actor must declare the complete robodojo_x5_joint profile")
+
+CAMERAS = ("cam_high", "cam_left_wrist", "cam_right_wrist")
+
+
+def profile_for(name: str) -> ActorProfile:
+    if name == "robodojo_pi05":
+        return ActorProfile(
+            name=name,
+            cameras=list(CAMERAS),
+            observation_fields=x5_fields(),
+            # The pinned legacy binding clips finite model gripper predictions.
+            action_fields=x5_fields(bounded_gripper=False),
+            action_horizon=50,
+            control_frequency_hz=25,
+            image_convention="RGB HWC; pinned runtime resizes with padding to 224 and converts to CHW",
+        )
+    raise ValueError(f"Unknown Pi0.5 profile: {name}")
