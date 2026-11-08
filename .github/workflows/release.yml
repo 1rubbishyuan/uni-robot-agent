@@ -96,9 +96,6 @@ jobs:
         env:
           INSTALLER: ${{ matrix.installer }}
         run: python scripts/validation/sdk_release.py dist/uni_robot_agent-[0-9]*.whl "$RUNNER_TEMP/sdk-check" --installer "$INSTALLER"
-      - name: Validate optional Antigravity SDK installation
-        if: matrix.python == '3.12' && matrix.installer == 'pip'
-        run: python scripts/validation/sdk_release.py dist/uni_robot_agent-[0-9]*.whl "$RUNNER_TEMP/antigravity-check" --antigravity
       - name: Check upgrade from the initial release and clean uninstall
         env:
           INSTALLER: ${{ matrix.installer }}

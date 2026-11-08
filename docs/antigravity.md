@@ -109,6 +109,13 @@ The smoke checks an image-derived color, an observation nonce, two identical
 calls with distinct IDs, finish acknowledgement and complete provider records.
 It makes real Qwen requests but performs no robot actions.
 
+The optional SDK installation can also be checked outside the checkout:
+
+```bash
+python scripts/validation/sdk_release.py dist/uni_robot_agent-0.1.1-py3-none-any.whl \
+  /path/to/new-install-check --antigravity
+```
+
 Each episode saves `antigravity/runtime.json`, native SDK state,
 `antigravity/tool-calls.jsonl`, `antigravity/native-events.jsonl`, completion
 usage and gateway exchanges in `antigravity_generate_content/`. The binary hash,
