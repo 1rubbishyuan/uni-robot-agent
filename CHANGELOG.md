@@ -6,6 +6,10 @@
   with explicit MCP call identity, native lifecycle records, a dedicated
   GenerateContent dialect adapter and installed-package smoke validation.
 
+- Add Direct RMBench memory-task episodes with cached four-view observations.
+- Add Direct CALVIN single-task episodes with native task predicates, explicit
+  reset provenance and calibrated RGB; five-task chain evaluation is not included.
+
 - Add typed Code as Policy feedback, generated return-field documentation and
   explicit receipt summaries, preserving existing tool payloads and images.
 

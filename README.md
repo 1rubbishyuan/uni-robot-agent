@@ -143,6 +143,8 @@ for remote-host access and other options.
 | **RoboUse** | Selected tasks from LIBERO, RoboCasa, MetaWorld, RoboSuite, ManiSkill, Tabletop, Fetch and Kitchen; also Menagerie, composed-robot, Genesis and Factory task adapters | [Tasks](https://github.com/Open-RUA/uni-robot-agent/blob/main/scripts/robouse/README.md) |
 | **LIBERO-Plus / PRO** | Official perturbation suites through separately prepared Direct services | [Integration](docs/libero-extensions.md) |
 | **RoboTwin 2.0** | ALOHA AgileX dual-arm tasks through a separately prepared Direct service | [Integration](docs/robotwin.md) |
+| **RMBench** | Native memory-dependent dual-arm tasks with four camera views | [Integration](docs/rmbench.md) |
+| **CALVIN** | Native Panda single-task episodes; no five-task chain runner | [Integration](docs/calvin.md) |
 | **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
 
 ### Real robots
