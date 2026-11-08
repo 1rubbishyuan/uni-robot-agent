@@ -5,6 +5,8 @@ import asyncio
 import hashlib
 from importlib.metadata import distribution
 import json
+import os
+import sys
 from pathlib import Path
 import time
 from uuid import uuid4
@@ -111,7 +113,7 @@ class AntigravityAgent(AntigravityConfig):
         if dist.version != SDK_VERSION:
             raise ValueError(f'Antigravity requires google-antigravity=={SDK_VERSION}')
         binary = Path(dist.locate_file('google/antigravity/bin/localharness')).resolve(strict=True)
-        workspace = directory / 'workspace'
+        workspace = directory.parent / 'scratch'
         workspace.mkdir(exist_ok=True)
         (directory / 'system.md').write_text(prompt.system)
         (directory / 'user.md').write_text(prompt.user)
@@ -119,18 +121,25 @@ class AntigravityAgent(AntigravityConfig):
             force_all_tools_eager=True, headers={'Authorization': 'Bearer ' + token},
             sse_read_timeout=self.timeout_s or 10800)
         native = [types.BuiltinTools.VIEW_FILE, types.BuiltinTools.LIST_DIR,
-                  types.BuiltinTools.FIND_FILE, types.BuiltinTools.SEARCH_DIR]
+                  types.BuiltinTools.FIND_FILE, types.BuiltinTools.SEARCH_DIR,
+                  types.BuiltinTools.CREATE_FILE, types.BuiltinTools.EDIT_FILE,
+                  types.BuiltinTools.RUN_COMMAND]
         model = types.ModelTarget(name=self.model, types=[types.ModelType.TEXT, types.ModelType.IMAGE],
             endpoint=types.GeminiAPIEndpoint(base_url=endpoint.rstrip('/').removesuffix('/v1'),
                 api_key='local-gateway', options=types.GeminiModelOptions(max_output_tokens=8192)))
         config = LocalAgentConfig(model=model, vertex=False,
             system_instructions=types.CustomSystemInstructions(text=prompt.system),
-            workspaces=[str(workspace)],
+            # Tool-supplied images/calibration and the published scratch path live
+            # under the session root, not the SDK's private state directory.
+            workspaces=[str(directory.parent)],
             save_dir=str(directory / 'native'), app_data_dir=str(directory / 'app'),
-            env={'ANTIGRAVITY_HARNESS_PATH': str(binary), 'NO_PROXY': '127.0.0.1,localhost',
+            env={'ANTIGRAVITY_HARNESS_PATH': str(binary),
+                 'PATH': str(Path(sys.executable).parent) + os.pathsep + os.environ.get('PATH', ''),
+                 'NO_PROXY': '127.0.0.1,localhost',
                  'no_proxy': '127.0.0.1,localhost'},
             capabilities=types.CapabilitiesConfig(enable_subagents=False, enabled_tools=native,
-                mcp_max_output_bytes=64 * 1024 * 1024),
+                mcp_max_output_bytes=64 * 1024 * 1024,
+                run_command_config=types.RunCommandConfig(enable_daemons=False, timeout_seconds=60)),
             mcp_servers=[server], policies=[policy.allow(server, list(self.binding.specs)),
                 *[policy.allow(tool.value) for tool in native]], hooks=build_hooks(self.binding, directory),
             retry_config=types.RetryConfig(api_retry=types.ModelAPIRetryConfig(max_retries=0),
@@ -139,6 +148,8 @@ class AntigravityAgent(AntigravityConfig):
             'sdk_version': dist.version, 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
             'model': self.model, 'context_policy': 'identity', 'native_compaction': 'sdk_default',
             'native_tools': [tool.value for tool in native], 'mcp_eager': True,
+            'workspace': str(directory.parent), 'scratch': str(workspace),
+            'calculation_python': sys.executable, 'command_timeout_s': 60,
             'turn_unit': 'delivered_model_exchange', 'system_instructions': 'replace',
         }, indent=2) + '\n')
         response = None

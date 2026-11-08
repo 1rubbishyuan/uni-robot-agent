@@ -43,8 +43,13 @@ CLI help and `--validate-config` work without the optional SDK installed.
   The SDK still wraps user messages and adds its native metadata.
 - Robot, observation, job and runtime-skill tools use the existing authenticated
   HTTP MCP server and executor. MCP tools are loaded eagerly.
-- Native file-reading tools are available in a fresh scratch workspace.
-  Native shell execution, file writing, search, delegation, image generation and
+- Native file and command tools support calculations in the session scratch
+  directory. The SDK workspace includes the session root so tool-supplied
+  images and calibration files are readable. The storage-access prompt defines
+  the allowed read/write scopes; this is not an OS sandbox. Commands use the
+  harness interpreter directory on PATH, with a 60-second command timeout and
+  native daemons disabled. The SDK waits for background commands to settle;
+  its `manage_task` tool can inspect or cancel them. Web search, delegation, image generation and
   Code-as-Policy are not enabled in this first stage. Runtime skills remain
   accessible through the harness `list_skills` and `read_skill` tools.
 - `--max-turns` counts delivered model exchanges; zero disables that limit.
