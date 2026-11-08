@@ -57,6 +57,7 @@ class PromptContext:
     session_dir: Path | None = None
     observation_profile: str = "none"
     action_profile: str | None = None
+    tool_profile: str = "direct"
     skill_writing: bool = False
     interaction_mode: str = "tool_calling"
     tool_return_mode: str = "background"
@@ -85,7 +86,7 @@ def assemble_prompt(
 ) -> Prompt:
     """Append enabled runtime guidance, then persist the complete agent input."""
     prompts = get_prompts_dir()
-    prompt = _append_resource(base, prompts / "runtime" / "common.md")
+    prompt = _append_resource(base, prompts / "runtime" / ("minimal.md" if context.tool_profile == "minimal" else "common.md"))
     if context.tool_return_mode not in {"immediate", "background"}:
         raise ValueError(f"Invalid tool return mode: {context.tool_return_mode}")
     if context.resource_scheduling not in {"per-resource", "global-serial"}:
@@ -95,6 +96,8 @@ def assemble_prompt(
     resources = ("code_as_policy.md",) if context.interaction_mode == "code_as_policy" else (
         "tool_calling.md", "batch.md", f"resource_{context.resource_scheduling}.md", f"return_{context.tool_return_mode}.md",
     )
+    if context.tool_profile == "minimal":
+        resources = ("tool_calling.md", "return_immediate.md")
     for name in resources:
         prompt = _append_resource(prompt, prompts / "runtime" / name)
     for name in context.tool_prompt_resources:
@@ -115,7 +118,7 @@ def assemble_prompt(
                 user=contribution.user,
                 source=contribution.source,
             )
-    if context.session_dir is not None:
+    if context.session_dir is not None and context.tool_profile != "minimal":
         path = prompts / "runtime" / "storage_access.md"
         prompt = prompt.append(
             system=_render(path, {
@@ -124,6 +127,7 @@ def assemble_prompt(
             }),
             source=str(path),
         )
+    if context.session_dir is not None:
         (context.session_dir / "effective_prompt.md").write_text(
             prompt.flatten(), encoding="utf-8",
         )

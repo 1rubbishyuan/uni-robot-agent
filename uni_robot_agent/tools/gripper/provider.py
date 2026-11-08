@@ -74,13 +74,16 @@ def tool_specs(arms, *, opening_models=None):
 class GripperTools(ToolProvider):
     provider_id = "gripper"
 
-    def __init__(self, episode):
+    def __init__(self, episode, *, names=NAMES):
+        if not names or len(set(names)) != len(names) or not set(names) <= set(NAMES):
+            raise ValueError("Select distinct supported gripper tools")
+        self.names = tuple(names)
         self.episode = episode
         self.opening_models = episode.description.environment.metadata.get("gripper_opening_models", {})
 
     @property
     def prompt_contributions(self):
-        names = NAMES
+        names = self.names
         return (PromptContribution(system=(
             "Gripper operation labels (not fixed callable names): " + ", ".join(names) + ". "
             "Tool schemas define parameters, defaults, limits and returned evidence. "
@@ -104,8 +107,8 @@ class GripperTools(ToolProvider):
     def _bind_tools(self):
         specs = tool_specs([arm.name for arm in self.episode.description.environment.arms],
                            opening_models=self.opening_models)
-        return bind_tools(specs, provider_id=self.provider_id,
-                          handlers={name: getattr(self, name) for name in NAMES}, invoke=self.invoke)
+        return bind_tools([spec for spec in specs if spec.name in self.names], provider_id=self.provider_id,
+                          handlers={name: getattr(self, name) for name in self.names}, invoke=self.invoke)
 
     def invoke(self, handler, **arguments):
         return self.episode.invoke(handler, **arguments)

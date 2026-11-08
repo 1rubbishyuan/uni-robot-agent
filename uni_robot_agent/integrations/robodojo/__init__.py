@@ -42,10 +42,10 @@ def create_session(context):
 
 
 def get_integration_spec():
-    from uni_robot_agent.integrations.gripper import DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec
+    from uni_robot_agent.integrations.gripper import MINIMAL_TOOLS, DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec
 
     spec = build_gripper_spec(name="robodojo", create_session=create_session,
-                              tool_profiles={"direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS},
+                              tool_profiles={"minimal": MINIMAL_TOOLS, "direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS},
                               add_cli_args=add_cli_args, validate_cli=validate_cli, config_model=RobodojoOptions)
     spec.deployment_module = "uni_robot_agent.integrations.robodojo.deployment"
     return spec
