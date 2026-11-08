@@ -59,6 +59,7 @@ class PromptContext:
     tool_return_mode: str = "background"
     resource_scheduling: str = "per-resource"
     tool_names: tuple[str, ...] = ()
+    tool_prompt_resources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,9 +94,9 @@ def assemble_prompt(
     )
     for name in resources:
         prompt = _append_resource(prompt, prompts / "runtime" / name)
-    if context.action_profile == "hybrid" and "actor_act" in context.tool_names:
-        prompt = _append_resource(prompt, prompts / "runtime" / "hybrid.md")
-        prompt = _append_integration_resource(prompt, context.integration_name, "hybrid.md")
+    for name in context.tool_prompt_resources:
+        prompt = _append_resource(prompt, prompts / "runtime" / name)
+        prompt = _append_integration_resource(prompt, context.integration_name, name)
     if context.skill_writing:
         namespace = context.integration_name
         if context.episode is not None:

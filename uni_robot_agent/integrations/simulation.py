@@ -6,13 +6,13 @@ import sys
 from pathlib import Path
 
 
-def direct_spec(name):
+def build_simulation_spec(name, *, tool_profiles):
     from uni_robot_agent.context.prompt import Prompt, register_prompt_builder
     from uni_robot_agent.integrations.gripper import build_gripper_spec, create_session, validate_gripper_cli
 
     def validate(args):
         validate_gripper_cli(args)
-        if args.action_profile != "direct" or args.action_model_url:
+        if args.action_model_url:
             raise ValueError(f"{name} supports Direct control only")
 
     @register_prompt_builder(name)
@@ -29,7 +29,8 @@ def direct_spec(name):
                                    user="Initial measured state:\n" + episode.state.model_dump_json())
         return result
 
-    return build_gripper_spec(name=name, create_session=create_session, validate_cli=validate)
+    return build_gripper_spec(name=name, create_session=create_session,
+                              tool_profiles=tool_profiles, validate_cli=validate)
 
 
 def source_root(path, revision):

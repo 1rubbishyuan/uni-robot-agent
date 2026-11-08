@@ -46,6 +46,8 @@ def build_run_result(
         "resource_scheduling": getattr(args, "resource_scheduling", "per-resource"),
         "observation_profile": getattr(args, "observation_profile", "none"),
         "action_profile": getattr(args, "action_profile", None),
+        "tool_profile": getattr(args, "tool_profile", None),
+        "tool_modules": list(getattr(args, "tool_modules", ())),
         "suite": env_meta.get("suite"),
         "task_id": env_meta.get("task_id", env_meta.get("task")),
         "episode_identity": getattr(args, "_episode_identity", None),

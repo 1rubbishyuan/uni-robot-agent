@@ -135,6 +135,9 @@ def resolve_settings(args, integration_spec, *, explicit=(), agent_enabled=True)
 
             create_context_policy(args.context_policy, **context["context_options"])
     get_prompt_builder(args.integration)
+    from uni_robot_agent.integrations.composition import resolve_tool_profile
+
+    resolve_tool_profile(args, integration_spec)
     integration_spec.validate_cli(args)
     if getattr(args, "skill_writing", False):
         from uni_robot_agent.tools.skills import skill_root
@@ -267,6 +270,7 @@ class SessionConfig(BaseModel):
     resource_scheduling: Literal["per-resource", "global-serial"] = "per-resource"
     observation_profile: str = "none"
     skill_writing: bool = False
+    tool_profile: str | None = None
     tool_debug: bool = False
     tools: list[str] = Field(default_factory=list)
     save_exchanges: bool = True

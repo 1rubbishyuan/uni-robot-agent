@@ -15,46 +15,60 @@ def tool_policies():
         concurrency="exclusive", mutates_world=True)}
 
 
+def tool_specs(binding=None, reviewer=None):
+    groups = {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": True}
+    budget = {"type": "integer", "minimum": 1}
+    chunks = {"type": "integer", "minimum": 1}
+    constraints = schema({})
+    notes = "No actor binding is configured; this tool is unavailable."
+    if binding is not None:
+        capabilities = binding.capabilities
+        default, maximum = actor_action_limits(binding)
+        groups["items"]["enum"] = list(capabilities.groups)
+        groups["maxItems"] = len(capabilities.groups)
+        budget.update(default=default, maximum=maximum)
+        chunks["default"] = capabilities.default_max_chunks
+        constraints = capabilities.constraint_schema
+        modes = ["student", "stop", *capabilities.corrections]
+        notes = (f"Reviewer is {'enabled' if reviewer and reviewer.enabled else 'disabled'}. "
+                 f"Supported review modes: {', '.join(modes)}. actions_per_chunk defaults to {default}, "
+                 f"maximum {maximum}; max_chunks defaults to {capabilities.default_max_chunks}.")
+    spec = ToolSpec("actor_act",
+        "Execute a bounded local phase with the configured actor. Each chunk captures fresh observations, predicts, "
+        "reviews when enabled, and executes only the allowed prefix. Unused predictions are discarded. Keep the "
+        "instruction and active control groups fixed during this call. Constraints apply throughout, including "
+        "corrections. Do not insert Direct actions between internal chunks. Inspect confirmed execution, partial or "
+        "unknown outcomes, stop_reason and latest observations; completion is not task success. " + notes,
+        schema({"instruction": {"type": "string", "minLength": 1}, "active_groups": groups,
+                "constraints": constraints, "actions_per_chunk": budget, "max_chunks": chunks,
+                "task_progress": schema({"verified_completed": {"type": "array", "items": {"type": "string"}},
+                    "currently_attempting": {"type": "string"}, "remaining": {"type": "array", "items": {"type": "string"}}},
+                    ("verified_completed", "currently_attempting", "remaining"))}, ("instruction", "active_groups")))
+    return [spec]
+
+
+def unavailable_tools(episode):
+    """Declare the disabled tool for explicit visibility ablations only."""
+    def unavailable(**arguments):
+        from uni_robot_agent.services.environment.contracts import RequestRejected
+        episode.require_active()
+        raise RequestRejected("actor_act is unavailable without a configured actor and binding")
+    return bind_tools(tool_specs(), provider_id="hybrid",
+                      handlers={"actor_act": unavailable}, invoke=episode.invoke)
+
+
 class HybridTools(ToolProvider):
     provider_id = "hybrid"
 
-    def __init__(self, episode, *, actor=None, binding=None, reviewer=None):
+    def __init__(self, episode, *, actor, binding, reviewer):
+        if actor is None or binding is None:
+            raise ValueError("HybridTools requires a configured actor and binding")
         self.episode, self.binding, self.reviewer = episode, binding, reviewer
         self.runner = ActorRunner(episode, actor=actor, binding=binding, reviewer=reviewer)
 
     def get_tools(self):
-        return self.get_declared_tools() if self.binding is not None else []
-
-    def get_declared_tools(self):
-        groups = {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": True}
-        budget = {"type": "integer", "minimum": 1}
-        chunks = {"type": "integer", "minimum": 1}
-        constraints = schema({})
-        notes = "No actor binding is configured; this tool is unavailable."
-        if self.binding is not None:
-            capabilities = self.binding.capabilities
-            default, maximum = actor_action_limits(self.binding)
-            groups["items"]["enum"] = list(capabilities.groups)
-            groups["maxItems"] = len(capabilities.groups)
-            budget.update(default=default, maximum=maximum)
-            chunks["default"] = capabilities.default_max_chunks
-            constraints = capabilities.constraint_schema
-            modes = ["student", "stop", *capabilities.corrections]
-            notes = (f"Reviewer is {'enabled' if self.reviewer and self.reviewer.enabled else 'disabled'}. "
-                     f"Supported review modes: {', '.join(modes)}. actions_per_chunk defaults to {default}, "
-                     f"maximum {maximum}; max_chunks defaults to {capabilities.default_max_chunks}.")
-        spec = ToolSpec("actor_act",
-            "Execute a bounded local phase with the configured actor. Each chunk captures fresh observations, predicts, "
-            "reviews when enabled, and executes only the allowed prefix. Unused predictions are discarded. Keep the "
-            "instruction and active control groups fixed during this call. Constraints apply throughout, including "
-            "corrections. Do not insert Direct actions between internal chunks. Inspect confirmed execution, partial or "
-            "unknown outcomes, stop_reason and latest observations; completion is not task success. " + notes,
-            schema({"instruction": {"type": "string", "minLength": 1}, "active_groups": groups,
-                    "constraints": constraints, "actions_per_chunk": budget, "max_chunks": chunks,
-                    "task_progress": schema({"verified_completed": {"type": "array", "items": {"type": "string"}},
-                        "currently_attempting": {"type": "string"}, "remaining": {"type": "array", "items": {"type": "string"}}},
-                        ("verified_completed", "currently_attempting", "remaining"))}, ("instruction", "active_groups")))
-        return bind_tools([spec], provider_id=self.provider_id, handlers={"actor_act": self.actor_act}, invoke=self.invoke)
+        return bind_tools(tool_specs(self.binding, self.reviewer), provider_id=self.provider_id,
+                          handlers={"actor_act": self.actor_act}, invoke=self.invoke)
 
     def invoke(self, handler, **arguments):
         return self.episode.invoke(handler, **arguments)
