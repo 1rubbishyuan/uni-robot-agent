@@ -59,5 +59,12 @@ Besides task objects and the embodiment, upstream imports require
 `assets/objects/objaverse/list.json` and `assets/objects/same.json`, even for a
 clean scene. Only the tested task's assets were prepared. OIDN invalid-handle
 errors left visible ray-tracing noise, as in the RoboTwin probe; rendering
-quality needs validation before score comparisons. No full model episode or
-complete memory-task suite result is claimed.
+quality needs validation before score comparisons.
+
+A subsequent Qwen3.8-Flash Direct trial exercised at least 671 native actions
+with RGB, calibration, SAM and runtime skills. Both arms, repeated camera
+captures and action feedback remained available, but repeated button-contact
+attempts did not establish task success. The trial was stopped before task
+completion; it is neither a successful memory-task result nor a completed
+benchmark episode. Contact execution and rendering quality still need further
+validation before benchmark comparisons.

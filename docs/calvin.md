@@ -81,5 +81,12 @@ this was a lift-and-return motion probe, not an attempted drawer solution.
 
 The tested isolated runtime used Python 3.11, PyBullet 3.2.7, Gym 0.23.1 and
 NumPy 1.26.4. Install upstream dependencies including `rich` (imported by the
-pinned environment), Hydra/colorlog and numpy-quaternion. Explicit reset files,
-other scenes and full model episodes require further native validation.
+pinned environment), Hydra/colorlog and numpy-quaternion.
+
+A subsequent Qwen3.8-Flash Direct episode completed `open_drawer` from the same
+scene D reset with native `task_success=true` after 78 actions (412 seconds).
+It used RGB, calibration, SAM and runtime skills. The final image showed the
+drawer open; the planner exited normally with a complete training trace and no
+reported storage errors. This validates one single-task execution path, not
+the official chain score. Explicit reset files and other scenes/tasks remain
+outside the completed native model validation.
