@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import replace
 from typing import Any
 
+from uni_robot_agent.context import gemini
 from uni_robot_agent.context.history import (
     ContextBlock,
     ContextBudget,
@@ -34,7 +36,7 @@ class ContextBudgetExceeded(ValueError):
 @register_context_policy("sliding_window")
 class SlidingWindowPolicy:
     name = "sliding_window"
-    version = "3"
+    version = "4"
 
     def __init__(
         self,
@@ -80,12 +82,20 @@ class SlidingWindowPolicy:
                 "the provider may still retain removed history"
             )
 
+        if request.wire_format not in {"responses", "gemini"}:
+            raise ValueError(f"sliding_window does not support {request.wire_format}")
+        native_blocks = None
+        if request.wire_format == "gemini":
+            # Validate the complete native history before eviction can hide a bad pair.
+            native_blocks = gemini.build_blocks(request.items)
+
         before = estimate_tokens(request.body)
         item_ids = tuple(f"item_{index:04d}" for index, _ in enumerate(request.items))
 
         # Evict old images in batches independently of the token threshold.
         # Batched eviction preserves a more stable shared prompt-cache prefix.
-        image_request, evicted_images = _evict_old_images(
+        evict_images = gemini.evict_old_images if request.wire_format == "gemini" else _evict_old_images
+        image_request, evicted_images = evict_images(
             request,
             keep_n=self._min_recent_tool_images,
             batch_size=self._image_eviction_batch_size,
@@ -112,7 +122,13 @@ class SlidingWindowPolicy:
             )
 
         # Fall back to trimming complete interaction blocks only if image eviction is insufficient.
-        blocks = _build_blocks(image_request.items)
+        if native_blocks is not None:
+            # Protect original user text, not the tool-image omission notices.
+            items_by_id = dict(zip(item_ids, image_request.items))
+            blocks = [replace(block, items=tuple(items_by_id[key] for key in block.item_ids))
+                      for block in native_blocks]
+        else:
+            blocks = _build_blocks(image_request.items)
         protected = _protected_blocks(blocks, self._budget)
         kept = set(range(len(blocks)))
         after = after_images

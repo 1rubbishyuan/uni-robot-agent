@@ -54,6 +54,15 @@ print('Installed SDK:', uni_robot_agent.__file__)
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
                  '--model', 'validation-model', '--env-url', 'http://127.0.0.1:18760',
                  '--no-sam3', '--agent-python', python, '--validate-config'])
+    for backend, runtime_options in (
+        ('opencode', ['--opencode-version', 'offline-candidate']),
+        ('gemini_cli', ['--gemini-version', 'offline-candidate',
+                        '--gemini-bridge-manifest', 'offline-manifest.json']),
+    ):
+        command([python, '-m', 'uni_robot_agent', 'run', '--integration', 'robouse',
+                 '--agent', backend, '--model', 'qwen-validation',
+                 '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
+                 '--provider-url', 'https://provider.invalid/v1', *runtime_options, '--validate-config'])
     for integration, binding in (('robodojo', 'robodojo_pi05'),
                                  ('robodojo', 'robodojo_x5_joint'),
                                  ('robolab', 'robolab_droid_joint'),
@@ -89,6 +98,7 @@ root = Path(uni_robot_agent.__file__).parent
 assert callable(get_prompt_builder('robodojo'))
 assert callable(get_prompt_builder('robouse'))
 for resource in ('ui/web/static/index.html', 'ui/web/static/app.js',
+                 'agents/opencode/bridge.js', 'agents/gemini_cli/robotBridge.ts',
                  'integrations/robodojo/deployment.toml',
                  'integrations/robouse/recipes/libero.toml'):
     assert (root / resource).is_file(), resource

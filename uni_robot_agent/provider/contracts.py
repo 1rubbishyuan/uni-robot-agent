@@ -72,6 +72,22 @@ class ModelProtocol(Protocol):
     def exception_response(self, error: Exception) -> dict: ...
 
 
+@runtime_checkable
+class LocalRequestProtocol(Protocol):
+    """Protocol-owned auxiliary replies outside model-generation accounting."""
+
+    def local_response(self, path: str) -> ModelResponse | None: ...
+
+
+@runtime_checkable
+class RoutedModelProtocol(Protocol):
+    """Protocols whose model/method is encoded in the URL rather than the body."""
+
+    def normalize_request(self, path: str, body: dict | None) -> dict: ...
+
+    def response_headers(self, request: dict, headers: Mapping[str, str]) -> Mapping[str, str]: ...
+
+
 if TYPE_CHECKING:
     from uni_robot_agent.services.http import HttpTransport
 
@@ -105,6 +121,13 @@ class ProviderAdapter(Protocol):
         response: bytes,
         decode_state: dict[str, Any],
     ) -> DecodedResponse: ...
+
+
+@runtime_checkable
+class RequestValidatingAdapter(Protocol):
+    """Optional wire validation before context selection can discard input."""
+
+    def validate_request(self, request: dict[str, Any]) -> None: ...
 
 
 class ProviderSession(Protocol):

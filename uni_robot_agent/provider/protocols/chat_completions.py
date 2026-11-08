@@ -23,11 +23,17 @@ def _aggregate_chunks(chunks: list[dict[str, Any]]) -> dict[str, Any]:
     index_keys: dict[int, str] = {}
     id_keys: dict[str, str] = {}
     anonymous_index = 0
-    response_id, usage = "resp_chat", None
+    response_id, usage, finish_reason = "resp_chat", None, None
+    metadata = {}
     for chunk in chunks:
+        for field in ('created', 'model'):
+            if field in chunk:
+                metadata[field] = chunk[field]
         response_id = chunk.get("id") or response_id
         usage = chunk.get("usage") or usage
-        delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
+        choice = (chunk.get("choices") or [{}])[0]
+        finish_reason = choice.get('finish_reason') or finish_reason
+        delta = choice.get("delta") or {}
         reasoning += delta.get("reasoning_content") or ""
         text += delta.get("content") or ""
         for call in delta.get("tool_calls") or []:
@@ -54,7 +60,7 @@ def _aggregate_chunks(chunks: list[dict[str, Any]]) -> dict[str, Any]:
                 id_keys[call_id] = key
             if index is not None:
                 index_keys[index] = key
-    return {"id": response_id, "usage": usage, "choices": [{"message": {
+    return {**metadata, "id": response_id, "usage": usage, "choices": [{"finish_reason": finish_reason, "message": {
         "reasoning_content": reasoning, "content": text,
         "tool_calls": [{"id": call["id"], "function": {
             "name": call["name"], "arguments": call["arguments"],

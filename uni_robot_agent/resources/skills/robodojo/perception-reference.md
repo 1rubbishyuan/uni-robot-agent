@@ -26,6 +26,12 @@ then multiply by K and divide by optical Z to get `(u,v)=(column,row)`. Points
 behind the camera cannot be projected as visible points. `locate` arguments
 instead use `[row,col]`; swap the order deliberately.
 
+For `locate(method="segment")`, a returned `box` is
+`[x_min,y_min,x_max,y_max]` with `coordinate_order="xyxy"`: x is column and
+y is row in the source image. Box values retain SAM's pixel coordinates.
+Refinement points, pixel markers and triangulation observations still use
+`[row,col]`; the box order does not change these inputs.
+
 For a pixel, inverse K gives a ray, not an absolute 3D point. K and extrinsics
 alone do not determine distance along that ray. A known plane, another view or
 a range measurement is needed for a unique position. Use the locate methods
