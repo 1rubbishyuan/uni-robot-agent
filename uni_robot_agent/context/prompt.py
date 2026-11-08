@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from uni_robot_agent.tools.toolkit import ImageAttachment
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
@@ -18,6 +20,7 @@ class Prompt:
     user: str
     system: str | None = None
     sources: tuple[str, ...] = ()
+    images: tuple[ImageAttachment, ...] = ()
 
     def flatten(self) -> str:
         """Flatten input for agents accepting a single string."""
@@ -40,7 +43,7 @@ class Prompt:
         if user:
             next_user = _append_text(next_user, user)
         sources = self.sources + ((source,) if source else ())
-        return Prompt(user=next_user, system=next_system, sources=sources)
+        return replace(self, user=next_user, system=next_system, sources=sources)
 
 
 @dataclass(frozen=True)
