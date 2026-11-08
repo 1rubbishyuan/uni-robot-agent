@@ -54,8 +54,11 @@ CLI help and `--validate-config` work without the optional SDK installed.
   accessible through the harness `list_skills` and `read_skill` tools.
 - `--max-turns` counts delivered model exchanges; zero disables that limit.
   The episode timeout, provider failures and user cancellation stop native
-  generation. SDK model retries are configured to zero; gateway failure events
-  also cancel the SDK so its outer loop cannot repeat a failed exchange.
+  generation. SDK API retries are zero; gateway failure events also cancel the
+  SDK so its outer loop cannot repeat a failed request. Malformed model outputs
+  allow up to two native correction attempts, each counted against the model
+  exchange limit. Invalid calls are not executed; valid calls in the same batch can complete.
+  Their acknowledged results remain in history during correction.
 - Identity applies to the harness context policy. The SDK retains its own
   default compaction behavior; this does not promise unlimited native history.
 

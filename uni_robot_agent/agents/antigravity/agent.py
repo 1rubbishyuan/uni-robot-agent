@@ -143,7 +143,7 @@ class AntigravityAgent(AntigravityConfig):
             mcp_servers=[server], policies=[policy.allow(server, list(self.binding.specs)),
                 *[policy.allow(tool.value) for tool in native]], hooks=build_hooks(self.binding, directory),
             retry_config=types.RetryConfig(api_retry=types.ModelAPIRetryConfig(max_retries=0),
-                model_output_retry=types.ModelOutputRetryConfig(max_retries=0)))
+                model_output_retry=types.ModelOutputRetryConfig(max_retries=2)))
         (directory / 'runtime.json').write_text(json.dumps({
             'sdk_version': dist.version, 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
             'model': self.model, 'context_policy': 'identity', 'native_compaction': 'sdk_default',
@@ -151,6 +151,7 @@ class AntigravityAgent(AntigravityConfig):
             'workspace': str(directory.parent), 'scratch': str(workspace),
             'calculation_python': sys.executable, 'command_timeout_s': 60,
             'turn_unit': 'delivered_model_exchange', 'system_instructions': 'replace',
+            'model_output_retries': 2, 'api_retries': 0,
         }, indent=2) + '\n')
         response = None
         try:
