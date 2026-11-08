@@ -140,3 +140,34 @@ Model loading belongs to the generic OpenPI backend; source, training config,
 normalizer and image mapping belong to its recipe. A new compatible environment
 provides an environment adapter and binding, while reusing the backend and runner.
 See [DexJoCo](dexjoco.md) for the reproducible single-task checks.
+
+
+## Reviewer decision contract and evidence
+
+An enabled reviewer submits exactly one `submit_review` function call. Separate
+reasoning is permitted; prose, multiple calls, incomplete responses and malformed
+arguments never authorize motion. The function schema describes the current
+request ID, action budget and binding correction capabilities. Optional correction
+fields remain optional in the provider schema (`strict: false`); local validation
+requires exactly the fields for the selected mode and enforces all cross-field
+constraints before execution.
+
+`assessment.execution_status=not_started` means that the entire native episode
+has not executed an action. It does not mean a new local phase or an unachieved
+subgoal. When the binding supplies `episode_started`, the schema exposes only
+statuses consistent with that observed history, and local validation checks it.
+
+A rejected decision receives at most one repair request for the same captured
+observation, proposal and request ID. Repair never calls the actor again or
+executes any part of a rejected proposal. Transport failures retain the existing
+bounded transport policy and do not receive this decision-format repair. Two
+rejected decisions stop the tool call with `error_stage=reviewer`; already
+acknowledged actions from earlier chunks remain in its result.
+
+Each review attempt is archived beside its chunk as `NN.review-A.json` and
+`NN.review-A.response`. Metadata contains provider attempt records, timing and
+an accepted decision or error; the response file retains original upstream bytes
+before provider conversion, with its byte count and SHA-256 in the metadata.
+Authorization headers are not included. Failure to persist review evidence stops
+before the approved prefix executes. Chunk context and session summaries retain
+main tool `call_id`, `batch_id` and `execution_id` for tracing zero-action errors.

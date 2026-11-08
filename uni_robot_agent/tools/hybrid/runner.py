@@ -5,7 +5,12 @@ from dataclasses import asdict
 from uuid import uuid4
 
 from uni_robot_agent.artifacts.actor import ActorArchive
-from uni_robot_agent.services.environment.contracts import CaptureRequest, RequestRejected
+from uni_robot_agent.execution import current_execution_id
+from uni_robot_agent.execution.correlation import current_call
+from uni_robot_agent.services.environment.contracts import (
+    CaptureRequest,
+    RequestRejected,
+)
 
 from .execution import execute_prefix
 
@@ -39,13 +44,15 @@ class ActorRunner:
         constraints = {} if constraints is None else constraints
         scope = binding.validate_scope(active_groups, constraints)
         session_id = uuid4().hex
-        summary = {"session_id": session_id, "instruction": instruction, "chunks": [], "chunks_executed": 0,
+        summary = {"session_id": session_id, "execution_id": current_execution_id(), **current_call(), "instruction": instruction, "chunks": [], "chunks_executed": 0,
                    "executed_actions": 0, "acknowledged_commands": 0, "execution_started": False,
                    "duration_s": 0., "stop_reason": "max_chunks", "execution_uncertain": False,
                    "error": None, "artifact_error": None}
         archive = ActorArchive(episode.output, session_id, episode.storage_errors)
+        stage = "actor"
         try:
             for index in range(max_chunks):
+                stage = "actor"
                 episode.require_active()
                 manifest = episode.env.capture(CaptureRequest(high_resolution=False))
                 paths = episode.image_paths(manifest)
@@ -60,6 +67,7 @@ class ActorRunner:
                 previous = self.previous_chunk
                 context = {**binding.review_context(proposal, scope),
                     "request_id": uuid4().hex, "session_id": session_id, "chunk_index": index,
+                    "execution_id": current_execution_id(), **current_call(),
                     "max_chunks": max_chunks, "actions_per_chunk": actions_per_chunk,
                     "global_instruction": episode.instruction, "local_instruction": instruction,
                     "task_progress": task_progress if index == 0 else
@@ -77,7 +85,10 @@ class ActorRunner:
                     images.update({"previous/" + name: path for name, path in previous["images"].items()})
                 record = {"context": context, "review_images": images, "proposal": proposal.metadata}
                 archive.write_chunk(index, record, proposal=proposal)
-                decision = self.reviewer.decide(context=context, images=images, actions_per_chunk=actions_per_chunk)
+                stage = "reviewer"
+                decision = self.reviewer.decide(context=context, images=images, actions_per_chunk=actions_per_chunk,
+                    record=lambda attempt, evidence, index=index: archive.write_review(index, attempt, evidence))
+                stage = "actor"
                 record["decision"] = decision
                 archive.write_chunk(index, record)
                 if decision["mode"] == "stop":
@@ -121,9 +132,9 @@ class ActorRunner:
                 if feedback.get("execution_status") != "completed" or feedback.get("stop_reason") != "requested_sample_budget":
                     summary["stop_reason"] = feedback["stop_reason"]
                     break
-        except Exception as error:
-            summary.update(stop_reason="error", error_type=type(error).__name__)
-            summary["error"] = archive.error or f"Actor execution failed: {type(error).__name__}: {error}"
+        except Exception as error:  # noqa: BLE001 - preserve partial execution and archive its outcome
+            summary.update(stop_reason="error", error_type=type(error).__name__, error_stage=stage)
+            summary["error"] = archive.error or f"{stage.capitalize()} failed: {type(error).__name__}: {error}"
         finally:
             summary["execution_uncertain"] |= episode.env.uncertain
             summary["artifact_error"] = archive.artifact_error

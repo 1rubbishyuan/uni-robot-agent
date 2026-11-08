@@ -1,8 +1,14 @@
 """Independent model-facing actor collaboration tools."""
 from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
-from uni_robot_agent.tools.toolkit import ToolOutput, ToolProvider, ToolSpec, bind_tools, schema
 from uni_robot_agent.tools.presentation import state_for_model
 from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
+from uni_robot_agent.tools.toolkit import (
+    ToolOutput,
+    ToolProvider,
+    ToolSpec,
+    bind_tools,
+    schema,
+)
 
 from .runner import ActorRunner, actor_action_limits
 
@@ -85,7 +91,7 @@ class HybridTools(ToolProvider):
                 if images:
                     metadata = snapshot_metadata(self.episode.latest_snapshot, [image.name for image in images],
                                                  mirror=self.episode.artifact_mirror)
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - surface optional image persistence failures
             image_error = f"{type(error).__name__}: {error}"
         uncertain = summary["execution_uncertain"]
         return ToolOutput(success=summary["error"] is None, error=summary["error"], extra={
@@ -98,4 +104,5 @@ class HybridTools(ToolProvider):
                 "execution_status": assessment.get("execution_status"), "execution_evidence": assessment.get("execution_evidence"),
                 "stop_evidence": summary["error"] or (decision.get("reason") if decision.get("mode") == "stop" else None)},
             **metadata, "image_cameras": [image.name for image in images],
+            "error_stage": summary.get("error_stage"),
             "artifact_error": "; ".join(filter(None, (summary["artifact_error"], image_error))) or None}, images=images)

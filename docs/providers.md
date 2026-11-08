@@ -54,6 +54,12 @@ or GenerateContent planner, an enabled reviewer needs an explicit `--vla-review-
 binding, the check runs during assembly before model requests. A disabled
 reviewer opens no model client.
 
+An enabled Hybrid reviewer requires function calling with a named tool choice
+and `parallel_tool_calls=false`. Its `submit_review` schema uses the existing
+Responses conversion path; compatibility includes the selected model's reasoning
+mode. A rejected provider request fails before motion and retains its original
+response in the actor-session archive. See [Hybrid review evidence](hybrid.md#reviewer-decision-contract-and-evidence).
+
 ## Ownership and extension
 
 Paths are relative to `uni_robot_agent/provider/`.
