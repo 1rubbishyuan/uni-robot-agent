@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add an optional, pinned Antigravity Python SDK backend for Qwen tool calling,
+  with explicit MCP call identity, native lifecycle records, a dedicated
+  GenerateContent dialect adapter and installed-package smoke validation.
+
 - Add typed Code as Policy feedback, generated return-field documentation and
   explicit receipt summaries, preserving existing tool payloads and images.
 
