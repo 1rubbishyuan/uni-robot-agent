@@ -28,7 +28,7 @@
 
 ## What's New
 
-**Hybrid** now separates shared orchestration, reusable actor backends and integration-specific bindings. [DexJoCo](docs/dexjoco.md) adds dexterous-hand manipulation with its public `pick_bucket` Pi0.5 checkpoint. [Learn more](docs/hybrid.md).
+**Hybrid** now separates shared orchestration, reusable actor backends and integration-specific bindings. [DexJoCo](docs/dexjoco.md) adds dexterous-hand manipulation with OpenPI/Pi0.5. [Learn more](docs/hybrid.md).
 
 **Minimal mode** offers a simple three-tool baseline (`move`, `hold`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
 
@@ -150,7 +150,7 @@ for remote-host access and other options.
 | **RMBench** | Native memory-dependent dual-arm tasks with four camera views | [Integration](docs/rmbench.md) |
 | **CALVIN** | Native Panda single-task episodes; no five-task chain runner | [Integration](docs/calvin.md) |
 | **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
-| **DexJoCo** | Dexterous manipulation with a Panda arm and 16-DoF Allegro hand; `pick_bucket` via Hybrid Pi0.5 control | [Integration](docs/dexjoco.md) |
+| **DexJoCo** | Dexterous-hand manipulation with a Panda arm and 16-DoF Allegro hand using Hybrid Pi0.5 control | [Integration](docs/dexjoco.md) |
 
 ### Real robots
 
