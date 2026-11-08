@@ -1,4 +1,5 @@
 """OpenCode server adapter using the existing Responses-to-Qwen gateway."""
+from base64 import b64encode
 import json
 from pathlib import Path
 import queue
@@ -89,7 +90,10 @@ class OpenCodeAgent(OpenCodeConfig, ManagedAgent):
             self.binding.thread_id = self.session_id
             self.transport.request('POST', f'/session/{self.session_id}/prompt_async', {
                 'agent': 'robot', 'model': {'providerID': 'ura', 'modelID': self.model},
-                'parts': [{'type': 'text', 'text': prompt.user}]})
+                'parts': [{'type': 'text', 'text': prompt.user},
+                    *({'type': 'file', 'mime': image.mime_type,
+                       'url': f'data:{image.mime_type};base64,{b64encode(image.data).decode("ascii")}'}
+                      for image in prompt.images)]})
             self.consume()
             return self.result()
         except KeyboardInterrupt:

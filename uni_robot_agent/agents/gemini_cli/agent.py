@@ -1,4 +1,5 @@
 """Run Gemini's native agent loop over ACP and a GenerateContent/Qwen bridge."""
+from base64 import b64encode
 import json
 from pathlib import Path
 import subprocess
@@ -160,7 +161,9 @@ class GeminiCliAgent(GeminiConfig, ManagedAgent):
                 self.on_notification('session/update', update)
             self.pending_updates.clear()
             result = self.request('session/prompt', {'sessionId': self.session_id,
-                'prompt': [{'type': 'text', 'text': prompt.user}]})
+                'prompt': [{'type': 'text', 'text': prompt.user},
+                    *({'type': 'image', 'mimeType': image.mime_type,
+                       'data': b64encode(image.data).decode('ascii')} for image in prompt.images)]})
             if result.get('stopReason') != 'end_turn':
                 self.cancel(result.get('stopReason') or 'unknown_stop')
             return self.result()
