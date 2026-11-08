@@ -7,6 +7,9 @@
   provider profiles, integration imports, skills root, output-directory
   writability and environment-variable presence without connecting to services,
   probing credentials or creating directories.
+- Add typed Code as Policy feedback, generated return-field documentation and
+  explicit receipt summaries, preserving existing tool payloads and images.
+
 - Add experimental OpenCode and Gemini CLI backends with Qwen protocol bridges,
   explicit tool-call identity, response delivery gates and isolated subprocess
   state in `tool_calling` interaction mode. Gemini requires a separately built
