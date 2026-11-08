@@ -109,7 +109,7 @@ def assemble_session(args) -> SessionAssembly:
         policies = assembly.policies
         workspace = WorkspaceProvider()
         # File helpers remain TUI-only unless explicitly selected for an ablation.
-        if getattr(args, "command", "run") != "run":
+        if getattr(args, "command", "run") != "run" and args.tool_profile != "minimal":
             tools.extend(workspace.get_tools())
 
         profile_name = getattr(args, "observation_profile", "none")
@@ -172,6 +172,7 @@ def assemble_session(args) -> SessionAssembly:
             session_dir=session_dir,
             observation_profile=profile_name,
             action_profile=getattr(args, "action_profile", None),
+            tool_profile=args.tool_profile,
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             tool_names=prompt_tool_names,
@@ -179,10 +180,30 @@ def assemble_session(args) -> SessionAssembly:
             skill_writing=getattr(args, "skill_writing", False),
         )
         contributions = tuple(getattr(observation_profile, "prompt_contributions", ()))
+        initial_images, initial_metadata = (), None
+        if args.tool_profile == "minimal":
+            from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
+            episode = session.episode
+            snapshot = episode.observation()
+            initial_images = tuple(snapshot_images(episode.env, snapshot, mirror=episode.artifact_mirror))
+            initial_metadata = {
+                "state": episode.state.model_dump(mode="json"),
+                "remaining_steps": episode.remaining_steps,
+                **snapshot_metadata(snapshot, [image.name for image in initial_images],
+                                    mirror=episode.artifact_mirror),
+                "image_cameras": [image.name for image in initial_images],
+            }
+            (session_dir / "initial_observation.json").write_text(
+                json.dumps(initial_metadata, indent=2, allow_nan=False) + "\n")
 
         def build_prompt(task: str):
             context = replace(prompt_context, task=task)
             base_prompt = prompt_builder(context)
+            if initial_metadata is not None:
+                base_prompt = replace(base_prompt, images=initial_images).append(
+                    user="Initial RGB observation (images in image_cameras order):\n"
+                         + json.dumps(initial_metadata, allow_nan=False),
+                )
             for provider in session.tool_providers:
                 for contribution in provider.prompt_contributions:
                     base_prompt = base_prompt.append(

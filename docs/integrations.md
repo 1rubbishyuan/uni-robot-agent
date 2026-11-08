@@ -96,6 +96,41 @@ The harness also supports optional depth localization and physical RGB-D sensors
 These capabilities do not establish that a run uses the paper's RGB-only setting.
 See [runtime defaults](running.md#single-episode-cli) for capability selection.
 
+### Minimal robot tools
+
+All eight gripper integrations support `--tool-profile minimal`: RoboDojo,
+RoboUse, RoboLab, RoboTwin, LIBERO-Plus, LIBERO-PRO, RMBench and CALVIN.
+It exposes `move`, `hold` and `finish`, reusing the same schemas, controllers,
+execution receipts and outcome storage as Direct. `move` already accepts a
+gripper opening, so separate grasp/release tools are unnecessary.
+
+Minimal selects immediate tool returns and omits skill, scene, Hybrid, observer,
+workspace and background-job tools. Explicit background returns, tool debugging,
+skill writing, observation profiles and Code as Policy are rejected. Planner
+SDK native computation/file tools retain their existing configuration. Direct
+remains the default; Direct/Hybrid tool visibility and scheduling are unchanged.
+
+Start the environment with depth disabled (for example RoboDojo `--no-depth`).
+An external `--env-url` must already describe a depth-disabled service. Minimal
+supports calibrated RGB and cameras that explicitly declare no calibration;
+it does not expose a depth setting or silently change the connected service.
+Initial input includes RGB images, measured robot state and per-image calibration.
+Codex, Claude Code, Gemini CLI, OpenCode and Antigravity accept these images as
+multimodal user input. The shared artifact store retains images and snapshot
+manifests; `initial_observation.json` records the initial image/state references.
+
+Completed gripper actions in every profile reuse their final snapshot when it
+contains current images and the camera's declared calibration. Otherwise they
+capture once after the model-level action, not after every primitive. Returned
+`camera_calibration` includes `intrinsic_K` and `T_world_from_optical` for the
+attached image grids, together with `image_state_version` and `snapshot_id`.
+The latter transform maps optical coordinates into world metres. This may add
+capture latency on RoboDojo, whose ordinary tiled snapshots lack calibration.
+Missing declared calibration or a stale capture produces an `artifact_error`
+while preserving the acknowledged action feedback; it never replays motion.
+Cameras declaring calibration unavailable, including distorted LIBERO-Plus
+agent views, retain null matrices instead of fabricated geometry.
+
 ### Camera-calibration ablation
 
 For RoboDojo, add `--no-camera-calibration` at environment startup to disable

@@ -137,7 +137,7 @@ class ClaudeCodeAgent(ClaudeConfig):
                 bus.emit(AgentRunStarted(instruction=task, model=self._model,
                                         agent_backend="claude_code", tool_event_source="execution"))
             async with deadline:
-                async with aclosing(sdk.query(prompt=prompt.user, options=options)) as messages:
+                async with aclosing(sdk.query(prompt=_initial_input(prompt), options=options)) as messages:
                     async for message in messages:
                         state.consume(message)
         except asyncio.CancelledError:
@@ -166,3 +166,19 @@ class ClaudeCodeAgent(ClaudeConfig):
             steps_used=state.steps, elapsed_s=time.monotonic() - started,
             main_thread_id=self._binding.thread_id, trace_format="claude_messages",
         )
+
+
+def _initial_input(prompt):
+    """Keep the text-only SDK path unchanged; stream multimodal user content."""
+    if not prompt.images:
+        return prompt.user
+    from base64 import b64encode
+
+    async def messages():
+        yield {"type": "user", "message": {"role": "user", "content": [
+            {"type": "text", "text": prompt.user},
+            *({"type": "image", "source": {"type": "base64", "media_type": image.mime_type,
+                "data": b64encode(image.data).decode("ascii")}} for image in prompt.images),
+        ]}}
+
+    return messages()

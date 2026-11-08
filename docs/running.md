@@ -207,13 +207,21 @@ integrations default to `direct`, which assembles skills, scene, gripper and
 episode modules. `robodojo`, `robouse` and `robolab` also declare `hybrid`,
 which adds actor collaboration; the selected environment/controller and actor
 must still satisfy their binding contract. `robotwin`, `libero_plus`,
-`libero_pro`, `rmbench` and `calvin` declare only `direct`.
+`libero_pro`, `rmbench` and `calvin` declare `direct` and `minimal`.
+All eight integrations support `minimal`.
 
 ```bash
 uni-robot-agent run --integration robouse --model MODEL \
   --env-url http://localhost:18760 --no-sam3 \
   --tool-profile direct --tool-return-mode immediate
 ```
+
+For the [minimal robot tool set](integrations.md#minimal-robot-tools), select
+`--tool-profile minimal` and connect to an environment with depth disabled.
+It exposes only `move`, `hold` and `finish` as harness tools and selects immediate
+returns automatically. The first model input includes RGB, state and calibration;
+no initial `capture_scene` call is needed. Native SDK helpers keep their existing
+configuration. Direct and Hybrid keep their current defaults and execution modes.
 
 For Hybrid, select `--tool-profile hybrid` and provide the actor URL, checkpoint
 SHA256 and [reviewer settings](#vla-reviewer). Only selected modules are
@@ -225,10 +233,10 @@ selectors is allowed when they agree; conflicting values fail before connecting.
 Resolved configuration and result records include `tool_profile` and
 `tool_modules`; `action_profile` remains available for existing result readers.
 
-Composition does not select execution mode. In normal mode, `immediate` hides
+Direct and Hybrid do not select execution mode. In these profiles, `immediate` hides
 job controls and waits for tool completion; `background` exposes job controls
 and applies each tool's return policy. Resource scheduling is unchanged.
-Workspace helpers remain available in TUI and absent from ordinary `run`.
+For Direct/Hybrid, workspace helpers remain available in TUI and absent from ordinary `run`.
 Observation profiles and skill-writing permissions retain their existing options.
 
 ### Tool visibility debugging

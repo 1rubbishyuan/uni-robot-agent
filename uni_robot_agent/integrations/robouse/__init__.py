@@ -2,7 +2,7 @@
 
 def get_integration_spec():
     from . import prompt
-    from uni_robot_agent.integrations.gripper import DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec, validate_gripper_cli
+    from uni_robot_agent.integrations.gripper import MINIMAL_TOOLS, DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec, validate_gripper_cli
 
     def validate(args):
         validate_gripper_cli(args)
@@ -10,7 +10,7 @@ def get_integration_spec():
             raise ValueError("RoboUse supports the robouse_cartesian binding for admitted controllers")
 
     spec = build_gripper_spec(name="robouse", create_session=create_session,
-        tool_profiles={"direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS}, validate_cli=validate)
+        tool_profiles={"minimal": MINIMAL_TOOLS, "direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS}, validate_cli=validate)
     spec.deployment_module = "uni_robot_agent.integrations.robouse.deployment"
     return spec
 

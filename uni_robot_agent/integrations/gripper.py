@@ -40,6 +40,11 @@ def validate_gripper_cli(args: Any) -> None:
 
 GRIPPER_MODULE = ToolModule("gripper", lambda session: GripperTools(session.episode), gripper.tool_policies())
 
+MINIMAL_GRIPPER_MODULE = ToolModule("minimal_gripper",
+    lambda session: GripperTools(session.episode, names=("move", "hold")),
+    {name: policy for name, policy in gripper.tool_policies().items() if name in {"move", "hold"}})
+MINIMAL_TOOLS = (MINIMAL_GRIPPER_MODULE, EPISODE_MODULE)
+
 DIRECT_TOOLS = (SKILLS_MODULE, SCENE_MODULE, GRIPPER_MODULE, EPISODE_MODULE)
 HYBRID_TOOLS = (SKILLS_MODULE, SCENE_MODULE, GRIPPER_MODULE, HYBRID_MODULE, EPISODE_MODULE)
 

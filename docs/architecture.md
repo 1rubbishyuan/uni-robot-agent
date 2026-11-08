@@ -166,7 +166,10 @@ session assembles the selected modules against one Episode and owns their client
 It replaces the fixed provider tuple and the separate evaluation-name whitelist.
 
 Each of the eight environment entry points declares its supported profiles.
-Shared `DIRECT_TOOLS` and `HYBRID_TOOLS` definitions avoid copying tool lists.
+Shared `DIRECT_TOOLS`, `HYBRID_TOOLS` and `MINIMAL_TOOLS` definitions avoid copying
+tool lists. Minimal composes a selected `GripperTools` subset (`move`, `hold`)
+with `EpisodeTools` (`finish`). It starts with a persisted multimodal observation;
+see [minimal tool behavior and calibration](integrations.md#minimal-robot-tools).
 Hybrid is instantiated only when selected; environment bindings still own native
 semantic conversion. Duplicate module names and overlapping policy names fail
 validation, and Toolkit continues to reject duplicate tool names.

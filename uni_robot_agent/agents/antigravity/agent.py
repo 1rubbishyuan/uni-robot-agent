@@ -158,7 +158,10 @@ class AntigravityAgent(AntigravityConfig):
             async with asyncio.timeout(self.timeout_s or None):
                 async with Agent(config) as agent:
                     try:
-                        response = await agent.chat(prompt.user)
+                        response = await agent.chat(prompt.user if not prompt.images else [prompt.user, *(
+                            types.Image(data=image.data, mime_type=image.mime_type, description=image.name)
+                            for image in prompt.images
+                        )])
                         async for chunk in response:
                             self.texts.append(chunk)
                             if self.bus:
