@@ -9,7 +9,7 @@ from uni_robot_agent.artifacts.run import write_json_atomic
 from uni_robot_agent.integrations.base import EpisodeOutcome
 from uni_robot_agent.integrations.composition import assemble_tools
 from uni_robot_agent.services.environment.client import EnvironmentClient, EnvironmentRequestError
-from uni_robot_agent.services.environment.contracts import FinishRequest, RequestRejected
+from uni_robot_agent.services.environment.contracts import CaptureRequest, FinishRequest, RequestRejected
 from uni_robot_agent.services.environment.device_contracts import DeviceEpisodeInfo, parse_state, parse_reply
 from uni_robot_agent.telemetry.logging import get_logger
 from uni_robot_agent.tools.toolkit import ToolOutput
@@ -87,6 +87,37 @@ class Episode:
         self.latest_feedback = reply.feedback
         if reply.snapshot is not None:
             self.latest_snapshot = reply.snapshot
+
+    def observation(self, cameras=None):
+        """Resolve current RGB and same-frame calibration without replaying motion."""
+        descriptors = {camera.name: camera for camera in self.description.environment.cameras}
+        names = list(descriptors) if cameras is None else cameras
+        if not names or not set(names) <= descriptors.keys():
+            raise ValueError("Observation requires available cameras")
+
+        def complete(snapshot):
+            if snapshot is None or snapshot["state_version"] != self.state.state_version:
+                return False
+            for name in names:
+                frame = snapshot["cameras"].get(name)
+                if frame is None or frame.get("rgb") is None:
+                    return False
+                if descriptors[name].has_calibration and (
+                    frame.get("intrinsic_K") is None or frame.get("T_world_from_optical") is None
+                ):
+                    return False
+            return True
+
+        snapshot = self.latest_snapshot
+        if not complete(snapshot):
+            snapshot = self.env.capture(CaptureRequest(cameras=names))
+            if not complete(snapshot):
+                raise ValueError("Captured observation lacks current RGB or declared camera calibration")
+            self.latest_snapshot = snapshot
+            if self.recent_observations and self.recent_observations[-1]["state"]["state_version"] == self.state.state_version:
+                self.recent_observations[-1]["snapshot_id"] = snapshot["snapshot_id"]
+        self.artifact_mirror.mirror_ref(snapshot["manifest"])
+        return snapshot
 
     def finalize(self, *, reason, status=None, summary=""):
         if not self.finished:

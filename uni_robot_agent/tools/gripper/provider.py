@@ -81,7 +81,6 @@ class GripperTools(ToolProvider):
     @property
     def prompt_contributions(self):
         names = NAMES
-        localization_image = "depth" if any(camera.has_depth for camera in self.episode.description.environment.cameras) else "RGB"
         return (PromptContribution(system=(
             "Gripper operation labels (not fixed callable names): " + ", ".join(names) + ". "
             "Tool schemas define parameters, defaults, limits and returned evidence. "
@@ -93,7 +92,7 @@ class GripperTools(ToolProvider):
             "When metric calibration is available, arm metadata.gripper_opening_m is the actual signed pad gap in metres; gripper_target_opening_m describes the retained intent, and gripper_applied_target_opening_m describes the native slew-limited target. "
             "To preserve grip, omit the gripper argument; copying measured opening changes the command. "
             "control_pose and feedback.actual_position measure the registered grasp site. State control_pose keeps its position and wxyz quaternion; move inputs and feedback.arms[arm].target_pose/actual_pose use six values in metres and XYZ radians. Grasp-site arrival does not establish object attachment. "
-            f"Direct action snapshot_id identifies the returned RGB observation; camera calibration may be unavailable; use the declared scene-capture tool for same-frame {localization_image} and calibration before feature localization."
+            "Direct action snapshot_id identifies the returned RGB observation. camera_calibration contains same-frame intrinsic_K and T_world_from_optical for calibrated cameras; disabled or unsupported cameras have no metric calibration. An artifact_error means observation delivery failed, not that acknowledged motion failed; do not repeat an action to recover its images."
         ), source="tools/gripper"),)
 
     def get_tools(self):
@@ -115,12 +114,15 @@ class GripperTools(ToolProvider):
         self.episode.publish(reply)
         image_error = None
         image_metadata = {}
+        snapshot = reply.snapshot
         try:
-            images = [] if reply.snapshot is None or cameras == [] else snapshot_images(
-                self.episode.env, reply.snapshot, cameras, mirror=self.episode.artifact_mirror
+            if cameras != [] and self.episode.description.environment.cameras:
+                snapshot = self.episode.observation(cameras)
+            images = [] if snapshot is None or cameras == [] else snapshot_images(
+                self.episode.env, snapshot, cameras, mirror=self.episode.artifact_mirror
             )
             if images:
-                image_metadata = snapshot_metadata(reply.snapshot, [image.name for image in images],
+                image_metadata = snapshot_metadata(snapshot, [image.name for image in images],
                                                    mirror=self.episode.artifact_mirror)
         except Exception as error:  # noqa: BLE001 - image transport must not replay acknowledged physical work.
             images = []
@@ -128,7 +130,7 @@ class GripperTools(ToolProvider):
         return ToolOutput(extra={"state": state_for_model(self.episode.state.model_dump(mode="json")),
             "remaining_steps": self.episode.remaining_steps, "feedback": round_physical(reply.feedback),
             **({"artifact_error": error} if (error := reply.artifact_error or image_error) else {}),
-            "snapshot_id": None if reply.snapshot is None else reply.snapshot["snapshot_id"],
+            "snapshot_id": None if snapshot is None else snapshot["snapshot_id"],
             **image_metadata, "image_cameras": [image.name for image in images]}, images=images)
 
     def _run_motion_program(self, request, method, *, cameras=None, opening_feedback=None):
@@ -185,7 +187,7 @@ class GripperTools(ToolProvider):
         wrists = [camera.name for camera in cameras
                   if camera.role == "wrist" and (len(self.episode.description.environment.arms) == 1
                                                  or any(arm in camera.name for arm in arms))]
-        return scene[:1] + wrists
+        return scene[:1] + wrists or [camera.name for camera in cameras[:1]]
 
     def _gripper(self, targets, action, steps):
         if action == "grasp" and any(set(target) != {"arm"} for target in targets):
