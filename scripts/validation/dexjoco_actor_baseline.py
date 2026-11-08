@@ -24,6 +24,7 @@ from uni_robot_agent.artifacts.store import ArtifactStore
 from uni_robot_agent.integrations.base import IntegrationContext
 from uni_robot_agent.integrations.dexjoco import DexjocoOptions
 from uni_robot_agent.integrations.dexjoco.session import create_session
+from uni_robot_agent.integrations.hybrid import configure_hybrid
 
 
 def positive(value):
@@ -77,10 +78,12 @@ def main():
         env_url=options.env_url, action_model_url=options.action_model_url,
         instruction=options.instruction, skill_writing=False, _vla_review_api_key=None)
     artifacts = ArtifactStore(output)
-    session = create_session(IntegrationContext(args, output, artifacts, None))
+    # Prepare only the native episode; the baseline calls the shared actor runner
+    # directly, so no planner-facing tool modules are assembled.
+    session = create_session(IntegrationContext(args, output, artifacts, None, tool_modules=()))
     try:
         session.start()
-        hybrid = next(provider for provider in session.tool_providers if provider.provider_id == "hybrid")
+        hybrid = configure_hybrid(session)
         if options.actions_per_chunk > hybrid.binding.action_horizon:
             raise ValueError("actions-per-chunk exceeds the declared actor horizon")
         plan = baseline_plan(session.episode, actions_per_chunk=options.actions_per_chunk,

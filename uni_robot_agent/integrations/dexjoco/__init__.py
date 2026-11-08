@@ -10,7 +10,7 @@ from uni_robot_agent.integrations.hybrid import (
 
 
 class DexjocoOptions(HybridOptions):
-    action_profile: Literal["hybrid"] = "hybrid"
+    action_profile: Literal["hybrid"] | None = None
     run_id: str | None = None
     task: str | None = None
     seed: int | None = None
@@ -22,11 +22,10 @@ def add_cli_args(parser):
     group.add_argument("--task", help="Optional expected DexJoCo task name")
     group.add_argument("--seed", type=int, help="Optional expected native constructor seed")
     add_hybrid_cli_args(parser)
-    parser.set_defaults(action_profile="hybrid")
 
 
 def validate_cli(args):
-    if args.action_profile != "hybrid":
+    if "hybrid" not in args.tool_modules:
         raise ValueError("DexJoCo requires hybrid; Direct motion is not available")
     validate_hybrid_cli(args)
     if args.action_model_binding not in (None, "dexjoco_tcp_hand"):
@@ -36,15 +35,13 @@ def validate_cli(args):
 
 
 def get_integration_spec():
-    from uni_robot_agent.tools import episode, skills
-    from uni_robot_agent.tools.hybrid import provider as hybrid
-    from uni_robot_agent.tools.scene import provider as scene
+    from uni_robot_agent.integrations.episode_tools import EPISODE_MODULE, SCENE_MODULE, SKILLS_MODULE
+    from uni_robot_agent.integrations.hybrid import HYBRID_MODULE
 
     from . import prompt  # noqa: F401 - register the integration prompt.
     from .session import create_session
     return IntegrationSpec(name="dexjoco", create_session=create_session,
         add_cli_args=add_cli_args, validate_cli=validate_cli, config_model=DexjocoOptions,
-        eval_tool_names=(*skills.NAMES, *scene.NAMES, *hybrid.NAMES, *episode.NAMES),
-        tool_policies={**skills.tool_policies(), **scene.tool_policies(),
-                       **hybrid.tool_policies(), **episode.tool_policies()},
+        tool_profiles={"hybrid": (SKILLS_MODULE, SCENE_MODULE, HYBRID_MODULE, EPISODE_MODULE)},
+        default_tool_profile="hybrid",
         deployment_module="uni_robot_agent.integrations.dexjoco.deployment", allow_automatic_retry=False)

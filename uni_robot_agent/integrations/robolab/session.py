@@ -1,18 +1,15 @@
 """RoboLab identity and native outcome policy over the prepared lifecycle."""
 from uni_robot_agent.integrations.base import EpisodeOutcome
-from uni_robot_agent.integrations.gripper import configure_tools
 from uni_robot_agent.integrations.prepared_episode import PreparedEpisodeSession
 from uni_robot_agent.services.environment.client import EnvironmentRequestError, ExecutionUncertain
 
 
-def configure(session):
-    from .action_binding import create_binding
+def validate_episode(session):
     info = session.episode.description
     if info.integration != "robolab":
         raise ValueError("RoboLab requires a prepared robolab environment")
     if info.metadata.get("instruction_type") != session.args.instruction_type:
         raise ValueError("Episode instruction type does not match the expected CLI value")
-    return configure_tools(session, binding_factory=create_binding)
 
 
 class Session(PreparedEpisodeSession):
@@ -40,4 +37,5 @@ class Session(PreparedEpisodeSession):
 
 
 def create_session(context):
-    return Session(context, configure_tools=configure)
+    from .action_binding import create_binding
+    return Session(context, binding_factory=create_binding, validate_episode=validate_episode)

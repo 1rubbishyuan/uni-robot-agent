@@ -5,6 +5,20 @@ reviewer selects a bounded prefix, stops, or uses a correction capability expose
 by the integration. Every next chunk uses a fresh observation, including after
 Direct motion. A discarded suffix is never replayed.
 
+## Tool composition
+
+Select `--tool-profile hybrid` on RoboDojo, RoboUse or RoboLab; binding admission
+still depends on the actual environment/controller and actor profile. The
+`--action-profile hybrid` alias remains supported. Direct profiles instantiate
+skills, scene, gripper and episode providers; Hybrid adds a configured
+`HybridTools` provider and its runtime prompt resources.
+
+The Hybrid module creates actor/reviewer clients through session ownership.
+Direct does not instantiate an empty Hybrid provider. Explicit visibility
+debugging can still declare `actor_act` under Direct, but invocation reports
+unavailability and never starts an actor service. Execution return modes and
+episode resource exclusion remain independent of the selected profile.
+
 ## Responsibilities
 
 | Layer | Owns | Does not own |

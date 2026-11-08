@@ -11,7 +11,7 @@ exec uni-robot-agent run \
   --integration dexjoco \
   --task pick_bucket \
   --env-url "$ENV_URL" \
-  --action-profile hybrid \
+  --tool-profile hybrid \
   --action-model-binding dexjoco_tcp_hand \
   --action-model-url "$ACTOR_URL" \
   --action-model-checkpoint-sha256 "$ACTOR_CHECKPOINT_SHA256" \

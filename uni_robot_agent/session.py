@@ -89,6 +89,7 @@ def assemble_session(args) -> SessionAssembly:
                 session_dir=session_dir,
                 artifacts=artifacts,
                 tracer=telemetry.tracer,
+                tool_modules=integration_spec.tool_profiles[args.tool_profile],
             )
         )
         session.start()
@@ -100,19 +101,16 @@ def assemble_session(args) -> SessionAssembly:
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             action_profile=getattr(args, "action_profile", None),
+            tool_profile=args.tool_profile, tool_modules=args.tool_modules,
         )
 
-        tool_providers = (*session.tool_providers, WorkspaceProvider())
-        tools = [tool for provider in tool_providers for tool in provider.get_tools()]
-        if getattr(args, "command", "run") == "run":
-            visible_names = set(integration_spec.eval_tool_names)
-            if visible_names and getattr(args, "skill_writing", False):
-                visible_names.add("write_skill")
-            tools = (
-                [tool for tool in tools if tool.name in visible_names]
-                if visible_names
-                else tools
-            )
+        assembly = session.tool_assembly
+        tools = assembly.tools
+        policies = assembly.policies
+        workspace = WorkspaceProvider()
+        # File helpers remain TUI-only unless explicitly selected for an ablation.
+        if getattr(args, "command", "run") != "run":
+            tools.extend(workspace.get_tools())
 
         profile_name = getattr(args, "observation_profile", "none")
         if profile_name != "none":
@@ -131,7 +129,8 @@ def assemble_session(args) -> SessionAssembly:
         prompt_tool_names = tuple(sorted(tool.name for tool in tools))
         selection = None
         if getattr(args, "tool_debug", False):
-            declared = [tool for provider in tool_providers for tool in provider.get_declared_tools()]
+            declared, policies = assembly.debug_catalog(session, integration_spec.debug_modules)
+            declared.extend(workspace.get_declared_tools())
             declared.extend(observation_profile.tools if observation_profile is not None
                             else ObservationTools(None).get_declared_tools())
             selection = select_tools(declared, getattr(args, "tools", ()))
@@ -140,7 +139,6 @@ def assemble_session(args) -> SessionAssembly:
         toolkit = Toolkit()
         # Preserve tool order so provider composition does not change model-visible schema order.
         toolkit.register_tools(sorted(tools, key=lambda tool: tool.name))
-        policies = dict(integration_spec.tool_policies)
         listeners = ()
         if observation_profile is not None:
             policies.update(observation_profile.policies)
@@ -177,6 +175,7 @@ def assemble_session(args) -> SessionAssembly:
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             tool_names=prompt_tool_names,
+            tool_prompt_resources=assembly.runtime_prompts,
             skill_writing=getattr(args, "skill_writing", False),
         )
         contributions = tuple(getattr(observation_profile, "prompt_contributions", ()))

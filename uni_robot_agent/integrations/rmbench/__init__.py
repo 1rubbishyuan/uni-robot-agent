@@ -2,5 +2,6 @@
 
 
 def get_integration_spec():
-    from uni_robot_agent.integrations.simulation import direct_spec
-    return direct_spec("rmbench")
+    from uni_robot_agent.integrations.gripper import DIRECT_TOOLS
+    from uni_robot_agent.integrations.simulation import build_simulation_spec
+    return build_simulation_spec("rmbench", tool_profiles={"direct": DIRECT_TOOLS})

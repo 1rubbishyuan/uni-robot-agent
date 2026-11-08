@@ -2,35 +2,23 @@
 from __future__ import annotations
 
 import argparse
-from functools import partial
 from typing import Any
 from urllib.parse import urlsplit
 
 from uni_robot_agent.integrations.base import IntegrationSpec
+from uni_robot_agent.integrations.composition import ToolModule
+from uni_robot_agent.integrations.episode_tools import EPISODE_MODULE, SCENE_MODULE, SKILLS_MODULE
 from uni_robot_agent.integrations.hybrid import (
-    HybridOptions, add_hybrid_cli_args, configure_hybrid, validate_hybrid_cli,
+    HYBRID_MODULE, HybridOptions, add_hybrid_cli_args, validate_hybrid_cli,
 )
 from uni_robot_agent.integrations.prepared_episode import PreparedEpisodeSession
 from uni_robot_agent.tools.gripper.provider import GripperTools
-from uni_robot_agent.tools.scene.provider import SceneTools
-from uni_robot_agent.tools.skills import SkillTools
-from uni_robot_agent.tools.episode import EpisodeTools
 from uni_robot_agent.tools.gripper import provider as gripper
-from uni_robot_agent.tools.hybrid import provider as hybrid
-from uni_robot_agent.tools.scene import provider as scene
-from uni_robot_agent.tools import skills, episode
-
-NAMES = (*skills.NAMES, *scene.NAMES, *gripper.NAMES, *hybrid.NAMES, *episode.NAMES)
 
 
 class GripperOptions(HybridOptions):
     run_id: str | None = None
     task: str | None = None
-
-
-def tool_policies():
-    return {**skills.tool_policies(), **scene.tool_policies(),
-            **gripper.tool_policies(), **hybrid.tool_policies(), **episode.tool_policies()}
 
 
 def add_gripper_cli_args(parser: argparse.ArgumentParser) -> None:
@@ -42,7 +30,7 @@ def add_gripper_cli_args(parser: argparse.ArgumentParser) -> None:
 
 def validate_gripper_cli(args: Any) -> None:
     validate_hybrid_cli(args)
-    if not args.no_sam3 and not args.sam3_url:
+    if "scene" in args.tool_modules and not args.no_sam3 and not args.sam3_url:
         raise ValueError("Set --sam3-url or explicitly use --no-sam3")
     if args.sam3_url:
         address = urlsplit(args.sam3_url)
@@ -50,26 +38,20 @@ def validate_gripper_cli(args: Any) -> None:
             raise ValueError("Perception endpoint must be an absolute HTTP(S) base URL")
 
 
-def configure_tools(session, *, binding_factory=None):
-    runtime = session.episode
-    perception = None
-    if session.args.sam3_url:
-        from uni_robot_agent.services.perception.client import PerceptionClient
-        perception = session.own(PerceptionClient(session.args.sam3_url, tracer=session.context.tracer))
-    hybrid_tools = configure_hybrid(session, binding_factory=binding_factory)
-    return (SkillTools(runtime, writing=getattr(session.args, "skill_writing", False)),
-            SceneTools(runtime, perception=perception), GripperTools(runtime),
-            hybrid_tools, EpisodeTools(runtime))
+GRIPPER_MODULE = ToolModule("gripper", lambda session: GripperTools(session.episode), gripper.tool_policies())
+
+DIRECT_TOOLS = (SKILLS_MODULE, SCENE_MODULE, GRIPPER_MODULE, EPISODE_MODULE)
+HYBRID_TOOLS = (SKILLS_MODULE, SCENE_MODULE, GRIPPER_MODULE, HYBRID_MODULE, EPISODE_MODULE)
 
 
 def create_session(context, *, requirements_loader=None, binding_factory=None):
-    return PreparedEpisodeSession(context,
-        configure_tools=partial(configure_tools, binding_factory=binding_factory),
-        requirements_loader=requirements_loader)
+    return PreparedEpisodeSession(context, binding_factory=binding_factory,
+                                  requirements_loader=requirements_loader)
 
 
-def build_gripper_spec(*, name, create_session, add_cli_args=add_gripper_cli_args,
+def build_gripper_spec(*, name, create_session, tool_profiles,
+                       add_cli_args=add_gripper_cli_args,
                        validate_cli=validate_gripper_cli, config_model=GripperOptions):
     return IntegrationSpec(name=name, create_session=create_session,
-        add_cli_args=add_cli_args, eval_tool_names=NAMES, tool_policies=tool_policies(),
-        validate_cli=validate_cli, config_model=config_model)
+        add_cli_args=add_cli_args, tool_profiles=tool_profiles,
+        debug_modules=(HYBRID_MODULE,), validate_cli=validate_cli, config_model=config_model)

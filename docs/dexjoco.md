@@ -3,7 +3,9 @@
 DexJoCo connects the shared Hybrid tools to the native MuJoCo Panda/Allegro
 controller. The initial supported task is `pick_bucket`, with the publicly
 released task-specific Pi0.5 weights. Direct motion and EEF corrections are not
-available; actor execution supports optional student/stop review.
+available; actor execution supports optional student/stop review. The integration
+declares a `hybrid` tool profile containing skills, scene, Hybrid and episode tools.
+`--action-profile hybrid` remains a legacy alias for `--tool-profile hybrid`.
 
 ## Sources and runtimes
 
