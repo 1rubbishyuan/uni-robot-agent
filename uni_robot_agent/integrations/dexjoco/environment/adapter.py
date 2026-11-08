@@ -121,7 +121,11 @@ class DexJoCoAdapter:
         duration = simulation_time(self.env) - before
         if not np.isclose(duration, CONTROL_DT, rtol=0, atol=1e-9):
             raise RuntimeError("Native DexJoCo step duration changed")
-        return {"execution_status": "completed", "steps_executed": 1, "duration_s": duration}
+        feedback = {"execution_status": "completed", "steps_executed": 1, "duration_s": duration}
+        # Cancellation during an atomic step preserves its ACK and stops the caller's next sample.
+        if cancellation.is_set():
+            feedback["stop_reason"] = "cancelled"
+        return feedback
 
     def interrupt_device(self, device):
         # A synchronous native step is atomic; cancellation is checked before the next step.
