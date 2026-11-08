@@ -24,6 +24,8 @@ class OpenpiConfig(BaseModel):
     assets_id: str
     working_directory: str | None = None
     inference_mode: Literal["native", "single"]
+    observation_mapping: dict[str, list[str]] | None = None
+    prompt_key: str = Field(default="prompt", min_length=1)
     image_keys: dict[str, str]
     image_container: str = "images"
     image_layout: Literal["HWC", "CHW"] = "HWC"
@@ -36,9 +38,20 @@ class OpenpiConfig(BaseModel):
             raise ValueError("OpenPI image mapping must cover exactly the actor cameras")
         if len(set(self.image_keys.values())) != len(self.image_keys):
             raise ValueError("OpenPI image mapping must have distinct destination keys")
-        if self.image_container in {"state", "prompt"}:
+        mapping = self.observation_mapping
+        if mapping is not None:
+            names = [name for fields in mapping.values() for name in fields]
+            expected = {field.name for field in self.profile.observation_fields}
+            if (not mapping or any(not key or not fields for key, fields in mapping.items())
+                    or len(names) != len(set(names)) or set(names) != expected):
+                raise ValueError("OpenPI observation_mapping must cover every state field exactly once in nonempty groups")
+        state_keys = set(mapping) if mapping is not None else {"state"}
+        if self.prompt_key in state_keys:
+            raise ValueError("OpenPI state and prompt keys must differ")
+        reserved = state_keys | {self.prompt_key}
+        if self.image_container in reserved:
             raise ValueError("OpenPI image_container cannot replace state or prompt")
-        if not self.image_container and set(self.image_keys.values()) & {"state", "prompt"}:
+        if not self.image_container and set(self.image_keys.values()) & reserved:
             raise ValueError("Top-level image keys cannot replace state or prompt")
         if self.resize is not None and min(self.resize) < 1:
             raise ValueError("OpenPI resize dimensions must be positive")

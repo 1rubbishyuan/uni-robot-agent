@@ -59,7 +59,13 @@ class OpenpiJaxRuntime:
             if settings.image_layout == "CHW":
                 image = image.transpose(2, 0, 1)
             images[settings.image_keys[camera]] = image
-        result = {"state": state, "prompt": observation.instruction}
+        if settings.observation_mapping is None:
+            result = {"state": state}
+        else:
+            indices = {field.name: index for index, field in enumerate(settings.profile.observation_fields)}
+            result = {key: state[[indices[name] for name in names]]
+                      for key, names in settings.observation_mapping.items()}
+        result[settings.prompt_key] = observation.instruction
         if settings.image_container:
             result[settings.image_container] = images
         else:

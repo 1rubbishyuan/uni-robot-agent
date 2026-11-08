@@ -20,6 +20,8 @@ def source_hash(root):
 
 def checkpoint_identity(path, *, assets_id, config_name, action_dim, action_horizon, seed):
     path = Path(path).resolve()
+    if (path / "model.safetensors").exists():
+        raise ValueError("OpenPI/JAX requires a params checkpoint without model.safetensors")
     hashes = {}
     for folder in ("params", "assets"):
         for file in sorted((path / folder).rglob("*")):
@@ -83,17 +85,23 @@ class LoadedPolicy:
     latent_action_dim: int
 
 
+def validate_model_config(cfg, profile):
+    if cfg.model.model_type.value not in {"pi0", "pi05"}:
+        raise ValueError("OpenPI/JAX currently supports noise-injected diffusion inference (Pi0/Pi05), not FAST")
+    if cfg.model.action_horizon != profile.action_horizon:
+        raise ValueError("OpenPI training horizon differs from the actor profile")
+
+
 def load_policy(settings):
     source = import_native(settings)
     from openpi.policies.policy_config import create_trained_policy
     from openpi.training import config
 
+    cfg = config.get_config(settings.model_config_name)
+    validate_model_config(cfg, settings.profile)
     identity = identify_checkpoint(settings)
     if identity["checkpoint_sha256"] != settings.checkpoint_sha256:
         raise RuntimeError("Checkpoint identity does not match the launch manifest")
-    cfg = config.get_config(settings.model_config_name)
-    if cfg.model.action_horizon != settings.profile.action_horizon:
-        raise ValueError("OpenPI training horizon differs from the actor profile")
     factory = dataclasses.replace(cfg.data, assets=config.AssetsConfig(
         assets_dir=str(Path(settings.checkpoint).resolve() / "assets"), asset_id=settings.assets_id))
     cfg = dataclasses.replace(cfg, data=factory)

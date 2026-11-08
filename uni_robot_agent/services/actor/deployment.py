@@ -74,7 +74,7 @@ def verify(runtime):
     code = '''import json,os,sys
 from pathlib import Path
 from uni_robot_agent.services.actor.backends.openpi.config import resolve_config
-from uni_robot_agent.services.actor.backends.openpi.native_compat import import_native,identify_checkpoint
+from uni_robot_agent.services.actor.backends.openpi.native_compat import import_native,identify_checkpoint,validate_model_config
 values=json.loads(sys.argv[1])
 values["checkpoint_sha256"]="0"*64
 settings=resolve_config(values)
@@ -83,7 +83,7 @@ if settings.working_directory is not None:
 source=import_native(settings)
 from openpi.training import config
 cfg=config.get_config(settings.model_config_name)
-assert cfg.model.action_horizon == settings.profile.action_horizon, "Training horizon differs from actor profile"
+validate_model_config(cfg,settings.profile)
 print(json.dumps({**identify_checkpoint(settings),**source}))
 '''
     values = {key: runtime.data[key] for key in ("native_root", "checkpoint")}
