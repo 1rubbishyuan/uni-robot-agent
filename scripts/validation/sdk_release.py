@@ -51,10 +51,13 @@ print('Installed SDK:', uni_robot_agent.__file__)
     command([executable, '--version'])
     command([executable, '--help'])
     command([python, '-m', 'uni_robot_agent', '--version'])
-    for integration in ('robodojo', 'robouse'):
+    for integration in ('robodojo', 'robouse', 'robolab', 'robotwin', 'libero_plus',
+                        'libero_pro', 'rmbench', 'calvin'):
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
-                 '--model', 'validation-model', '--env-url', 'http://127.0.0.1:18760',
-                 '--no-sam3', '--agent-python', python, '--validate-config'])
+                 '--model', 'validation-model', '--task', 'validation-task',
+                 '--env-url', 'http://127.0.0.1:18760',
+                 '--no-sam3', '--tool-profile', 'direct',
+                 '--agent-python', python, '--validate-config'])
     for backend, runtime_options in (
         ('antigravity', []),
         ('opencode', ['--opencode-version', 'offline-candidate']),
@@ -83,7 +86,7 @@ print('Optional Antigravity SDK:', dist.version)
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
                  '--task', 'validation-task', '--model', 'validation-model',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
-                 '--action-profile', 'hybrid', '--action-model-binding', binding,
+                 '--tool-profile', 'hybrid', '--action-model-binding', binding,
                  '--action-model-url', 'http://127.0.0.1:18761',
                  '--action-model-checkpoint-sha256', 'a' * 64, '--no-vla-review',
                  '--agent-python', python, '--validate-config'])
@@ -118,6 +121,21 @@ for resource in ('ui/web/static/index.html', 'ui/web/static/app.js',
 session = Session(SessionConfig(integration='robouse',
     env_url='http://127.0.0.1:18760', no_sam3=True))
 session.close()  # Validate configuration only; do not connect or finalize an episode.
+resolved = SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                         no_sam3=True, tool_profile='direct').resolve()
+assert resolved.tool_profile == 'direct'
+assert resolved.tool_modules == ('skills', 'scene', 'gripper', 'episode')
+legacy = SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                       no_sam3=True, integration_options={'action_profile': 'direct'}).resolve()
+assert legacy.tool_modules == resolved.tool_modules
+try:
+    SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                  no_sam3=True, tool_profile='direct',
+                  integration_options={'action_profile': 'hybrid'}).resolve()
+except ValueError as error:
+    assert 'select different' in str(error)
+else:
+    raise AssertionError('Conflicting tool selectors accepted')
 SetupConfig(integration='robodojo')
 DeploymentConfig(integration='robodojo', task='stack_bowls')
 rgb = DeploymentConfig(integration='robodojo', task='stack_bowls',

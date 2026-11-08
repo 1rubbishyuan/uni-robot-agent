@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add explicit integration tool compositions selected with `--tool-profile`.
+  All eight integrations declare their supported profiles. Direct no longer
+  constructs an inactive Hybrid provider; legacy `--action-profile`, debug
+  visibility and foreground/background job controls retain their behavior.
+
 - Add an optional, pinned Antigravity Python SDK backend for Qwen tool calling,
   with explicit MCP call identity, native lifecycle records, a dedicated
   GenerateContent dialect adapter and installed-package smoke validation.

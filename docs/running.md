@@ -200,6 +200,37 @@ Codex's native collaboration events are normalized into agent activity records
 for the console and TUI. This is SDK event handling; there is no separate
 `--multi-agent` launcher option.
 
+### Tool composition profiles
+
+Select an integration-declared composition with `--tool-profile`. All included
+integrations default to `direct`, which assembles skills, scene, gripper and
+episode modules. `robodojo`, `robouse` and `robolab` also declare `hybrid`,
+which adds actor collaboration; the selected environment/controller and actor
+must still satisfy their binding contract. `robotwin`, `libero_plus`,
+`libero_pro`, `rmbench` and `calvin` declare only `direct`.
+
+```bash
+uni-robot-agent run --integration robouse --model MODEL \
+  --env-url http://localhost:18760 --no-sam3 \
+  --tool-profile direct --tool-return-mode immediate
+```
+
+For Hybrid, select `--tool-profile hybrid` and provide the actor URL, checkpoint
+SHA256 and [reviewer settings](#vla-reviewer). Only selected modules are
+instantiated: Direct does not construct an actor client, reviewer or Hybrid
+provider. Unknown or unsupported profiles fail configuration validation.
+
+`--action-profile direct|hybrid` remains a compatibility alias. Supplying both
+selectors is allowed when they agree; conflicting values fail before connecting.
+Resolved configuration and result records include `tool_profile` and
+`tool_modules`; `action_profile` remains available for existing result readers.
+
+Composition does not select execution mode. In normal mode, `immediate` hides
+job controls and waits for tool completion; `background` exposes job controls
+and applies each tool's return policy. Resource scheduling is unchanged.
+Workspace helpers remain available in TUI and absent from ordinary `run`.
+Observation profiles and skill-writing permissions retain their existing options.
+
 ### Tool visibility debugging
 
 `--tool-debug` makes `--tools` the complete agent-visible uni-robot-agent tool set for
@@ -225,7 +256,8 @@ For example, append to your usual episode command:
 --tool-debug --tools @skills @scene @motion @jobs finish --tool-return-mode background
 ```
 
-Visibility does not enable features: direct mode's `actor_act`, disabled
+Visibility is applied after composition and does not start omitted services.
+Direct mode's `actor_act`, disabled
 `write_skill`, and observation tools without an observation profile remain
 unavailable on invocation. Backend configuration and validation stay in force.
 Prompts and skills retain their configured mode guidance even if a referenced
