@@ -23,7 +23,10 @@ def prepare(args):
     try:
         return BehaviorAdapter(native, episode_id=args.run_id)
     except BaseException:
-        native.close()
+        try:
+            native.close()
+        finally:
+            native.shutdown()
         raise
 
 
@@ -53,14 +56,17 @@ def main():
         server = HttpServer(create_app(build_router(service)), host=args.host, port=args.port)
         serve_native(adapter, service, server, is_running=adapter.backend.native.og.app.is_running)
     finally:
-        if service is not None:
-            service.close()
-        else:
-            try:
-                adapter.close()
-            finally:
-                if artifacts is not None:
-                    artifacts.close()
+        try:
+            if service is not None:
+                service.close()
+            else:
+                try:
+                    adapter.close()
+                finally:
+                    if artifacts is not None:
+                        artifacts.close()
+        finally:
+            adapter.backend.native.shutdown()
 
 
 if __name__ == "__main__":

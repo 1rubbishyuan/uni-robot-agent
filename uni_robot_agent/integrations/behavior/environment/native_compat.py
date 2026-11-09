@@ -121,7 +121,10 @@ class NativeEpisode:
             if goals:
                 self.instruction += " Requirements: " + "; ".join(str(goal) for goal in goals)
         except BaseException:
-            self.close()
+            try:
+                self.close()
+            finally:
+                self.shutdown()
             raise
 
     @property
@@ -150,7 +153,9 @@ class NativeEpisode:
     def close(self):
         if not self.closed:
             self.closed = True
-            if self.evaluator is None:
-                self.og.shutdown()
-            else:
-                self.evaluator.__exit__(None, None, None)
+            if self.evaluator is not None:
+                self.evaluator.env.close()
+
+    def shutdown(self):
+        """Release the process-wide simulator after the HTTP host has stopped."""
+        self.og.shutdown()
