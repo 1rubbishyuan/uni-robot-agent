@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 
 import numpy as np
 
@@ -83,11 +84,17 @@ def reset_fingerprint(env):
     return digest.hexdigest()
 
 
-def create_native(path, *, seed):
+def create_native(path, *, seed, assets_dir=None):
     preflight(path)
     from isaaclab.app import AppLauncher
+    kit_args = ["--allow-root"] if os.geteuid() == 0 else []
+    if assets_dir is not None:
+        assets = Path(assets_dir).expanduser().resolve(strict=True)
+        if not (assets / "Isaac").is_dir() or any(character.isspace() for character in str(assets)):
+            raise ValueError("Arena assets directory must contain Isaac and have no whitespace")
+        kit_args.append(f"--/persistent/isaac/asset_root/cloud={assets}")
     app = AppLauncher(headless=True, enable_cameras=True, device="cpu", enable_pinocchio=True,
-                      kit_args="--allow-root" if os.geteuid() == 0 else "").app
+                      kit_args=" ".join(kit_args)).app
     env = None
     try:
         # Kit must be running before importing any Arena USD, scene or task modules.
@@ -123,6 +130,8 @@ def create_native(path, *, seed):
             raise ValueError("Pinned Arena G1 joint names changed")
         return env, app, observation, reset_fingerprint(native)
     except BaseException:
+        # Kit close may terminate Python; persist the native failure before cleanup.
+        traceback.print_exc()
         if env is not None:
             env.close()
         app.close()

@@ -12,7 +12,7 @@ def prepare(args):
         raise ValueError("Select the pinned G1 locomanipulation task with RGB observations")
     from .adapter import ArenaAdapter
     from .native_compat import create_native
-    env, app, observation, digest = create_native(args.native_root, seed=args.seed)
+    env, app, observation, digest = create_native(args.native_root, seed=args.seed, assets_dir=args.assets_dir)
     try:
         return ArenaAdapter(env, app, observation, episode_id=args.run_id, seed=args.seed, reset_sha256=digest)
     except BaseException:
@@ -31,7 +31,9 @@ def main():
     from uni_robot_agent.services.environment.service import EnvironmentService
     from uni_robot_agent.services.hosting import HttpServer, create_app
 
-    args = server_parser(__doc__, 18789).parse_args()
+    parser = server_parser(__doc__, 18789)
+    parser.add_argument("--assets-dir", type=Path, help="Prepared asset root containing the upstream Isaac directory")
+    args = parser.parse_args()
     output = Path(args.output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=False)
     (output / "config.json").write_text(json.dumps(vars(args), default=str, indent=2) + "\n")
