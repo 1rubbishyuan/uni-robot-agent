@@ -89,6 +89,9 @@ continue moving during planner/model inference. The native evaluator's task
 preparation, assisted grasping and metrics are retained. Success, predicate scores
 and privileged scene state remain outside model-visible observations and feedback.
 Final artifacts contain native task outcomes and evaluation metadata.
+Non-finite native metrics (for example, normalized distance before movement) use
+JSON strings `"Infinity"`, `"-Infinity"` or `"NaN"`; finite metrics and task success
+retain their native values.
 
 ## Validation status
 

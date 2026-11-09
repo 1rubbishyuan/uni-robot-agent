@@ -1,7 +1,8 @@
 """Pinned OmniGibson evaluation setup without its policy or rollout loop."""
 import hashlib
-from pathlib import Path
+import math
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -16,6 +17,17 @@ CONTROLLERS = {"trunk": "trunk", "left_arm": "arm_left", "right_arm": "arm_right
 
 def array(value):
     return np.asarray(value.detach().cpu().numpy() if hasattr(value, "detach") else value)
+
+
+def json_metrics(value):
+    """Preserve native non-finite metric values in strict JSON outcomes."""
+    if isinstance(value, dict):
+        return {key: json_metrics(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_metrics(item) for item in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        return "NaN" if math.isnan(value) else ("Infinity" if value > 0 else "-Infinity")
+    return value
 
 
 def validate_source(path):
@@ -148,7 +160,7 @@ class NativeEpisode:
         result = {"task_success": bool(self.state.env_accessor.success)}
         for metric in self.state.metrics:
             result.update(metric.aggregate())
-        return result
+        return json_metrics(result)
 
     def close(self):
         if not self.closed:
