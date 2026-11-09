@@ -106,7 +106,8 @@ class ActorService:
                     "model_mismatch",
                     "Actor model or profile differs from the requested model",
                 )
-            if len(self._sessions) >= self.max_sessions:
+            # Closed records retain receipts without reserving model capacity.
+            if sum(session.status != "closed" for session in self._sessions.values()) >= self.max_sessions:
                 raise self._error(
                     "session_limit", "Actor session capacity reached", status=503
                 )
