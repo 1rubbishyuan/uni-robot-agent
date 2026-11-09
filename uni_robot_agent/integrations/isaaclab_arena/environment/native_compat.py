@@ -2,6 +2,7 @@
 import hashlib
 import importlib.metadata
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -85,7 +86,8 @@ def reset_fingerprint(env):
 def create_native(path, *, seed):
     preflight(path)
     from isaaclab.app import AppLauncher
-    app = AppLauncher(headless=True, enable_cameras=True, device="cpu", enable_pinocchio=True).app
+    app = AppLauncher(headless=True, enable_cameras=True, device="cpu", enable_pinocchio=True,
+                      kit_args="--allow-root" if os.geteuid() == 0 else "").app
     env = None
     try:
         # Kit must be running before importing any Arena USD, scene or task modules.

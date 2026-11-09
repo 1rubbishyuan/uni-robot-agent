@@ -26,16 +26,16 @@ def prepare(args):
 def main():
     from uni_robot_agent.artifacts.store import ArtifactStore
     from uni_robot_agent.services.environment.device_contracts import DeviceEpisodeInfo
-    from uni_robot_agent.services.environment.owner import OwnedAdapter
+    from .owner import NativeOwner, serve_native
     from uni_robot_agent.services.environment.routes import build_router
     from uni_robot_agent.services.environment.service import EnvironmentService
-    from uni_robot_agent.services.hosting import create_app, serve
+    from uni_robot_agent.services.hosting import HttpServer, create_app
 
     args = server_parser(__doc__, 18789).parse_args()
     output = Path(args.output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=False)
     (output / "config.json").write_text(json.dumps(vars(args), default=str, indent=2) + "\n")
-    adapter = OwnedAdapter(lambda: prepare(args))
+    adapter = NativeOwner(prepare(args))
     artifacts = service = None
     try:
         instruction, metadata = adapter.episode_identity()
@@ -46,7 +46,8 @@ def main():
             capabilities=["coordinated_control", "published_observations"])
         service = EnvironmentService(adapter, info, artifacts)
         service.initialize()
-        serve(create_app(build_router(service)), host=args.host, port=args.port)
+        server = HttpServer(create_app(build_router(service)), host=args.host, port=args.port)
+        serve_native(adapter, service, server)
     finally:
         if service is not None:
             service.close()
