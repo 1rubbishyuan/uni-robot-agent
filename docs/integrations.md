@@ -120,8 +120,10 @@ multimodal user input. The shared artifact store retains images and snapshot
 manifests; `initial_observation.json` records the initial image/state references.
 `capture_scene` requests all or selected camera views without advancing control
 steps. It does not initialize SAM or expose `locate` or `view_env_state`.
-Initial input and image-bearing tool results include `observation_path`, the
-readable JSON of the existing immutable snapshot, with same-frame calibration.
+Initial input and image-bearing minimal results include `observation.artifact_ref`,
+the readable JSON of the immutable snapshot, with original same-frame calibration.
+Model-facing `observation.cameras` contains rounded camera matrices; image attachments
+remain unchanged. Other profiles retain `observation_path` and `camera_calibration`.
 
 All eight integrations publish robot reference files independently of the tool
 profile. Initial input lists their exact local paths, media types and SHA-256

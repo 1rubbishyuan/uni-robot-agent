@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import json
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -21,6 +22,7 @@ class ToolDef:
     handler: Callable[..., Any]
     readonly: bool = False
     provider_id: str = "unknown"
+    model_view: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class ToolOutput:
     obs: dict[str, Any] | None = None
     extra: dict[str, Any] = field(default_factory=dict)
     images: list[ImageAttachment] = field(default_factory=list)
+    model_view: Callable[[dict[str, Any]], dict[str, Any]] | None = field(default=None, repr=False)
 
     def to_dict(self, *, for_model: bool = False) -> dict[str, Any]:
         """Keep internal call status; name its meaning explicitly on the model wire."""
@@ -57,7 +60,13 @@ class ToolOutput:
         if self.obs is not None:
             d["obs"] = self.obs
         d.update(self.extra)
-        return d
+        return self.model_view(d) if for_model and self.model_view is not None else d
+
+    def model_json(self) -> str:
+        """Compact opted-in views without changing raw records or other profiles."""
+        separators = (",", ":") if self.model_view is not None else None
+        return json.dumps(self.to_dict(for_model=True), ensure_ascii=False, default=str,
+                          separators=separators)
 
 
 class ToolProvider:
@@ -144,6 +153,7 @@ class Toolkit:
                     f"expected ToolOutput"
                 )
 
+        result.model_view = tool_def.model_view
         result_dict = result.to_dict()
 
         if self._event_bus:

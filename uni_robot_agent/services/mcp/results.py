@@ -22,10 +22,10 @@ def encode_call_result(result: ExecutionResult) -> dict[str, Any]:
             }
             for image in output.images
         )
-    payload = output.to_dict(for_model=True) if output is not None else result.to_dict()
+    text = output.model_json() if output is not None else json.dumps(result.to_dict(), ensure_ascii=False, default=str)
     content.append({
         "type": "text",
-        "text": json.dumps(payload, ensure_ascii=False, default=str),
+        "text": text,
     })
     # Domain outcomes live in extra; only call validity controls MCP failure.
     is_error = output is not None and (not output.success or bool(output.error))

@@ -17,10 +17,12 @@ use it for justified settling or continued opening, then inspect the result.
 Initial input and completed actions include RGB images and measured robot state.
 Use capture_scene for fresh or additional camera views without advancing control
 steps, including after image publication failure. Omit cameras for all views.
-Read observation_path for the stored snapshot; it preserves the returned image
-calibration. Do not use dummy motion or hold calls just to obtain observations.
-Camera matrices belong to the named image and image_state_version, not a future
-view. intrinsic_K maps optical coordinates to image pixels; T_world_from_optical
+Read observation.artifact_ref for the stored snapshot JSON; it preserves original
+image calibration. observation.image_cameras gives the attachment order. Do not use dummy motion or hold calls just to obtain observations.
+Camera matrices belong to the named image and observation.state_version, not a future
+view. Displayed physical values and matrices use at most five decimal places;
+use the stored originals for precise geometry. state.arms[name].pose uses the
+same world six-value pose convention as move inputs. intrinsic_K maps optical coordinates to image pixels; T_world_from_optical
 maps optical coordinates to world metres. Disabled or unsupported calibration
 must not be treated as measured geometry. Depth is not provided to the agent.
 Retain initial arm poses and original object goals separately from current

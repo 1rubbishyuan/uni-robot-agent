@@ -208,15 +208,16 @@ def assemble_session(args) -> SessionAssembly:
                     "Robot reference resources (read-only exact paths; use native file tools when needed):\n"
                     + json.dumps(references, allow_nan=False)))
             if initial_metadata is not None:
+                from uni_robot_agent.tools.minimal import result_view
+                model_metadata = result_view(initial_metadata, initial=True)
                 base_prompt = replace(base_prompt, images=initial_images).append(
-                    user="Initial RGB observation (images in image_cameras order):\n"
-                         + json.dumps(initial_metadata, allow_nan=False),
+                    user="Initial RGB observation (images in observation.image_cameras order):\n"
+                         + json.dumps(model_metadata, allow_nan=False, separators=(",", ":")),
                 )
-            for provider in session.tool_providers:
-                for contribution in provider.prompt_contributions:
-                    base_prompt = base_prompt.append(
-                        system=contribution.system, user=contribution.user, source=contribution.source,
-                    )
+            for contribution in assembly.prompt_contributions:
+                base_prompt = base_prompt.append(
+                    system=contribution.system, user=contribution.user, source=contribution.source,
+                )
             return assemble_prompt(base_prompt, context, contributions)
 
         return SessionAssembly(
