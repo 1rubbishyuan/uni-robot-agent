@@ -1,0 +1,88 @@
+# IsaacLab Arena humanoid integration
+
+`isaaclab_arena` connects humanoid simulation to the existing `actor_act` tool.
+The planner observes, chooses bounded actor phases and checks their effects. The
+binding adapts G1 semantics, while a separate GR00T service performs inference
+and Arena's native whole-body controller executes coordinated motion.
+
+## Admitted environment and model
+
+The pinned runtime currently admits `galileo_g1_locomanip_pick_and_place` with
+`g1_wbc_joint`: move the brown box from the shelf into the blue bin. The matching
+actor recipe is `arena_g1_gr00t`. Other Arena tasks and checkpoints require their
+own validated profiles; this integration does not claim universal task success.
+
+The robot observes head RGB and 31 joint positions. GR00T predicts 50 samples of
+joint, walking-velocity and height references. The native controller owns balance,
+legs and waist. The model's three waist compatibility outputs remain in the trace
+but do not become independent controls. Velocities use the base-heading frame in
+m/s and rad/s; pelvis height is a ground-relative controller reference in metres.
+
+Only shared scene, hybrid, episode and skill tools are composed. Gripper/Direct
+motion tools are unavailable. Reviewer modes are student and stop, with empty
+constraints. Review is optional and does not define native task success.
+
+## Separate runtimes
+
+The planner, actor and simulator have independent interpreters:
+
+- GR00T: Python 3.12, pinned official N1.6 source, Torch 2.7.1/cu128. The recipe
+  follows upstream's dependency lock and uses its official `Gr00tPolicy` and
+  processor directly. It does not require another inference server.
+- Arena: Python 3.12, pinned Arena/IsaacLab source, Isaac Sim 6.2 and CUDA 13.
+  NVIDIA driver 580.65.06 or newer is a minimum prerequisite. Driver changes
+  are never performed by setup. Headless graphics, native libraries and Kit
+  initialization must also pass acceptance on the target host.
+
+Do not install both native dependency stacks into the planner environment. Install
+matching harness/runtime versions into their respective interpreters. The public
+weights use NVIDIA's noncommercial license; review the linked model card.
+
+```bash
+uni-robot-agent setup --service actor --profile arena_g1_gr00t
+uni-robot-agent setup --service env --integration isaaclab_arena
+```
+
+Setup downloads pinned source and weights into its runtime cache. On an already
+prepared official native environment, adopt it explicitly:
+
+```bash
+uni-robot-agent setup --service env --integration isaaclab_arena \
+  --runtime-python /path/to/arena/python --native-root /path/to/arena
+uni-robot-agent setup --service actor --profile arena_g1_gr00t \
+  --runtime-python /path/to/gr00t/python --native-root /path/to/gr00t \
+  --checkpoint /path/to/checkpoint
+```
+
+Setup records and verifies the actor checkpoint digest. Supply that same digest
+as `--action-model-checkpoint-sha256` to the planner. Deployment never repairs or
+upgrades a prepared runtime. See [deployment](deployment.md) for cache and ownership.
+
+## Run a planner episode
+
+Start the actor and environment in separate terminals, then run the planner. The
+[complete example](../examples/isaaclab_arena_hybrid.sh) uses `actor_act` with the
+reviewer disabled. Configure the planner provider and model with the normal CLI
+options; there is no actor-only agent mode.
+
+The simulator advances in 20 ms control steps, each containing four physics
+substeps. Agent and inference latency pause simulation. This synchronous evaluation
+does not demonstrate real-time humanoid operation. Cancellation stops after the
+current atomic sample; unknown acknowledgements are reconciled, never replayed.
+
+## Validation and current limitations
+
+CPU checks cover exact profile mapping, native action packing, invalid-command
+rejection, cancellation/terminal handling and model-session failure behavior.
+A compatible GPU host must additionally validate startup, camera images, WBC,
+seeded reset, terminal-frame preservation and native-policy versus harness replay.
+Then run the actual planner with fresh observations and bounded actor calls.
+
+The server currently uses the common native-owner thread. Kit thread behavior has
+not been validated for this Arena pin; a native startup failure must be resolved
+before claiming an operational environment. No GPU rollout score is implied by
+the existence of the adapter or a successful dependency preflight.
+
+Native success requires the task's settle/lift/place criteria. Calling finish,
+reviewer approval, target tracking and model predictions do not set success.
+Source and weight identities are listed in [SOURCE.md](../uni_robot_agent/integrations/isaaclab_arena/SOURCE.md).
