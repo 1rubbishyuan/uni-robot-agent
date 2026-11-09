@@ -744,8 +744,9 @@ feedback omits duplicated poses and IK statistics; rejected/recovered motion and
 errors retain diagnostic evidence. Initial input retains static base transforms.
 `observation` associates image attachments with same-frame camera matrices,
 rounded to at most five decimal places. `observation.artifact_ref` points to the
-original snapshot JSON. RGB-only results omit disabled/null matrices. The raw
-tool events, stored snapshots, initial observation and image bytes stay intact.
+original snapshot JSON; `observation.cameras[name].image_path` is the directly
+readable RGB file. Snapshot artifact IDs are not filenames. RGB-only results omit
+disabled/null matrices. The raw tool events, stored snapshots, initial observation and image bytes stay intact.
 Direct/Hybrid outputs and tool execution are unchanged.
 
 Select `--context-policy observation_window --context-observation-horizon 2`
@@ -753,7 +754,9 @@ independently of the tool profile. This policy supports Responses and
 GenerateContent histories. It keeps the latest two distinct tool-observation
 groups, removing older images and their inline matrices together. The default
 `--context-keep-recent-blocks 4` retains camera descriptive metadata for the latest
-four observation groups; older groups retain snapshot/time/camera references.
+four observation groups; older groups retain snapshot/time/camera references and
+per-camera image paths for retrieval. Applying the policy to an already-windowed
+history continues aging the retained camera metadata as new observations arrive.
 All action arguments, result state/feedback, assistant text, reasoning and
 compaction summaries remain. User/reference images, explicitly retained
 observations (`observation.retain_in_context=true`), unknown image provenance and

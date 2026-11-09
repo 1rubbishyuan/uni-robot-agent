@@ -18,7 +18,11 @@ Initial input and completed actions include RGB images and measured robot state.
 Use capture_scene for fresh or additional camera views without advancing control
 steps, including after image publication failure. Omit cameras for all views.
 Read observation.artifact_ref for the stored snapshot JSON; it preserves original
-image calibration. observation.image_cameras gives the attachment order. Do not use dummy motion or hold calls just to obtain observations.
+image calibration. Read each RGB file directly from
+observation.cameras[name].image_path, including when older inline images have left
+context. artifact_ref is JSON, not an image; artifact IDs inside it are not file
+paths. observation.image_cameras gives the attachment order. Do not use dummy
+motion or hold calls just to obtain observations.
 Camera matrices belong to the named image and observation.state_version, not a future
 view. Displayed physical values and matrices use at most five decimal places;
 use the stored originals for precise geometry. state.arms[name].pose uses the

@@ -23,9 +23,11 @@ RESULT_NOTES = (PromptContribution(system=(
     "feedback preserves arrival/opening outcomes, errors, tolerances, steps and stop reason. "
     "Recovery, rejected/uncertain motion and publication failures retain their evidence; do not replay motion to fetch it. "
     "observation.image_cameras identifies image attachments in order. observation.cameras contains their "
-    "image_size [height,width], intrinsic_K and T_world_from_optical when available. "
+    "image_path (a directly readable image file), image_size [height,width], intrinsic_K and "
+    "T_world_from_optical when available. Image paths remain available after old inline images leave context. "
     "Each matrix describes that captured image, not a future view. Camera/physical values are rounded to "
-    "at most five decimals for display; observation.artifact_ref is the readable snapshot JSON with original calibration. "
+    "at most five decimals for display; observation.artifact_ref is snapshot JSON with original calibration, "
+    "not an image. Read images from observation.cameras[name].image_path; snapshot artifact IDs are not filenames. "
     "Missing matrices do not imply known geometry. Static robot resources and initial poses remain in initial input."
 ), source="tools/minimal"),)
 
@@ -71,7 +73,7 @@ def state_view(state, *, initial=False):
 def feedback_view(feedback):
     if (feedback.get("goal_recovery") or feedback.get("stop_evidence")
             or feedback.get("no_execution") or feedback.get("targets_reached") is False
-            or feedback.get("ik_statistics", {}).get("ik_request_failures", 0)):
+            or (feedback.get("ik_statistics") or {}).get("ik_request_failures", 0)):
         return deepcopy(feedback)
     result = deepcopy(feedback)
     for key in ("goal_recovery", "ik_statistics", "control_frames", "profile",
@@ -94,7 +96,6 @@ def observation_view(payload):
     cameras = {}
     for name, original in payload.get("camera_calibration", {}).items():
         camera = deepcopy(original)
-        camera.pop("image_path", None)
         for key in ("intrinsic_K", "T_world_from_optical"):
             if camera.get(key) is None:
                 camera.pop(key, None)

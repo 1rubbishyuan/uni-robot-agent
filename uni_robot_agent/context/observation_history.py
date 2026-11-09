@@ -53,13 +53,18 @@ class Observation:
         for parts, image in self.images:
             parts[:] = [part for part in parts if part is not image]
         metadata = self.metadata
-        names = list(metadata.get("image_cameras", []))
+        names = list(metadata.get("image_cameras") or metadata.get("observed_cameras", []))
         camera_key = "cameras" if "observation" in self.payload else "camera_calibration"
+        cameras = metadata.get(camera_key, {})
         if compact_metadata:
-            metadata.pop(camera_key, None)
+            # Retain direct access to archived pixels even after descriptive metadata ages out.
+            metadata[camera_key] = {name: {"image_path": camera["image_path"]}
+                                    for name, camera in cameras.items() if camera.get("image_path")}
+            if not metadata[camera_key]:
+                metadata.pop(camera_key)
         else:
-            for camera in metadata.get(camera_key, {}).values():
-                for key in ("intrinsic_K", "T_world_from_optical", "image_path"):
+            for camera in cameras.values():
+                for key in ("intrinsic_K", "T_world_from_optical"):
                     camera.pop(key, None)
         metadata.update(images_omitted=True, image_cameras=[], observed_cameras=names)
         self.save()
@@ -93,8 +98,11 @@ def _observation(slots, images, call_id, index):
         metadata = payload.get("observation", payload)
         cameras = metadata.get("cameras" if "observation" in payload else "camera_calibration")
         names = metadata.get("image_cameras")
+        archived = metadata.get("images_omitted") is True and names == [] and not images
+        if archived:
+            names = metadata.get("observed_cameras")
         if (isinstance(cameras, dict) and isinstance(names, list) and names
-                and len(names) == len(images) and set(names).issubset(cameras)):
+                and (archived or len(names) == len(images)) and set(names).issubset(cameras)):
             matches.append(Observation(payload, save, images, call_id, index,
                                        pinned=metadata.get("retain_in_context") is True))
     # Ambiguous ownership is kept unchanged, rather than guessing an image mapping.

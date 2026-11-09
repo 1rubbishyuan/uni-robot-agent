@@ -8,7 +8,7 @@ from uni_robot_agent.context.observation_history import estimate_context, observ
 @register_context_policy("observation_window")
 class ObservationWindowPolicy:
     name = "observation_window"
-    version = "1"
+    version = "2"
 
     def __init__(self, *, observation_horizon=2, keep_recent_blocks=4,
                  max_estimated_input_tokens=None, image_token_allowance=1536):

@@ -133,7 +133,7 @@ class SceneTools(ToolProvider):
                 "RGB and calibration" if any(camera.has_calibration for camera in cameras) else "RGB")
             specs = [replace(spec, description=(
                 f"Capture {channels} without advancing action steps. Select cameras or omit for all views. "
-                "RGB is attached; observation_path is the readable immutable snapshot JSON. "
+                "RGB is attached; the returned snapshot reference points to readable immutable JSON. "
                 "Calibration, when available, belongs to each returned image grid."))
                 if spec.name == "capture_scene" else spec for spec in specs]
         return specs
