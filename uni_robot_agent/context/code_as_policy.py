@@ -25,37 +25,94 @@ def _field_type(spec: dict) -> str:
 
 def _result_documentation() -> str:
     sections = ["## Returned feedback", """
-CodeResult exposes the ResultFields attributes below, alongside raw `data`,
-`images` and `call_id`. Missing, null or incorrectly typed fields are `None`,
-never invented success or zero. Additional and malformed values remain in `data`.
-These are optional projections, not a promise that every tool returns every field.
-Scene tools may return state without motion feedback; Hybrid returns its own
-execution/assessment payload. Read `result.data` for those results, calibration,
-localization, skill content, full measured arm/device state and extra diagnostics.
+Use `print(result)` after each robot call. It returns the full receipt as JSON:
+`{"data": <original tool payload>, "images": <ordered image paths>, "call_id": <id>}`.
+No fields are selected, summarized or truncated by this representation. It does
+not query fresh state, print automatically or display images. Open the returned
+image paths with the native reader; use reported `data["image_cameras"]` and
+`data["snapshot_id"]` to identify their views.
 
-`print(result.summary())` exposes compact feedback, stopping evidence, image paths
-and additional top-level data keys to the model. It does not query fresh state,
-open images, or print automatically. A stored result describes its own receipt.
-Use explicit `is True` checks for confirmed arrival, not `not field` for unknowns.
-For a Direct move, a dependent-action gate inside your helper can be:
+CodeResult also exposes the ResultFields attributes below for programmatic checks.
+Missing, null or incorrectly typed fields are `None`, never invented success or
+zero. These are optional projections, not a promise that every tool returns every
+field. Full output always uses `data`, preserving additional and malformed values.
+
+| Operation | Where to inspect the complete payload |
+|---|---|
+| Direct motion | `data["feedback"]`, returned state, budget and images; arrival does not prove object attachment. |
+| Observe/capture | `data["state"]` when returned, plus snapshot/camera metadata. Typed `result.state` projects only progress, not arm/device measurements. |
+| Localization/calibration | Method-specific values, validity and camera/snapshot references in `data`; follow the declared units and conventions. |
+| Hybrid execution | `data["execution"]`, `data["assessment"]`, state and images when returned; do not apply a Direct arrival gate. |
+
+When declared, use the directly exposed skill-listing and skill-reading tools
+for guidance.
+They return paths and Markdown text to the model. Their Python equivalents remain
+available, but are not needed for ordinary skill discovery and reading.
+
+### One call, complete feedback
+
+For an observation tool named `view_env_state`, this is a complete program.
+Use the actual registered names and arguments from this file:
 
 ```python
-def move_and_check(robot, targets):
-    result = robot.tools.move(targets=targets, max_steps=12)
-    print(result.summary())
-    if result.state is not None and result.state.ended is True:
-        return False
-    if result.remaining_steps is not None and result.remaining_steps <= 0:
-        return False
-    feedback = result.feedback
-    return result.call_ok is True and feedback is not None and feedback.targets_reached is True
+from uni_robot_agent.execution.code_as_policy import Robot
+
+with Robot() as robot:
+    result = robot.tools.view_env_state()
+    print(result)
 ```
 
-Use the exact registered name if it differs. The caller must honor False rather
-than execute the dependent action anyway. Arrival does not establish attachment
-or safe support for release; inspect the returned images for object effects.
-Omit opening to preserve drive intent; supplying an opening in move applies it
-during motion. Handle ToolCallError by inspecting error.result, not replaying.
+### Continue on sufficient numeric evidence
+
+For a Direct tool named `move`, this helper follows an already-justified route.
+Supply segments as lists of grounded arm-target dictionaries and a suitable
+per-call step limit. Use it only when no intermediate visual judgment is needed:
+
+```python
+def follow_verified_route(robot, segments, max_steps):
+    for targets in segments:
+        result = robot.tools.move(targets=targets, max_steps=max_steps)
+        print(result)
+        if result.state is not None and result.state.ended is True:
+            return False
+        if result.remaining_steps is not None and result.remaining_steps <= 0:
+            return False
+        feedback = result.feedback
+        if result.call_ok is not True or feedback is None or feedback.targets_reached is not True:
+            return False
+    return True
+```
+
+The caller must honor False before dependent work. True only means these numeric
+checks passed, not that an object is attached, supported or the task is complete.
+Omit opening to preserve drive intent; an explicit opening applies during motion.
+
+### End execution for a visual decision
+
+When the next action needs your interpretation of new images, execute only the
+currently justified action. Select `action_name` and `arguments` from the API and
+current evidence. Save the full receipt before printing so long output can be
+read from scratch if the native terminal tool truncates it:
+
+```python
+from pathlib import Path
+from uni_robot_agent.execution.code_as_policy import Robot
+
+with Robot() as robot:
+    result = robot.call(action_name, **arguments)
+    receipt = Path(f"receipt-{result.call_id}.json")
+    receipt.write_text(str(result), encoding="utf-8")
+    print(f"Full result: {receipt.resolve()}")
+    print(result)
+    # End this script here, before the image-dependent action.
+```
+
+Open the relevant images before deciding the next program. Read any omitted text
+from the saved receipt rather than repeating the action. A print or helper return
+does not make a still-running caller wait for your decision. The scene persists
+after script exit; observe again if it changed or required evidence is absent.
+Catch ToolCallError in the script to print or save error.result before exiting.
+An exception may follow partial execution; never blindly replay the script.
 """]
     for model in (ResultFields, ResultState, MotionFeedback, ArmFeedback):
         sections.append(f"### {model.__name__}\n\n| Field | Type | Meaning |\n|---|---|---|")
@@ -75,8 +132,10 @@ Use `from uni_robot_agent.execution.code_as_policy import Robot` and
 `robot.call("exact_name", **arguments)`. Each call blocks until its tool finishes.
 The returned `CodeResult` has `data` (the original model-visible tool payload),
 `images` (local image paths, in returned camera order), and `call_id` (execution
-correlation). Print only useful data and image paths; use your native image
-reader to inspect images. A path string alone does not show an image to you.
+correlation). Print the complete receipt with `print(result)`; use your native
+image reader to inspect its images. A path string alone does not show an image.
+When declared, use the directly exposed skill-listing and skill-reading tools
+for guidance.
 A failed call raises `ToolCallError`; inspect `error.result` for feedback.
 `call_ok` establishes call validity, not physical or task success.
 

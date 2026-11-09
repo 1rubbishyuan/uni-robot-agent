@@ -135,7 +135,9 @@ and cancellation. These checks can run without a commercial model or robot.
 ## Program-driven control
 
 Both adapters accept the optional `CodePolicyContext` supplied by Session in
-`code_as_policy` mode. Native processes inherit its cwd/environment; direct robot
-MCP tools are empty. Cancellation revokes new program calls, and completion
+`code_as_policy` mode. Native processes inherit its cwd/environment. The direct
+MCP tool list exposes registered skill listing and reading; robot observations,
+actions and completion remain in programs. Cancellation revokes new calls through
+either entry, and completion
 requires its executed finish receipt plus normal SDK termination. See
 [Code as Policy](code-as-policy.md) for the program API and lifecycle.

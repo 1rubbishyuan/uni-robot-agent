@@ -8,18 +8,24 @@ from uni_robot_agent.services.mcp.http import HttpMcpServer
 from uni_robot_agent.tools.client import ToolClient
 
 
-class DirectToolsDisabled(ToolExecutor):
-    """The planner uses native shell/file tools; robot tools live in programs."""
+class DirectSkillTools(ToolExecutor):
+    """Expose registered skill readers while robot operations stay in programs."""
+
+    def __init__(self, bridge: CodePolicyBridge):
+        self._bridge = bridge
 
     def get_tool_schemas(self):
-        return []
+        return [spec for spec in self._bridge.get_tool_schemas()
+                if spec["name"] in {"list_skills", "read_skill"}]
 
     def call(self, name, arguments):
-        raise RuntimeError("Robot tools require the code_as_policy program interface")
+        if name not in {spec["name"] for spec in self.get_tool_schemas()}:
+            raise RuntimeError("Only skill discovery and reading are available directly in code_as_policy mode")
+        return self._bridge.call(name, arguments)
 
     @property
     def tool_execution_seq(self):
-        return 0
+        return self._bridge.tool_execution_seq
 
 
 class CodePolicyBridge(ToolExecutor):
