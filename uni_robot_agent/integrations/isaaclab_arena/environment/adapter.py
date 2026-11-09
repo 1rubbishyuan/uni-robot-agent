@@ -130,7 +130,6 @@ class ArenaAdapter:
     def close(self):
         if not self.closed:
             self.closed = True
-            try:
-                self.env.close()
-            finally:
-                self.app.close()
+            # Episode finalization must return its HTTP receipt before Kit exits.
+            # The server owns the process-wide application lifetime.
+            self.env.close()

@@ -51,14 +51,18 @@ def main():
         server = HttpServer(create_app(build_router(service)), host=args.host, port=args.port)
         serve_native(adapter, service, server, is_running=adapter.backend.app.is_running)
     finally:
-        if service is not None:
-            service.close()
-        else:
-            try:
-                adapter.close()
-            finally:
-                if artifacts is not None:
-                    artifacts.close()
+        try:
+            if service is not None:
+                service.close()
+            else:
+                try:
+                    adapter.close()
+                finally:
+                    if artifacts is not None:
+                        artifacts.close()
+        finally:
+            # Kit can terminate the process; HTTP and artifact shutdown go first.
+            adapter.backend.app.close()
 
 
 if __name__ == "__main__":
