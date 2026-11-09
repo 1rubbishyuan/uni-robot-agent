@@ -27,6 +27,7 @@ def validate_source(path):
 
 def controller_description(robot):
     """Read instantiated controllers, including resolved default gripper limits."""
+    from omnigibson.controllers import ControlType
     from omnigibson.controllers.controller_view import ControllerView
     from omnigibson.utils.backend_utils import _compute_backend as cb
 
@@ -57,8 +58,8 @@ def controller_description(robot):
         lower, upper = array(robot.joint_lower_limits)[dofs], array(robot.joint_upper_limits)[dofs]
         item = {"joint_names": names, "joint_limits": np.column_stack([lower, upper]).tolist()}
         if name.endswith("gripper"):
-            if (type(controller).__name__ != "MultiFingerGripperController" or controller.motor_type != "position"
-                    or controller.mode != "smooth" or len(names) != 2 or inputs != [[-1.], [1.]]
+            if (type(controller).__name__ != "MultiFingerGripperController" or controller.control_type != ControlType.POSITION
+                    or controller._mode != "smooth" or len(names) != 2 or inputs != [[-1.], [1.]]
                     or output is None or not np.allclose(lower, lower[0]) or not np.allclose(upper, upper[0])):
                 raise ValueError("Expected symmetric smooth-position R1Pro fingers")
             item.update(unit="m", input_limits=inputs, output_limits=output, inverted=bool(controller._inverted))
