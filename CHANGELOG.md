@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add an offline `uni-robot-agent doctor` command that checks the installed
+  package split, required and optional dependencies, agent CLI binaries,
+  provider profiles, integration imports, skills root, output-directory
+  writability and environment-variable presence without connecting to services,
+  probing credentials or creating directories.
 - Add explicit integration tool compositions selected with `--tool-profile`.
   All eight integrations declare their supported profiles. Direct no longer
   constructs an inactive Hybrid provider; legacy `--action-profile`, debug
