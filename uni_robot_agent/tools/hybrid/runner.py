@@ -12,6 +12,8 @@ from uni_robot_agent.services.environment.contracts import (
     RequestRejected,
 )
 
+from .contracts import YieldToAgent
+from .observations import ObservationInputs
 from .execution import execute_prefix
 
 
@@ -55,15 +57,36 @@ class ActorRunner:
                 stage = "actor"
                 episode.require_active()
                 manifest = episode.env.capture(CaptureRequest(high_resolution=False))
-                paths = episode.image_paths(manifest)
-                observation = binding.encode_observation(manifest, instruction, paths)
+                inputs = ObservationInputs.capture(episode, manifest)
+                paths = inputs.images
+                observation = binding.encode_observation(inputs, instruction)
                 prediction = self.actor.predict(observation)
-                proposal = binding.decode_prediction(prediction.actions, manifest, paths, scope)
-                proposal.preview = binding.preview(proposal, episode.env)
+                proposal = binding.decode_prediction(prediction.prediction, manifest, paths, scope)
                 info = self.actor.info
-                proposal.metadata.update(inference_index=prediction.sequence, checkpoint_sha256=prediction.checkpoint_sha256,
-                    model=info.model, model_id=info.model_id, runtime=info.runtime, model_config_name=info.model_config_name,
-                    profile=info.profile.model_dump(mode="json"))
+                actor_metadata = {"inference_index": prediction.sequence,
+                    "checkpoint_sha256": prediction.checkpoint_sha256,
+                    "model": info.model, "model_id": info.model_id, "runtime": info.runtime,
+                    "model_config_name": info.model_config_name, "profile": info.profile.model_dump(mode="json")}
+                if isinstance(proposal, YieldToAgent):
+                    feedback = {"executed_actions": 0, "acknowledged_commands": 0, "execution_started": False,
+                                "execution_uncertain": False, "duration_s": 0., "stop_reason": "actor_yield",
+                                "reason": proposal.reason, "no_execution": True}
+                    context = {"session_id": session_id, "chunk_index": index,
+                               "previous_actor": self.previous_chunk, "actor": actor_metadata}
+                    archive.write_chunk(index, {"context": context, "review_images": paths,
+                        "prediction": prediction.prediction.model_dump(mode="json"),
+                        "yield": {"reason": proposal.reason, "metadata": proposal.metadata}, "feedback": feedback})
+                    episode.latest_snapshot = manifest
+                    summary["chunks"].append({"chunk_index": index, "decision": None, "feedback": feedback,
+                        "yield": {"reason": proposal.reason, "metadata": proposal.metadata},
+                        "observed_state_version": manifest["state_version"],
+                        "after_state_version": episode.state.state_version})
+                    summary["stop_reason"] = "actor_yield"
+                    self.previous_chunk = {"assessment": None, "mode": "yield", "images": paths,
+                        "state_version": episode.state.state_version, "feedback": feedback}
+                    break
+                proposal.preview = binding.preview(proposal, episode.env)
+                proposal.metadata.update(actor_metadata)
                 previous = self.previous_chunk
                 context = {**binding.review_context(proposal, scope),
                     "request_id": uuid4().hex, "session_id": session_id, "chunk_index": index,
@@ -83,7 +106,8 @@ class ActorRunner:
                 images = {"current/" + name: path for name, path in paths.items()}
                 if previous:
                     images.update({"previous/" + name: path for name, path in previous["images"].items()})
-                record = {"context": context, "review_images": images, "proposal": proposal.metadata}
+                record = {"context": context, "review_images": images, "proposal": proposal.metadata,
+                          "prediction": prediction.prediction.model_dump(mode="json")}
                 archive.write_chunk(index, record, proposal=proposal)
                 stage = "reviewer"
                 decision = self.reviewer.decide(context=context, images=images, actions_per_chunk=actions_per_chunk,

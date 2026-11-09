@@ -82,7 +82,7 @@ class HybridTools(ToolProvider):
     def actor_act(self, **arguments):
         summary = self.runner.run(**arguments)
         chunk = summary["chunks"][-1] if summary["chunks"] else None
-        decision = chunk["decision"] if chunk else {}
+        decision = (chunk.get("decision") or {}) if chunk else {}
         assessment = decision.get("assessment") or {}
         images, metadata, image_error = [], {}, None
         try:
@@ -102,7 +102,8 @@ class HybridTools(ToolProvider):
                 "no_execution": not summary["execution_started"] and not uncertain},
             "assessment": {"observed_state_version": chunk["observed_state_version"] if assessment else None,
                 "execution_status": assessment.get("execution_status"), "execution_evidence": assessment.get("execution_evidence"),
-                "stop_evidence": summary["error"] or (decision.get("reason") if decision.get("mode") == "stop" else None)},
+                "stop_evidence": summary["error"] or (chunk.get("yield", {}).get("reason") if chunk else None)
+                    or (decision.get("reason") if decision.get("mode") == "stop" else None)},
             **metadata, "image_cameras": [image.name for image in images],
             "error_stage": summary.get("error_stage"),
             "artifact_error": "; ".join(filter(None, (summary["artifact_error"], image_error))) or None}, images=images)

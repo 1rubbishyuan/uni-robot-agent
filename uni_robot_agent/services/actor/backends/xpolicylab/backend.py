@@ -4,7 +4,7 @@ import hashlib
 import json
 import threading
 
-from uni_robot_agent.services.actor.contracts import ActorInfo
+from uni_robot_agent.services.actor.contracts import ActorInfo, NumericChunk
 from uni_robot_agent.services.errors import ServiceError
 
 from .client import XPolicyLabClient
@@ -56,7 +56,7 @@ class XPolicyLabBackend:
             try:
                 observation = observation_payload(work.observation, self.config)
                 actions = self._active.infer(observation)
-                return [action_matrix(actions, self.config)]
+                return [NumericChunk(actions=action_matrix(actions, self.config))]
             except Exception as error:  # noqa: BLE001 - report upstream failures through actor receipts.
                 # No replay after an ambiguous inference or invalid action result.
                 self._failed = True

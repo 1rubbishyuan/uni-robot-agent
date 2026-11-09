@@ -16,7 +16,9 @@ from .contracts import (
     PredictRequest,
     Receipt,
     SessionInfo,
-    validate_vector,
+    validate_observation,
+    validate_prediction,
+    SymbolicActorProfile,
 )
 
 
@@ -29,7 +31,7 @@ class ActorClient:
         self,
         url: str,
         *,
-        expected_profile: ActorProfile | str | None = None,
+        expected_profile: ActorProfile | SymbolicActorProfile | str | None = None,
         checkpoint_sha256: str | None = None,
         timeout_s=450,
         tracer=None,
@@ -41,7 +43,7 @@ class ActorClient:
         self.poisoned = False
         try:
             self.info = ActorInfo.model_validate(self.transport.get_json("/info"))
-            if isinstance(expected_profile, ActorProfile):
+            if isinstance(expected_profile, (ActorProfile, SymbolicActorProfile)):
                 matches = self.info.profile == expected_profile
             else:
                 matches = (
@@ -79,15 +81,9 @@ class ActorClient:
             or reply.model_id != self.info.model_id
             or reply.checkpoint_sha256 != self.info.checkpoint_sha256
             or reply.profile != self.info.profile.name
-            or len(reply.actions) != self.info.profile.action_horizon
-            or any(
-                len(row) != len(self.info.profile.action_fields)
-                for row in reply.actions
-            )
         ):
             raise ValueError("Actor response identity or action profile mismatch")
-        for row in reply.actions:
-            validate_vector(row, self.info.profile.action_fields, "action")
+        validate_prediction(reply.prediction, self.info.profile)
         return reply
 
     def predict(self, observation: ActorObservation) -> PredictReply:
@@ -100,9 +96,7 @@ class ActorClient:
                 raise ActorUncertain(
                     "Actor request is uncertain; reconcile its receipt before continuing"
                 )
-            if set(observation.images) != set(self.info.profile.cameras):
-                raise ValueError("Actor observation cameras differ from its profile")
-            validate_vector(observation.state, self.info.profile.observation_fields, "observation")
+            validate_observation(observation, self.info.profile)
             request = PredictRequest(
                 session_id=self.session.session_id,
                 request_id=uuid4().hex,

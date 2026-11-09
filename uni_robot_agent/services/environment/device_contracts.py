@@ -16,7 +16,8 @@ from .contracts import (
 
 class DeviceDescription(Contract):
     name: str
-    kind: Literal["arm", "hand", "assembly"]
+    kind: Literal["arm", "hand", "assembly", "base", "body"]
+    joint_units: dict[str, Literal["rad", "m"]] = Field(default_factory=dict)
     joint_names: list[str] = Field(default_factory=list)
     joint_limits: list[tuple[FiniteFloat, FiniteFloat]] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
@@ -28,6 +29,8 @@ class DeviceDescription(Contract):
     def valid_joints(self):
         if len(set(self.joint_names)) != len(self.joint_names):
             raise ValueError("Device joint names must be unique")
+        if self.joint_units and set(self.joint_units) != set(self.joint_names):
+            raise ValueError("Joint units must cover the named joints exactly")
         if self.joint_limits and (
             len(self.joint_limits) != len(self.joint_names) or any(lo > hi for lo, hi in self.joint_limits)
         ):
@@ -53,8 +56,8 @@ class DeviceEnvironmentDescription(Contract):
 
 
 class DeviceEpisodeInfo(Contract):
-    protocol_version: Literal["devices-1"] = "devices-1"
-    tool_schema_version: Literal["dexterous-1"] = "dexterous-1"
+    protocol_version: Literal["devices-1", "devices-2"] = "devices-1"
+    tool_schema_version: Literal["dexterous-1", "devices-2"] = "dexterous-1"
     episode_id: str = Field(min_length=1)
     task: str
     environment: DeviceEnvironmentDescription
@@ -135,8 +138,45 @@ class CoordinatedDeviceStep(Contract):
         return self
 
 
+class JointPositionTarget(Contract):
+    position: FiniteFloat
+    unit: Literal["rad", "m"]
+
+
+class BodyVelocityTarget(Contract):
+    frame: str = Field(min_length=1)
+    linear_m_s: Vector3
+    angular_rad_s: Vector3
+
+
+class BodyHeightTarget(Contract):
+    """A controller reference, never a simulator root-pose teleport."""
+    frame: str = Field(min_length=1)
+    height_m: FiniteFloat = Field(gt=0)
+
+
+class CoordinatedControlStep(Contract):
+    """Validate every component before advancing one bounded native control segment."""
+    kind: Literal["coordinated_control"] = "coordinated_control"
+    device: str = Field(min_length=1)
+    duration_s: FiniteFloat = Field(gt=0)
+    joints: dict[str, dict[str, JointPositionTarget]] = Field(default_factory=dict, max_length=64)
+    velocities: dict[str, BodyVelocityTarget] = Field(default_factory=dict, max_length=64)
+    heights: dict[str, BodyHeightTarget] = Field(default_factory=dict, max_length=64)
+
+    @model_validator(mode="after")
+    def named_targets(self):
+        if not self.joints and not self.velocities and not self.heights:
+            raise ValueError("Provide at least one coordinated control target")
+        if any(not name for name in (*self.joints, *self.velocities, *self.heights)):
+            raise ValueError("Control targets require named devices")
+        if any(not targets or any(not name for name in targets) for targets in self.joints.values()):
+            raise ValueError("Joint targets must name nonempty joint groups")
+        return self
+
+
 DeviceCommand = Annotated[
-    JointSegment | PoseSegment | DeviceOperation | CoordinatedDeviceStep,
+    JointSegment | PoseSegment | DeviceOperation | CoordinatedDeviceStep | CoordinatedControlStep,
     Field(discriminator="kind"),
 ]
 
@@ -167,7 +207,7 @@ class InterruptRequest(Contract):
 def parse_info(payload):
     from .contracts import EpisodeInfo
 
-    model = DeviceEpisodeInfo if payload.get("protocol_version") == "devices-1" else EpisodeInfo
+    model = DeviceEpisodeInfo if payload.get("protocol_version") in {"devices-1", "devices-2"} else EpisodeInfo
     return model.model_validate(payload)
 
 

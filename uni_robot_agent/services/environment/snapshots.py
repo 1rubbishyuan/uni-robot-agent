@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import copy
 import io
+import math
 import threading
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from types import MappingProxyType
 
@@ -47,6 +48,24 @@ class CameraFrame:
 
 
 @dataclass(frozen=True)
+class CapturedHistoryFrame:
+    """One real native capture; model padding and sampling belong to backends."""
+    frame_id: str
+    captured_at: float
+    simulation_time_s: float
+    state_version: int
+    frame: CameraFrame
+
+    def freeze(self) -> CapturedHistoryFrame:
+        if not self.frame_id or self.state_version < 0:
+            raise ValueError("History requires a frame ID and nonnegative state version")
+        if any(not math.isfinite(value) or value < 0 for value in (self.captured_at, self.simulation_time_s)):
+            raise ValueError("History timestamps must be finite and nonnegative")
+        return CapturedHistoryFrame(self.frame_id, self.captured_at, self.simulation_time_s,
+                                    self.state_version, self.frame.freeze())
+
+
+@dataclass(frozen=True)
 class CapturedObservation:
     episode_id: str
     state_version: int
@@ -55,6 +74,7 @@ class CapturedObservation:
     cameras: Mapping[str, CameraFrame]
     terminated: bool = False
     truncated: bool = False
+    history: Mapping[str, tuple[CapturedHistoryFrame, ...]] = field(default_factory=dict)
 
     def freeze(self) -> CapturedObservation:
         return CapturedObservation(
@@ -62,6 +82,7 @@ class CapturedObservation:
             copy.deepcopy(dict(self.state)),
             {name: frame.freeze() for name, frame in self.cameras.items()},
             self.terminated, self.truncated,
+            {name: tuple(sample.freeze() for sample in samples) for name, samples in self.history.items()},
         )
 
 
@@ -100,6 +121,28 @@ class SnapshotStore:
             "state": dict(observation.state), "cameras": cameras,
             "terminated": observation.terminated, "truncated": observation.truncated,
         }
+        if observation.history:
+            history = {}
+            for name, samples in observation.history.items():
+                if name not in cameras or not 1 <= len(samples) <= 4096:
+                    raise ValueError("History requires a declared camera and 1..4096 real frames")
+                entries, seen, previous = [], set(), None
+                for sample in samples:
+                    if sample.frame_id in seen or sample.state_version > observation.state_version:
+                        raise ValueError("History contains duplicate IDs or a future state")
+                    if previous is not None and (sample.simulation_time_s <= previous.simulation_time_s
+                                                 or sample.state_version < previous.state_version):
+                        raise ValueError("History must follow simulation time and state ordering")
+                    stream = io.BytesIO()
+                    Image.fromarray(sample.frame.rgb).save(stream, format="PNG")
+                    entries.append({"frame_id": sample.frame_id, "captured_at": sample.captured_at,
+                                    "simulation_time_s": sample.simulation_time_s,
+                                    "state_version": sample.state_version,
+                                    "rgb": self.artifacts.put_bytes(stream.getvalue(), "image/png")})
+                    seen.add(sample.frame_id)
+                    previous = sample
+                history[name] = entries
+            manifest["history"] = history
         ref = self.artifacts.put_json(manifest)
         snapshot_id = ref["artifact_id"]
         with self._lock:
