@@ -537,7 +537,9 @@ native backends, including LIBERO. For owned startup and cleanup, prefer the
 
 The product, distribution, and CLI are `uni-robot-agent`; Python imports use
 `uni_robot_agent`. Configuration environment variables use `UNI_ROBOT_AGENT_`.
-Actor clients and services use `uni_robot_agent.actor.v2`; update both together.
+Actor clients and services use `uni_robot_agent.actor.v3`; upgrade and restart both
+together, then open fresh sessions. Replies contain typed numeric or symbolic
+predictions; existing numeric action meanings remain unchanged.
 Trace format 5 uses `$uni_robot_agent_image` references to the shared session image
 directory. Existing records retain their original format. The source repository is
 [Open-RUA/uni-robot-agent](https://github.com/Open-RUA/uni-robot-agent).
