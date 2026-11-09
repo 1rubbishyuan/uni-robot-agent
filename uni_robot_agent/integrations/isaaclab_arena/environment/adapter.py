@@ -22,7 +22,10 @@ class ArenaAdapter:
         self.limits = native.joint_limits(env)
         self.metadata = {"benchmark": "isaaclab_arena", "task_id": native.TASK, "seed": seed,
             "native_revision": native.REVISION, "isaaclab_revision": native.ISAACLAB_REVISION,
-            "reset_sha256": reset_sha256, "max_steps": native.MAX_STEPS}
+            "reset_sha256": reset_sha256, "max_steps": native.MAX_STEPS,
+            "benchmark_release": "arena_v0.2_on_lab_2.3", "physics_backend": "PhysX",
+            "physics_device": "cpu", "native_success_predicate": "objects_in_proximity",
+            "success_thresholds_m": {"x": .260, "y": .130, "z": .150}}
         devices = [DeviceDescription(name=group, kind="body" if group == "waist" else
                     "hand" if group.endswith("hand") else "arm", joint_names=names,
                     joint_limits=[tuple(self.limits[name]) for name in names],

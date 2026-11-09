@@ -4,8 +4,9 @@ This adapter calls the upstream simulator and controllers; their implementations
 assets and weights are not copied into this repository.
 
 - Arena: https://github.com/isaac-sim/IsaacLab-Arena at
-  `8fbe412ea1d4468bf5e4b285a092e0eca2a8f1fa` (Apache-2.0).
-- IsaacLab submodule: `e3f7d9ff1f5d7f8280de3ece9000b7117f66bcf4`.
+  `aad4f25f44cc439c363c2b60f1fd170dfd10d2a5` (Apache-2.0), official
+  `feature/arena_v0.2_on_lab_2.3` branch for Isaac Sim 5.1 / Python 3.11.
+- IsaacLab submodule: `5528d986d8909825a29f3c97656108abf054a261`.
 - G1 environment: `galileo_g1_locomanip_pick_and_place`, embodiment
   `g1_wbc_joint`, default Homie V2 whole-body controller.
 - GR00T N1.6 runtime: https://github.com/NVIDIA/Isaac-GR00T at
@@ -26,7 +27,11 @@ height references. It never applies the WBC neural-input scale a second time.
 Native action packing supplies 43 joint slots, three velocity values, one height
 and three zero torso-RPY values. WBC runs at 50 Hz with 200 Hz physics. The native
 30-second limit and native success predicate are preserved. One initial seeded
-reset and `configure_episode_limit(1)` prevent starting a replacement episode.
+reset followed by suppressing the native automatic reset preserves terminal
+images and state without starting a replacement episode. Physics uses CPU PhysX,
+matching the pinned branch's evaluation settings. Its native success predicate
+is `objects_in_proximity` (box/bin x/y/z thresholds 0.260/0.130/0.150 m), not
+the redesigned predicates on current Arena main.
 
 Arena assets and Homie ONNX models remain managed by upstream's asset resolver.
 A source pin alone does not pin mutable remote asset bytes; archive the resolved
@@ -34,5 +39,5 @@ asset cache and its hashes when reporting reproducible benchmark results.
 
 This integration has CPU contract coverage. GPU simulator startup, Kit thread
 ownership, rendering, WBC and checkpoint rollout acceptance require native tests
-on a compatible host. Current Arena requires Isaac Sim 6.2/CUDA 13 and at least
-NVIDIA driver 580.65.06; a successful metadata preflight is not GPU validation.
+on the target host. Preflight checks actual Arena/IsaacLab import locations and
+records the installed NVIDIA driver; it is not GPU validation.

@@ -1,6 +1,7 @@
 """Version-specific Arena creation, sensor access and native controller packing."""
 import hashlib
 import importlib.metadata
+import importlib.util
 from pathlib import Path
 import subprocess
 import sys
@@ -9,8 +10,8 @@ import numpy as np
 
 from ..g1 import CONTROL_DT, CONTROL_GROUPS, JOINT_GROUPS
 
-REVISION = "8fbe412ea1d4468bf5e4b285a092e0eca2a8f1fa"
-ISAACLAB_REVISION = "e3f7d9ff1f5d7f8280de3ece9000b7117f66bcf4"
+REVISION = "aad4f25f44cc439c363c2b60f1fd170dfd10d2a5"
+ISAACLAB_REVISION = "5528d986d8909825a29f3c97656108abf054a261"
 TASK = "galileo_g1_locomanip_pick_and_place"
 INSTRUCTION = "Pick up the brown box from the shelf, and place it into the blue bin on the table located at the right of the shelf."
 MAX_STEPS = 1500
@@ -25,28 +26,38 @@ def validate_source(path):
     return root
 
 
-def validate_driver(version):
-    """CUDA 13 requires the R580 driver family or newer; this is not a GPU test."""
-    parts = tuple(int(part) for part in version.strip().split("."))
-    if parts < (580, 65, 6):
-        raise ValueError(f"This Arena pin requires CUDA 13 / NVIDIA driver >=580.65.06; found {version}. Use a compatible host; do not upgrade a shared driver implicitly.")
-    return version
-
-
 def preflight(path):
     root = validate_source(path)
-    if sys.version_info[:2] != (3, 12):
-        raise ValueError("The pinned Arena runtime requires Python 3.12")
+    if sys.version_info[:2] != (3, 11):
+        raise ValueError("The pinned Arena runtime requires Python 3.11")
     version = importlib.metadata.version("isaacsim")
-    if version.split(".")[:2] != ["6", "2"]:
-        raise ValueError("The pinned Arena runtime requires Isaac Sim 6.2")
+    if version.split(".")[:2] != ["5", "1"]:
+        raise ValueError("The pinned Arena runtime requires Isaac Sim 5.1")
+    sources = {}
+    for package, expected in {
+            "isaaclab": root / "submodules/IsaacLab/source/isaaclab/isaaclab",
+            "isaaclab_arena": root / "isaaclab_arena"}.items():
+        spec = importlib.util.find_spec(package)
+        actual = Path(spec.origin).resolve() if spec and spec.origin else None
+        if actual is None or actual.parent != expected.resolve():
+            raise ValueError(f"{package} must import from the pinned Arena checkout; found {actual}")
+        sources[package] = str(actual)
     drivers = subprocess.check_output(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], text=True).splitlines()
     if not drivers:
         raise ValueError("Arena requires an available NVIDIA GPU driver")
-    for driver in drivers:
-        validate_driver(driver)
+    # Metadata and driver discovery cannot establish Kit/RTX compatibility.
     return {"native_revision": REVISION, "isaaclab_revision": ISAACLAB_REVISION,
-            "isaacsim": version, "driver": drivers[0], "native_root": str(root)}
+            "isaacsim": version, "driver": drivers[0], "native_root": str(root),
+            "source_paths": sources, "physics_backend": "PhysX", "physics_device": "cpu"}
+
+
+class PreserveTerminalState:
+    """Keep the terminal state when IsaacLab's step attempts an automatic reset."""
+    initial_reset_complete = False
+
+    def _reset_idx(self, env_ids):
+        if not self.initial_reset_complete:
+            super()._reset_idx(env_ids)
 
 
 def as_numpy(value):
@@ -74,21 +85,31 @@ def reset_fingerprint(env):
 def create_native(path, *, seed):
     preflight(path)
     from isaaclab.app import AppLauncher
-    app = AppLauncher(headless=True, enable_cameras=True, device="cuda:0").app
+    app = AppLauncher(headless=True, enable_cameras=True, device="cpu", enable_pinocchio=True).app
     env = None
     try:
         # Kit must be running before importing any Arena USD, scene or task modules.
+        from isaaclab.envs import ManagerBasedRLEnv
+        from isaaclab_arena.cli.isaaclab_arena_cli import get_isaaclab_arena_cli_parser
         from isaaclab_arena_environments.galileo_g1_locomanip_pick_and_place_environment import (
-            GalileoG1LocomanipPickAndPlaceEnvironment, GalileoG1LocomanipPickAndPlaceEnvironmentCfg,
+            GalileoG1LocomanipPickAndPlaceEnvironment,
         )
         from isaaclab_arena.environments.arena_env_builder import ArenaEnvBuilder
-        from isaaclab_arena.environments.arena_env_builder_cfg import ArenaEnvBuilderCfg
-        description = GalileoG1LocomanipPickAndPlaceEnvironment().build(
-            GalileoG1LocomanipPickAndPlaceEnvironmentCfg(enable_cameras=True, embodiment="g1_wbc_joint"))
-        env = ArenaEnvBuilder(description, ArenaEnvBuilderCfg(num_envs=1, seed=seed, presets="physx")).make_registered()
+
+        class TerminalPreservingEnv(PreserveTerminalState, ManagerBasedRLEnv):
+            pass
+
+        parser = get_isaaclab_arena_cli_parser()
+        GalileoG1LocomanipPickAndPlaceEnvironment.add_cli_args(parser)
+        args = parser.parse_args(["--headless", "--enable_cameras", "--device", "cpu",
+            "--embodiment", "g1_wbc_joint", "--seed", str(seed), "--placement_seed", str(seed)])
+        description = GalileoG1LocomanipPickAndPlaceEnvironment().get_env(args)
+        _, config = ArenaEnvBuilder(description, args).build_registered()
+        config.seed = seed
+        env = TerminalPreservingEnv(cfg=config)
         native = env.unwrapped
-        native.configure_episode_limit(1)
         observation, _ = env.reset(seed=seed)
+        native.initial_reset_complete = True
         action = native.action_manager.get_term("g1_action")
         if (not np.isclose(native.step_dt, CONTROL_DT) or native.cfg.decimation != 4
                 or action.action_dim != 50 or action.get_wbc_version != "homie_v2"):

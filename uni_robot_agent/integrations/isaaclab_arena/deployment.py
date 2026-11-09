@@ -1,10 +1,10 @@
 """Prepare a pinned Arena runtime; keep simulator requirements out of the planner."""
-import subprocess
+from pathlib import Path
 
 from uni_robot_agent.services.deployment.config import LaunchPlan, Recipe
 from uni_robot_agent.services.deployment.runtime import query_python
 
-from .environment.native_compat import TASK, validate_driver
+from .environment.native_compat import TASK
 
 
 def recipe(args):
@@ -33,21 +33,23 @@ def external_data(args):
 
 
 def prepare(context):
-    # Fail before downloading a large incompatible runtime; never alter host drivers.
-    drivers = subprocess.check_output(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], text=True).splitlines()
-    if not drivers:
-        raise ValueError("Arena preparation requires an NVIDIA GPU host")
-    for driver in drivers:
-        validate_driver(driver)
     settings = context.recipe.settings
-    root = context.step("source", lambda: context.git(settings["repository"], settings["revision"],
-                                                    context.root / "source", submodules=True))
-    context.step("uv", lambda: context.pip(f"uv=={settings['uv_version']}"))
-    context.step("arena", lambda: context.command(
-        [str(context.python.parent / "uv"), "sync", "--locked", "--no-dev", "--python", str(context.python)],
-        cwd=root, environment={"UV_PROJECT_ENVIRONMENT": str(context.python.parent.parent)}))
-    context.step("pip-bootstrap", lambda: context.command([str(context.python), "-m", "ensurepip", "--upgrade"]))
-    context.data["native_root"] = root
+    root = Path(context.step("source", lambda: context.git(settings["repository"], settings["revision"],
+                                                         context.root / "source")))
+    lab = Path(context.step("isaaclab-source", lambda: context.git(
+        settings["isaaclab_repository"], settings["isaaclab_revision"], root / "submodules/IsaacLab")))
+    context.step("build-tools", lambda: context.pip("setuptools>=77", "wheel", "toml"))
+    context.step("isaacsim", lambda: context.pip("isaacsim[all,extscache]==5.1.0.0",
+        options=("--extra-index-url", "https://pypi.nvidia.com")))
+    context.step("torch", lambda: context.pip("torch==2.7.0", "torchvision==0.22.0",
+        options=("--index-url", "https://download.pytorch.org/whl/cu128")))
+    # Install only native simulation packages; GR00T owns its separate runtime.
+    for package in sorted((lab / "source").glob("isaaclab*")):
+        context.step(package.name, lambda package=package: context.pip(
+            "-e", package, options=("--no-build-isolation",)))
+    context.step("arena", lambda: context.pip("-e", root, "onnxruntime==1.23.2", "qpsolvers==4.8.1",
+                                            options=("--no-build-isolation",)))
+    context.data["native_root"] = str(root)
 
 
 def verify(runtime):

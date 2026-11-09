@@ -29,10 +29,12 @@ The planner, actor and simulator have independent interpreters:
 - GR00T: Python 3.12, pinned official N1.6 source, Torch 2.7.1/cu128. The recipe
   follows upstream's dependency lock and uses its official `Gr00tPolicy` and
   processor directly. It does not require another inference server.
-- Arena: Python 3.12, pinned Arena/IsaacLab source, Isaac Sim 6.2 and CUDA 13.
-  NVIDIA driver 580.65.06 or newer is a minimum prerequisite. Driver changes
-  are never performed by setup. Headless graphics, native libraries and Kit
-  initialization must also pass acceptance on the target host.
+- Arena: Python 3.11, Isaac Sim 5.1 and the official
+  `feature/arena_v0.2_on_lab_2.3` branch at the revision in `SOURCE.md`.
+  Physics runs on CPU PhysX, as in this branch's published evaluation; RTX
+  rendering still requires a supported NVIDIA GPU. Setup never changes drivers.
+  Headless graphics, native libraries and Kit initialization must pass native
+  acceptance on the target host.
 
 Do not install both native dependency stacks into the planner environment. Install
 matching harness/runtime versions into their respective interpreters. The public
@@ -43,7 +45,9 @@ uni-robot-agent setup --service actor --profile arena_g1_gr00t
 uni-robot-agent setup --integration isaaclab_arena
 ```
 
-Setup downloads pinned source and weights into its runtime cache. On an already
+Setup downloads pinned source and inference weights into its runtime cache.
+The actor downloads 6.57 GB of model and processor files, excluding optimizer
+and training-state shards. Arena and GR00T do not share a Python environment. On an already
 prepared official native environment, adopt it explicitly:
 
 ```bash
@@ -83,6 +87,9 @@ not been validated for this Arena pin; a native startup failure must be resolved
 before claiming an operational environment. No GPU rollout score is implied by
 the existence of the adapter or a successful dependency preflight.
 
-Native success requires the task's settle/lift/place criteria. Calling finish,
+Native success uses this release's `objects_in_proximity` box/bin predicate
+(x/y/z thresholds 0.260/0.130/0.150 m). Its thirty-second timeout and drop
+termination remain unchanged. This is the pinned Isaac 5.1 benchmark definition,
+not the redesigned task predicates on Arena main. Calling finish,
 reviewer approval, target tracking and model predictions do not set success.
 Source and weight identities are listed in [SOURCE.md](../uni_robot_agent/integrations/isaaclab_arena/SOURCE.md).

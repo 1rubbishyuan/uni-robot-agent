@@ -6,7 +6,9 @@ revision = "9b37aa1ce69c73c6d165233fa88128283bba4508"
 uv_version = "0.9.17"
 asset_repository = "nvidia/GN1x-Tuned-Arena-G1-Loco-Manipulation"
 asset_revision = "dfe74af855007f26093f362cd2d7a2f404b64b93"
-asset_patterns = ["*"]
+asset_patterns = ["config.json", "embodiment_id.json", "processor_config.json", "statistics.json",
+  "model.safetensors.index.json", "model-00001-of-00002.safetensors",
+  "model-00002-of-00002.safetensors", "README.md"]
 
 [actor]
 model = "gr00t_n1_6"

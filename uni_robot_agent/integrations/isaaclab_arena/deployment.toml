@@ -1,5 +1,7 @@
 name = "env-isaaclab-arena-g1"
-python = "python3.12"
+python = "python3.11"
 repository = "https://github.com/isaac-sim/IsaacLab-Arena.git"
-revision = "8fbe412ea1d4468bf5e4b285a092e0eca2a8f1fa"
-uv_version = "0.12.9"
+revision = "aad4f25f44cc439c363c2b60f1fd170dfd10d2a5"
+isaaclab_repository = "https://github.com/isaac-sim/IsaacLab.git"
+isaaclab_revision = "5528d986d8909825a29f3c97656108abf054a261"
+constraints = ["numpy==1.26.4", "torch==2.7.0", "pin==2.7.0", "qpsolvers==4.8.1"]
