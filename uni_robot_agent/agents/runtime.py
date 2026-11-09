@@ -56,6 +56,10 @@ def add_model_arguments(parser):
     context.add_argument(
         "--context-policy", choices=list_context_policies(), default="identity"
     )
+    context.add_argument("--context-observation-horizon", type=_positive, default=2,
+                         help="Recent tool observation groups retained by observation_window")
+    context.add_argument("--context-image-token-allowance", type=_positive, default=1536,
+                         help="Estimated tokens per retained image for observation_window (not billed usage)")
     context.add_argument(
         "--context-max-input-tokens",
         type=_positive,

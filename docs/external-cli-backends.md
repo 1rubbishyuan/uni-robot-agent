@@ -305,3 +305,11 @@ Upstream references: [OpenCode server](https://opencode.ai/docs/server/),
 [Gemini model config](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/config/defaultModelConfigs.ts).
 These moving references explain the seam; retain pinned revisions and build
 evidence when validating an external runtime.
+
+
+The Gemini CLI bridge also accepts `observation_window`, which groups image
+attachments and calibration by observation while keeping text and reasoning.
+See [context configuration](running.md#compact-minimal-results-and-observation-history).
+This does not relax the identity-only restrictions of OpenCode, Claude Code or
+Antigravity. Minimal result presentation is shared independently of context
+policy; native SDK compaction remains owned by its backend.
