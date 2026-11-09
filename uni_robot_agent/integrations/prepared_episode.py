@@ -7,8 +7,9 @@ from pydantic import ValidationError
 
 from uni_robot_agent.artifacts.run import write_json_atomic
 from uni_robot_agent.integrations.base import EpisodeOutcome
+from uni_robot_agent.integrations.composition import assemble_tools
 from uni_robot_agent.services.environment.client import EnvironmentClient, EnvironmentRequestError
-from uni_robot_agent.services.environment.contracts import FinishRequest, RequestRejected
+from uni_robot_agent.services.environment.contracts import CaptureRequest, FinishRequest, RequestRejected
 from uni_robot_agent.services.environment.device_contracts import DeviceEpisodeInfo, parse_state, parse_reply
 from uni_robot_agent.telemetry.logging import get_logger
 from uni_robot_agent.tools.toolkit import ToolOutput
@@ -87,6 +88,37 @@ class Episode:
         if reply.snapshot is not None:
             self.latest_snapshot = reply.snapshot
 
+    def observation(self, cameras=None):
+        """Resolve current RGB and same-frame calibration without replaying motion."""
+        descriptors = {camera.name: camera for camera in self.description.environment.cameras}
+        names = list(descriptors) if cameras is None else cameras
+        if not names or not set(names) <= descriptors.keys():
+            raise ValueError("Observation requires available cameras")
+
+        def complete(snapshot):
+            if snapshot is None or snapshot["state_version"] != self.state.state_version:
+                return False
+            for name in names:
+                frame = snapshot["cameras"].get(name)
+                if frame is None or frame.get("rgb") is None:
+                    return False
+                if descriptors[name].has_calibration and (
+                    frame.get("intrinsic_K") is None or frame.get("T_world_from_optical") is None
+                ):
+                    return False
+            return True
+
+        snapshot = self.latest_snapshot
+        if not complete(snapshot):
+            snapshot = self.env.capture(CaptureRequest(cameras=names))
+            if not complete(snapshot):
+                raise ValueError("Captured observation lacks current RGB or declared camera calibration")
+            self.latest_snapshot = snapshot
+            if self.recent_observations and self.recent_observations[-1]["state"]["state_version"] == self.state.state_version:
+                self.recent_observations[-1]["snapshot_id"] = snapshot["snapshot_id"]
+        self.artifact_mirror.mirror_ref(snapshot["manifest"])
+        return snapshot
+
     def finalize(self, *, reason, status=None, summary=""):
         if not self.finished:
             if not self.env.uncertain:
@@ -119,9 +151,11 @@ class Episode:
 class PreparedEpisodeSession:
     """Own connections and assemble explicitly supplied tool providers."""
 
-    def __init__(self, context, *, configure_tools, requirements_loader=None):
+    def __init__(self, context, *, binding_factory=None, requirements_loader=None, validate_episode=None):
         self.context, self.args = context, context.args
-        self.configure_tools = configure_tools
+        self.binding_factory = binding_factory
+        self.validate_episode = validate_episode
+        self.tool_assembly = None
         self.requirements_loader = requirements_loader
         self.episode = self.result = None
         self.tool_providers = ()
@@ -138,6 +172,8 @@ class PreparedEpisodeSession:
         env = EnvironmentClient(args.env_url, tracer=self.context.tracer)
         try:
             info = env.connect()
+            if args.tool_profile == "minimal" and any(camera.has_depth for camera in info.environment.cameras):
+                raise ValueError("minimal supports RGB only; start the environment service with depth disabled")
             args._episode_identity = info.model_dump(mode="json")
             args.camera_depth_enabled = {camera.name: camera.has_depth
                                          for camera in info.environment.cameras}
@@ -151,7 +187,10 @@ class PreparedEpisodeSession:
                 self.episode.instruction = args.instruction
             if self.requirements_loader is not None:
                 self.episode.task_requirements = self.requirements_loader(info.task)
-            self.tool_providers = tuple(self.configure_tools(self))
+            if self.validate_episode is not None:
+                self.validate_episode(self)
+            self.tool_assembly = assemble_tools(self, self.context.tool_modules)
+            self.tool_providers = self.tool_assembly.providers
         except BaseException:
             self.close()
             if self.episode is None:

@@ -5,6 +5,20 @@ reviewer selects a bounded prefix, stops, or uses a correction capability expose
 by the integration. Every next chunk uses a fresh observation, including after
 Direct motion. A discarded suffix is never replayed.
 
+## Tool composition
+
+Select `--tool-profile hybrid` on RoboDojo, RoboUse or RoboLab; binding admission
+still depends on the actual environment/controller and actor profile. The
+`--action-profile hybrid` alias remains supported. Direct profiles instantiate
+skills, scene, gripper and episode providers; Hybrid adds a configured
+`HybridTools` provider and its runtime prompt resources.
+
+The Hybrid module creates actor/reviewer clients through session ownership.
+Direct does not instantiate an empty Hybrid provider. Explicit visibility
+debugging can still declare `actor_act` under Direct, but invocation reports
+unavailability and never starts an actor service. Execution return modes and
+episode resource exclusion remain independent of the selected profile.
+
 ## Responsibilities
 
 | Layer | Owns | Does not own |
@@ -106,3 +120,54 @@ Keep a selected checkpoint's training semantics, normalization, camera identity,
 control point and timing consistent with the declared profile. CPU fixtures verify
 contracts, receipts, ordering and conversion. They do not establish physical
 safety, task success, or pretrained VLA quality on new environments.
+
+## Coordinated dexterous devices
+
+DexJoCo uses `dexjoco_tcp_hand` with the same actor/reviewer runner and bounded
+execution loop as other integrations. Its environment publishes arm, hand and
+assembly devices. `CoordinatedDeviceStep` carries named TCP poses and named finger
+joint targets; the native adapter validates the entire target before advancing
+one control step. One acknowledged step completes one model sample.
+
+The binding preserves the model's physical semantics, converts rotation vectors
+to quaternions, and explicitly records the native actuator clipping applied to
+finger targets. It never substitutes scalar gripper openings or an IK controller.
+Capabilities admit student/stop review; Direct and EEF corrections are unavailable.
+The first released model recipe and native task are single-arm `pick_bucket`.
+Dual-arm layout fixtures do not establish dual-arm native task validation.
+
+Model loading belongs to the generic OpenPI backend; source, training config,
+normalizer and image mapping belong to its recipe. A new compatible environment
+provides an environment adapter and binding, while reusing the backend and runner.
+See [DexJoCo](dexjoco.md) for the reproducible single-task checks.
+
+
+## Reviewer decision contract and evidence
+
+An enabled reviewer submits exactly one `submit_review` function call. Separate
+reasoning is permitted; prose, multiple calls, incomplete responses and malformed
+arguments never authorize motion. The function schema describes the current
+request ID, action budget and binding correction capabilities. Optional correction
+fields remain optional in the provider schema (`strict: false`); local validation
+requires exactly the fields for the selected mode and enforces all cross-field
+constraints before execution.
+
+`assessment.execution_status=not_started` means that the entire native episode
+has not executed an action. It does not mean a new local phase or an unachieved
+subgoal. When the binding supplies `episode_started`, the schema exposes only
+statuses consistent with that observed history, and local validation checks it.
+
+A rejected decision receives at most one repair request for the same captured
+observation, proposal and request ID. Repair never calls the actor again or
+executes any part of a rejected proposal. Transport failures retain the existing
+bounded transport policy and do not receive this decision-format repair. Two
+rejected decisions stop the tool call with `error_stage=reviewer`; already
+acknowledged actions from earlier chunks remain in its result.
+
+Each review attempt is archived beside its chunk as `NN.review-A.json` and
+`NN.review-A.response`. Metadata contains provider attempt records, timing and
+an accepted decision or error; the response file retains original upstream bytes
+before provider conversion, with its byte count and SHA-256 in the metadata.
+Authorization headers are not included. Failure to persist review evidence stops
+before the approved prefix executes. Chunk context and session summaries retain
+main tool `call_id`, `batch_id` and `execution_id` for tracing zero-action errors.

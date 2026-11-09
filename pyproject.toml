@@ -38,6 +38,7 @@ Documentation = "https://uni-robot-agent.com/docs"
 Homepage = "https://uni-robot-agent.com/"
 
 [project.optional-dependencies]
+antigravity = ["google-antigravity==0.1.23"]
 benchmarks = ["scipy>=1.10", "PyYAML>=6,<7"]
 xpolicylab = ["websockets>=14,<18", "msgpack>=1,<2", "msgpack-numpy==0.4.8"]
 # Compatibility extras: the base package already includes these features.
@@ -78,6 +79,7 @@ namespaces = false
 "uni_robot_agent" = ["py.typed"]
 "uni_robot_agent.resources" = ["prompts/**/*.md", "prompts/robodojo/task_requirements.json", "prompts/robodojo/instruction_supplements.json", "skills/**/*.md"]
 "uni_robot_agent.integrations.robolab" = ["SOURCE.md"]
+"uni_robot_agent.integrations.dexjoco" = ["deployment.toml", "SOURCE.md"]
 "uni_robot_agent.integrations.robodojo" = ["deployment.toml", "SOURCE.md", "UPSTREAM_LICENSE", "environment/*.urdf"]
 
 "uni_robot_agent.integrations.robouse" = ["recipes/*.toml"]

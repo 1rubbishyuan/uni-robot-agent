@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from uni_robot_agent.services.hosting import create_app, serve
 
-from .backends.pi05.config import Pi05Config
+from .backends.openpi.config import resolve_config
 from .routes import build_router
 from .service import ActorService
 
@@ -41,13 +41,14 @@ class SessionConfig(BaseModel):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--backend", choices=["pi05", "xpolicylab"])
+    parser.add_argument("--backend", choices=["openpi", "pi05", "xpolicylab"])
     parser.add_argument("--runtime", choices=["openpi_jax"])
-    parser.add_argument("--profile", choices=["robodojo_pi05"])
+    parser.add_argument("--profile", help="Named native OpenPI deployment recipe")
     parser.add_argument("--model-config", dest="model_config_name")
     parser.add_argument("--checkpoint")
     parser.add_argument("--checkpoint-sha256")
-    parser.add_argument("--xpolicylab-root")
+    parser.add_argument("--xpolicylab-root", help="Compatibility alias for --native-root")
+    parser.add_argument("--native-root")
     parser.add_argument("--identity-output", type=Path)
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
@@ -62,7 +63,7 @@ def main():
     session_settings = settings.pop("sessions", {})
     configured_backend = settings.pop("backend", "pi05")
     backend = args.backend or configured_backend
-    if backend not in {"pi05", "xpolicylab"}:
+    if backend not in {"openpi", "pi05", "xpolicylab"}:
         parser.error(f"Unsupported actor backend: {backend}")
     for field in (
         "runtime",
@@ -71,6 +72,7 @@ def main():
         "checkpoint",
         "checkpoint_sha256",
         "xpolicylab_root",
+        "native_root",
     ):
         if getattr(args, field) is not None:
             settings[field] = getattr(args, field)
@@ -84,8 +86,10 @@ def main():
     ):
         if getattr(args, field) is not None:
             batch_settings[config_key] = getattr(args, field)
-    if backend == "pi05":
-        config = Pi05Config.model_validate(settings)
+    if backend in {"pi05", "openpi"}:
+        config = resolve_config(settings, legacy=backend == "pi05")
+        if config.inference_mode == "single":
+            batch_settings.setdefault("max_batch_size", 1)
     else:
         from .backends.xpolicylab.config import XPolicyLabConfig
 
@@ -97,14 +101,16 @@ def main():
     sessions = SessionConfig.model_validate(session_settings)
     if backend == "xpolicylab" and (batch.max_batch_size != 1 or sessions.max_sessions != 1):
         parser.error("XPolicyLab bridge requires max_batch_size=1 and max_sessions=1")
+    if backend in {"pi05", "openpi"} and config.inference_mode == "single" and batch.max_batch_size != 1:
+        parser.error("This pinned OpenPI API requires max_batch_size=1")
     if batch.max_queue_size < batch.max_batch_size:
         parser.error("max_queue_size must be at least max_batch_size")
     if args.cuda_device is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_device
-    if backend == "pi05":
-        from .backends.pi05.backend import Pi05Backend
+    if backend in {"pi05", "openpi"}:
+        from .backends.openpi.backend import OpenpiBackend
 
-        model = Pi05Backend(config)
+        model = OpenpiBackend(config)
     else:
         from .backends.xpolicylab.backend import XPolicyLabBackend
 

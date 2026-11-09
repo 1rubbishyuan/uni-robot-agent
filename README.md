@@ -28,6 +28,10 @@
 
 ## What's New
 
+**Hybrid** now separates shared orchestration, reusable actor backends and integration-specific bindings. [DexJoCo](docs/dexjoco.md) adds dexterous-hand manipulation with OpenPI/Pi0.5. [Learn more](docs/hybrid.md).
+
+**Minimal mode** offers a simple three-tool baseline (`move`, `hold`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
+
 **Code as Policy** is here: control robots with code. Enable it with
 `--interaction-mode code_as_policy`. [Learn more](docs/code-as-policy.md).
 
@@ -46,6 +50,8 @@ the dashboard are included in the package.
 Experimental [OpenCode and Gemini CLI adapters](docs/external-cli-backends.md)
 add Qwen-backed runtime options. They require separate CLI installations and
 live compatibility validation; Gemini also requires the documented ACP bridge.
+The optional [Antigravity SDK backend](docs/antigravity.md) adds a pinned Python
+SDK runtime for Qwen tool-calling runs.
 
 The harness follows four design principles:
 
@@ -141,7 +147,10 @@ for remote-host access and other options.
 | **RoboUse** | Selected tasks from LIBERO, RoboCasa, MetaWorld, RoboSuite, ManiSkill, Tabletop, Fetch and Kitchen; also Menagerie, composed-robot, Genesis and Factory task adapters | [Tasks](https://github.com/Open-RUA/uni-robot-agent/blob/main/scripts/robouse/README.md) |
 | **LIBERO-Plus / PRO** | Official perturbation suites through separately prepared Direct services | [Integration](docs/libero-extensions.md) |
 | **RoboTwin 2.0** | ALOHA AgileX dual-arm tasks through a separately prepared Direct service | [Integration](docs/robotwin.md) |
+| **RMBench** | Native memory-dependent dual-arm tasks with four camera views | [Integration](docs/rmbench.md) |
+| **CALVIN** | Native Panda single-task episodes; no five-task chain runner | [Integration](docs/calvin.md) |
 | **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
+| **DexJoCo** | Dexterous-hand manipulation with a Panda arm and 16-DoF Allegro hand using Hybrid Pi0.5 control | [Integration](docs/dexjoco.md) |
 
 ### Real robots
 

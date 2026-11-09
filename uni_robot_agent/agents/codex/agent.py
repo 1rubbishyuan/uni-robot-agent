@@ -179,6 +179,12 @@ class CodexAgent(CodexConfig):
             config_overrides.append(
                 f"model_instructions_file={json.dumps(str(instructions.resolve()))}"
             )
+        if prompt.images:
+            from base64 import b64encode
+            turn_input = [openai_codex.TextInput(text=turn_input), *(
+                openai_codex.ImageInput(url=f"data:{image.mime_type};base64,{b64encode(image.data).decode('ascii')}")
+                for image in prompt.images
+            )]
         if model_endpoint:
             config_overrides.extend(
                 [
@@ -314,7 +320,7 @@ class CodexAgent(CodexConfig):
         openai_codex: Any,
         config: Any,
         turn_options: dict,
-        turn_input: str,
+        turn_input: Any,
         max_turns: int,
         state: dict[str, Any],
         event_bus: EventBus | None,

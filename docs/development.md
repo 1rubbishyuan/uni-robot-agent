@@ -118,7 +118,7 @@ these boundaries do not require every contribution to touch only one directory.
 4. Supply model/resource bindings where the family needs them: robot geometry,
    joint/control decoding, posture resources or storage. Bindings return domain
    data/results, not tool providers or arbitrary tool dispatch functions.
-5. Register the integration and reuse the family composition and prepared
+5. Declare the supported tool profiles and reuse the family composition and prepared
    lifecycle. Register additional clients with the session's ownership mechanism;
    use its artifact store. Do not clone the episode or close outer-owned stores.
 6. Add focused tests and deployment instructions. When migrating an existing
@@ -128,6 +128,49 @@ Adding an environment should principally change its integration, registration,
 tests and documentation. If it reveals a missing shared capability, implement
 that capability in the owning layer explicitly, rather than hiding a private
 toolset inside the environment. Do not require unrelated backends to implement it.
+
+## Declare tool compositions
+
+An integration declares its profiles explicitly:
+
+```python
+from uni_robot_agent.integrations.gripper import (
+    DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec,
+)
+
+spec = build_gripper_spec(
+    name="example",
+    create_session=create_session,
+    tool_profiles={"direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS},
+)
+```
+
+Declare only profiles whose bindings the integration can supply. A custom profile
+is another ordered tuple of modules; it does not require a branch in the shared
+session. `IntegrationSpec.default_tool_profile` defaults to `direct` and can be
+set explicitly when constructing the spec.
+
+Define a new `ToolModule` with a provider factory and that family's policies.
+Factories receive the prepared session, reuse `session.episode`, and register
+clients with `session.own()` before any later initialization can fail. Tool
+schemas and handlers stay in `tools/`. The module's optional `runtime_prompts`
+names refer to packaged runtime files and optional same-named integration notes.
+Provider-specific prompt contributions are collected from instantiated providers.
+
+A module may supply `declare_unavailable` for explicit debug ablations. It must
+not connect services or grant disabled permissions; unavailable invocations must
+report that state. Keep this declaration separate from the executable factory.
+The executor owns JobTools and their foreground/background visibility.
+
+Migration from the former assembly API: replace `configure_tools` callbacks and
+`IntegrationSpec.eval_tool_names/tool_policies` with profile declarations.
+`IntegrationContext.tool_modules` carries the selection; custom sessions expose
+a `tool_assembly` built with `assemble_tools`. Native preparation validation can
+use `PreparedEpisodeSession(validate_episode=...)`; native outcome handling
+remains in the integration's session.
+
+Run `PYTHONPATH=. python scripts/validation/tool_composition.py` for CPU
+composition, configuration, visibility and resource-lifecycle checks.
 
 ## Add a tool or a capability
 

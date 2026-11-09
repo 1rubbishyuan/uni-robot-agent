@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from uni_robot_agent.tools.toolkit import ImageAttachment
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
@@ -18,6 +20,7 @@ class Prompt:
     user: str
     system: str | None = None
     sources: tuple[str, ...] = ()
+    images: tuple[ImageAttachment, ...] = ()
 
     def flatten(self) -> str:
         """Flatten input for agents accepting a single string."""
@@ -40,7 +43,7 @@ class Prompt:
         if user:
             next_user = _append_text(next_user, user)
         sources = self.sources + ((source,) if source else ())
-        return Prompt(user=next_user, system=next_system, sources=sources)
+        return replace(self, user=next_user, system=next_system, sources=sources)
 
 
 @dataclass(frozen=True)
@@ -54,11 +57,13 @@ class PromptContext:
     session_dir: Path | None = None
     observation_profile: str = "none"
     action_profile: str | None = None
+    tool_profile: str = "direct"
     skill_writing: bool = False
     interaction_mode: str = "tool_calling"
     tool_return_mode: str = "background"
     resource_scheduling: str = "per-resource"
     tool_names: tuple[str, ...] = ()
+    tool_prompt_resources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -81,7 +86,7 @@ def assemble_prompt(
 ) -> Prompt:
     """Append enabled runtime guidance, then persist the complete agent input."""
     prompts = get_prompts_dir()
-    prompt = _append_resource(base, prompts / "runtime" / "common.md")
+    prompt = _append_resource(base, prompts / "runtime" / ("minimal.md" if context.tool_profile == "minimal" else "common.md"))
     if context.tool_return_mode not in {"immediate", "background"}:
         raise ValueError(f"Invalid tool return mode: {context.tool_return_mode}")
     if context.resource_scheduling not in {"per-resource", "global-serial"}:
@@ -91,11 +96,13 @@ def assemble_prompt(
     resources = ("code_as_policy.md",) if context.interaction_mode == "code_as_policy" else (
         "tool_calling.md", "batch.md", f"resource_{context.resource_scheduling}.md", f"return_{context.tool_return_mode}.md",
     )
+    if context.tool_profile == "minimal":
+        resources = ("tool_calling.md", "return_immediate.md")
     for name in resources:
         prompt = _append_resource(prompt, prompts / "runtime" / name)
-    if context.action_profile == "hybrid" and "actor_act" in context.tool_names:
-        prompt = _append_resource(prompt, prompts / "runtime" / "hybrid.md")
-        prompt = _append_integration_resource(prompt, context.integration_name, "hybrid.md")
+    for name in context.tool_prompt_resources:
+        prompt = _append_resource(prompt, prompts / "runtime" / name)
+        prompt = _append_integration_resource(prompt, context.integration_name, name)
     if context.skill_writing:
         namespace = context.integration_name
         if context.episode is not None:
@@ -111,7 +118,7 @@ def assemble_prompt(
                 user=contribution.user,
                 source=contribution.source,
             )
-    if context.session_dir is not None:
+    if context.session_dir is not None and context.tool_profile != "minimal":
         path = prompts / "runtime" / "storage_access.md"
         prompt = prompt.append(
             system=_render(path, {
@@ -120,6 +127,7 @@ def assemble_prompt(
             }),
             source=str(path),
         )
+    if context.session_dir is not None:
         (context.session_dir / "effective_prompt.md").write_text(
             prompt.flatten(), encoding="utf-8",
         )

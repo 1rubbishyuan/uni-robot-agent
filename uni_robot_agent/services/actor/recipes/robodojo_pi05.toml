@@ -6,3 +6,64 @@ asset_repository = "RoboDojo-Benchmark/RoboDojo"
 asset_revision = "269457a3b42d8d0ae69898a601f2c1487c2f826e"
 # The pinned OpenPI uv.lock overrides NumPy <2 for JAX; rerun is unused by inference.
 dependency_exceptions = ["rerun-sdk 0.26.2 has requirement numpy>=2, but you have numpy 1.26.4."]
+
+installer = "uv-sync"
+project = "policy/Pi_05/openpi"
+submodules = true
+uv_version = "0.9.5"
+uv_groups = ["lerobot"]
+asset_patterns = ["ckpt/RoboDojo/Pi_05/**"]
+
+[actor]
+model = "pi05"
+runtime = "openpi_jax"
+model_config_name = "pi05_base_aloha_full_sim_arx-x5_seed_0"
+source_revision = "432f82b1758c5b1202e42a3dfe014546dbc50871"
+source_sha256 = "807d83318fe6c48da1cb4da6627e2313cf072561c756fe8a754d4285d33ac229"
+pythonpath = ["policy/Pi_05/openpi/src", "policy/Pi_05/openpi/packages/openpi-client/src"]
+assets_id = "arx_x5_sim"
+inference_mode = "native"
+image_keys = {cam_high = "cam_high", cam_left_wrist = "cam_left_wrist", cam_right_wrist = "cam_right_wrist"}
+image_container = "images"
+image_layout = "CHW"
+resize = [224, 224]
+policy_rng_seed = 0
+
+[actor.profile]
+name = "robodojo_pi05"
+cameras = ["cam_high", "cam_left_wrist", "cam_right_wrist"]
+observation_fields = [
+  {name = "left_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0.0, maximum = 1.0},
+  {name = "right_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_gripper", unit = "normalized", semantics = "normalized_opening", minimum = 0.0, maximum = 1.0},
+]
+action_fields = [
+  {name = "left_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "left_gripper", unit = "normalized", semantics = "normalized_opening"},
+  {name = "right_joint_0", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_1", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_2", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_3", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_4", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_joint_5", unit = "rad", semantics = "joint_position", frame = "arx_x5_joint"},
+  {name = "right_gripper", unit = "normalized", semantics = "normalized_opening"},
+]
+action_horizon = 50
+control_frequency_hz = 25.0
+image_convention = "RGB HWC; pinned runtime resizes with padding to 224 and converts to CHW"

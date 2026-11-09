@@ -103,6 +103,9 @@ def build_parser(integration_spec=None) -> argparse.ArgumentParser:
         "--skill-writing", action=argparse.BooleanOptionalAction, default=False,
         help="Enable writing Markdown experience within the episode skill namespace",
     )
+    common.add_argument("--tool-profile",
+        choices=tuple(integration_spec.tool_profiles) if integration_spec else None,
+        help="Integration tool composition; defaults to its declared default profile")
     visibility = common.add_argument_group("Tool visibility debugging")
     visibility.add_argument(
         "--tool-debug", action="store_true",

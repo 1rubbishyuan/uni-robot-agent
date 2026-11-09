@@ -15,10 +15,15 @@ checkpoints remain separate.
 | `libero_plus` | Official LIBERO-Plus perturbation tasks, Direct control | [Separate pinned LIBERO-Plus runtime](libero-extensions.md) |
 | `robotwin` | RoboTwin 2.0 dual-arm tasks, Direct control | [Pinned RoboTwin runtime and assets](robotwin.md) |
 | `libero_pro` | Selected official LIBERO-PRO suites, Direct control | [Separate pinned LIBERO-PRO runtime](libero-extensions.md#libero-pro) |
+| `rmbench` | Memory-dependent dual-arm manipulation, Direct control | [Pinned RMBench runtime and assets](rmbench.md) |
+| `calvin` | Single-task Panda episodes, Direct control | [Pinned CALVIN environment and annotations](calvin.md) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
+| `dexjoco` | MuJoCo Panda/Allegro manipulation through Hybrid | Pinned DexJoCo environment and an identified OpenPI actor |
 
 These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo supports Direct and Hybrid; RoboUse, RoboLab, LIBERO-Plus, LIBERO-PRO and RoboTwin support Direct only.
+RoboDojo, RoboUse and RoboLab declare Direct and Hybrid tool profiles; Hybrid
+requires an admitted environment/controller and actor binding. LIBERO-Plus,
+LIBERO-PRO, RoboTwin, RMBench and CALVIN declare Direct only.
 RoboLab has no automatic setup/deploy recipe. Use
 SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
 localization requires paired depth and calibration; RGB triangulation requires
@@ -90,6 +95,41 @@ the agent connection does not disable service-side depth acquisition.
 The harness also supports optional depth localization and physical RGB-D sensors.
 These capabilities do not establish that a run uses the paper's RGB-only setting.
 See [runtime defaults](running.md#single-episode-cli) for capability selection.
+
+### Minimal robot tools
+
+All eight gripper integrations support `--tool-profile minimal`: RoboDojo,
+RoboUse, RoboLab, RoboTwin, LIBERO-Plus, LIBERO-PRO, RMBench and CALVIN.
+It exposes `move`, `hold` and `finish`, reusing the same schemas, controllers,
+execution receipts and outcome storage as Direct. `move` already accepts a
+gripper opening, so separate grasp/release tools are unnecessary.
+
+Minimal selects immediate tool returns and omits skill, scene, Hybrid, observer,
+workspace and background-job tools. Explicit background returns, tool debugging,
+skill writing, observation profiles and Code as Policy are rejected. Planner
+SDK native computation/file tools retain their existing configuration. Direct
+remains the default; Direct/Hybrid tool visibility and scheduling are unchanged.
+
+Start the environment with depth disabled (for example RoboDojo `--no-depth`).
+An external `--env-url` must already describe a depth-disabled service. Minimal
+supports calibrated RGB and cameras that explicitly declare no calibration;
+it does not expose a depth setting or silently change the connected service.
+Initial input includes RGB images, measured robot state and per-image calibration.
+Codex, Claude Code, Gemini CLI, OpenCode and Antigravity accept these images as
+multimodal user input. The shared artifact store retains images and snapshot
+manifests; `initial_observation.json` records the initial image/state references.
+
+Completed gripper actions in every profile reuse their final snapshot when it
+contains current images and the camera's declared calibration. Otherwise they
+capture once after the model-level action, not after every primitive. Returned
+`camera_calibration` includes `intrinsic_K` and `T_world_from_optical` for the
+attached image grids, together with `image_state_version` and `snapshot_id`.
+The latter transform maps optical coordinates into world metres. This may add
+capture latency on RoboDojo, whose ordinary tiled snapshots lack calibration.
+Missing declared calibration or a stale capture produces an `artifact_error`
+while preserving the acknowledged action feedback; it never replays motion.
+Cameras declaring calibration unavailable, including distorted LIBERO-Plus
+agent views, retain null matrices instead of fabricated geometry.
 
 ### Camera-calibration ablation
 
@@ -188,6 +228,19 @@ requirements, coordinate frames and supported features. The integration uses RGB
 and calibrated multi-view triangulation, with the optional `robolab_droid_joint`
 actor binding and no SAM3 binding.
 
+## DexJoCo
+
+`--integration dexjoco` connects a prepared native device episode to the shared
+Hybrid tools. The first admitted task is `pick_bucket`, using the public
+single-arm Pi0.5 checkpoint. The binding maps measured TCP/finger state and
+absolute TCP/finger actions to one coordinated native control step. The native
+OSC and Allegro controllers retain their original physics and task budget.
+
+The integration requires Hybrid and exposes actor execution with optional
+student/stop review. Direct motion and geometric action corrections are not
+provided. Official task success is recorded only at finalization. See
+[DexJoCo setup and validation](dexjoco.md) for exact support and baseline limits.
+
 ## Model bindings and backends
 
 All Hybrid integrations share `ActorClient`, `ActorService`, `HybridTools` and
@@ -200,6 +253,7 @@ one execution loop. The integration selects its binding through a factory;
 | RoboDojo X5 | `robodojo_x5_joint` | Absolute X5 joints and continuous normalized openings at 25 Hz |
 | RoboLab DROID | `robolab_droid_joint` | Seven measured joints plus normalized finger angle; joint and physical-gap targets |
 | RoboUse LIBERO / RoboCasa | `robouse_cartesian` | World public-control-point absolute poses or latest-ACK-relative deltas; native rotation constraints |
+| DexJoCo | `dexjoco_tcp_hand` | Absolute world TCP pose plus named Allegro finger positions in one native step |
 
 Except for the pinned legacy Pi0.5 path, bindings validate semantics without
 requiring a particular backend runtime. XPolicyLab can serve any of these
@@ -208,7 +262,7 @@ checkpoint change is deployment configuration. A new representation needs an
 explicit binding conversion or reusable capability, not another actor loop.
 See [Hybrid extension and migration](hybrid.md), the
 [XPolicyLab bridge](services.md#xpolicylab-bridge), and
-[service profiles](services.md#pi05-deployment-profiles).
+[service profiles](services.md#openpi-deployment-profiles).
 
 ## Integration contract
 
@@ -253,9 +307,10 @@ Shared tools and HTTP protocols stay in `tools/` and
 
 ### Prepared episode composition
 
-Reuse `PreparedEpisodeSession(context, configure_tools=...)` for URL-backed
-episodes. Its callback creates providers against `session.episode` and registers
-auxiliary clients with `session.own()`. The session closes them even if later
+Declare ordered tool modules on `IntegrationSpec.tool_profiles` and reuse
+`PreparedEpisodeSession(context, binding_factory=...)` for URL-backed episodes.
+The selected `context.tool_modules` create providers against `session.episode`
+and register auxiliary clients with `session.own()`. The session closes them even if later
 setup fails, then releases its environment client. The outer session owns
 `IntegrationContext.artifacts`; integrations use that store without closing it
 or creating their own image copies.

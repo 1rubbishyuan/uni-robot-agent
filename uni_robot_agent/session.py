@@ -89,6 +89,7 @@ def assemble_session(args) -> SessionAssembly:
                 session_dir=session_dir,
                 artifacts=artifacts,
                 tracer=telemetry.tracer,
+                tool_modules=integration_spec.tool_profiles[args.tool_profile],
             )
         )
         session.start()
@@ -100,19 +101,16 @@ def assemble_session(args) -> SessionAssembly:
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             action_profile=getattr(args, "action_profile", None),
+            tool_profile=args.tool_profile, tool_modules=args.tool_modules,
         )
 
-        tool_providers = (*session.tool_providers, WorkspaceProvider())
-        tools = [tool for provider in tool_providers for tool in provider.get_tools()]
-        if getattr(args, "command", "run") == "run":
-            visible_names = set(integration_spec.eval_tool_names)
-            if visible_names and getattr(args, "skill_writing", False):
-                visible_names.add("write_skill")
-            tools = (
-                [tool for tool in tools if tool.name in visible_names]
-                if visible_names
-                else tools
-            )
+        assembly = session.tool_assembly
+        tools = assembly.tools
+        policies = assembly.policies
+        workspace = WorkspaceProvider()
+        # File helpers remain TUI-only unless explicitly selected for an ablation.
+        if getattr(args, "command", "run") != "run" and args.tool_profile != "minimal":
+            tools.extend(workspace.get_tools())
 
         profile_name = getattr(args, "observation_profile", "none")
         if profile_name != "none":
@@ -131,7 +129,8 @@ def assemble_session(args) -> SessionAssembly:
         prompt_tool_names = tuple(sorted(tool.name for tool in tools))
         selection = None
         if getattr(args, "tool_debug", False):
-            declared = [tool for provider in tool_providers for tool in provider.get_declared_tools()]
+            declared, policies = assembly.debug_catalog(session, integration_spec.debug_modules)
+            declared.extend(workspace.get_declared_tools())
             declared.extend(observation_profile.tools if observation_profile is not None
                             else ObservationTools(None).get_declared_tools())
             selection = select_tools(declared, getattr(args, "tools", ()))
@@ -140,7 +139,6 @@ def assemble_session(args) -> SessionAssembly:
         toolkit = Toolkit()
         # Preserve tool order so provider composition does not change model-visible schema order.
         toolkit.register_tools(sorted(tools, key=lambda tool: tool.name))
-        policies = dict(integration_spec.tool_policies)
         listeners = ()
         if observation_profile is not None:
             policies.update(observation_profile.policies)
@@ -174,16 +172,38 @@ def assemble_session(args) -> SessionAssembly:
             session_dir=session_dir,
             observation_profile=profile_name,
             action_profile=getattr(args, "action_profile", None),
+            tool_profile=args.tool_profile,
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             tool_names=prompt_tool_names,
+            tool_prompt_resources=assembly.runtime_prompts,
             skill_writing=getattr(args, "skill_writing", False),
         )
         contributions = tuple(getattr(observation_profile, "prompt_contributions", ()))
+        initial_images, initial_metadata = (), None
+        if args.tool_profile == "minimal":
+            from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
+            episode = session.episode
+            snapshot = episode.observation()
+            initial_images = tuple(snapshot_images(episode.env, snapshot, mirror=episode.artifact_mirror))
+            initial_metadata = {
+                "state": episode.state.model_dump(mode="json"),
+                "remaining_steps": episode.remaining_steps,
+                **snapshot_metadata(snapshot, [image.name for image in initial_images],
+                                    mirror=episode.artifact_mirror),
+                "image_cameras": [image.name for image in initial_images],
+            }
+            (session_dir / "initial_observation.json").write_text(
+                json.dumps(initial_metadata, indent=2, allow_nan=False) + "\n")
 
         def build_prompt(task: str):
             context = replace(prompt_context, task=task)
             base_prompt = prompt_builder(context)
+            if initial_metadata is not None:
+                base_prompt = replace(base_prompt, images=initial_images).append(
+                    user="Initial RGB observation (images in image_cameras order):\n"
+                         + json.dumps(initial_metadata, allow_nan=False),
+                )
             for provider in session.tool_providers:
                 for contribution in provider.prompt_contributions:
                     base_prompt = base_prompt.append(
@@ -789,7 +809,7 @@ def _run_agent(
         endpoint = gateway.start() if gateway is not None else None
         if interaction_mode == "code_as_policy":
             from uni_robot_agent.context.code_as_policy import prepare_code_policy
-            from uni_robot_agent.execution.code_as_policy.bridge import CodePolicyBridge, DirectToolsDisabled
+            from uni_robot_agent.execution.code_as_policy.bridge import CodePolicyBridge, DirectSkillTools
 
             code_bridge = CodePolicyBridge(request["executor"], event_bus=event_bus)
             code_url = code_bridge.start()
@@ -807,7 +827,7 @@ def _run_agent(
                      ]))},
                 finish_request=lambda: code_bridge.finish_request, revoke=code_bridge.revoke,
             )
-            request["executor"] = DirectToolsDisabled()
+            request["executor"] = DirectSkillTools(code_bridge)
         result = agent.run(model_endpoint=endpoint, **request)
         if result.stop_reason or result.error:
             cancel_agent(result.stop_reason or "agent_error")

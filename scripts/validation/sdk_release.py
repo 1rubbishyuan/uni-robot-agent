@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import venv
+from pathlib import Path
 
 
 def main():
@@ -18,6 +18,7 @@ def main():
     parser.add_argument('wheel', type=Path)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--installer', choices=('pip', 'uv'), default='pip')
+    parser.add_argument('--antigravity', action='store_true', help='Also install and check the optional SDK')
     parser.add_argument('--wheelhouse', type=Path)
     parser.add_argument('--upgrade-from', help='Install this published main-package version before upgrading')
     args = parser.parse_args()
@@ -37,7 +38,7 @@ def main():
     source = ['--no-index', '--find-links', args.wheelhouse.resolve()] if args.wheelhouse else []
     if args.upgrade_from:
         command([*install, *source, f'uni-robot-agent=={args.upgrade_from}'])
-    command([*install, *source, wheel])
+    command([*install, *source, str(wheel) + ('[antigravity]' if args.antigravity else '')])
     command([python, '-I', '-c', '''import pathlib,sys,uni_robot_agent
 for name in uni_robot_agent.__all__:
     getattr(uni_robot_agent, name)
@@ -50,11 +51,15 @@ print('Installed SDK:', uni_robot_agent.__file__)
     command([executable, '--version'])
     command([executable, '--help'])
     command([python, '-m', 'uni_robot_agent', '--version'])
-    for integration in ('robodojo', 'robouse'):
+    for integration in ('robodojo', 'robouse', 'robolab', 'robotwin', 'libero_plus',
+                        'libero_pro', 'rmbench', 'calvin'):
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
-                 '--model', 'validation-model', '--env-url', 'http://127.0.0.1:18760',
-                 '--no-sam3', '--agent-python', python, '--validate-config'])
+                 '--model', 'validation-model', '--task', 'validation-task',
+                 '--env-url', 'http://127.0.0.1:18760',
+                 '--no-sam3', '--tool-profile', 'direct',
+                 '--agent-python', python, '--validate-config'])
     for backend, runtime_options in (
+        ('antigravity', []),
         ('opencode', ['--opencode-version', 'offline-candidate']),
         ('gemini_cli', ['--gemini-version', 'offline-candidate',
                         '--gemini-bridge-manifest', 'offline-manifest.json']),
@@ -63,14 +68,26 @@ print('Installed SDK:', uni_robot_agent.__file__)
                  '--agent', backend, '--model', 'qwen-validation',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
                  '--provider-url', 'https://provider.invalid/v1', *runtime_options, '--validate-config'])
+    if args.antigravity:
+        command([python, '-I', '-c', '''from importlib.metadata import distribution
+from pathlib import Path
+from google.antigravity import Agent, LocalAgentConfig
+from uni_robot_agent.agents.antigravity.config import SDK_VERSION
+dist = distribution('google-antigravity')
+assert dist.version == SDK_VERSION
+assert Path(dist.locate_file('google/antigravity/bin/localharness')).is_file()
+assert callable(Agent) and callable(LocalAgentConfig)
+print('Optional Antigravity SDK:', dist.version)
+'''])
     for integration, binding in (('robodojo', 'robodojo_pi05'),
                                  ('robodojo', 'robodojo_x5_joint'),
                                  ('robolab', 'robolab_droid_joint'),
-                                 ('robouse', 'robouse_cartesian')):
+                                 ('robouse', 'robouse_cartesian'),
+                                 ('dexjoco', 'dexjoco_tcp_hand')):
         command([python, '-m', 'uni_robot_agent', 'run', '--integration', integration,
                  '--task', 'validation-task', '--model', 'validation-model',
                  '--env-url', 'http://127.0.0.1:18760', '--no-sam3',
-                 '--action-profile', 'hybrid', '--action-model-binding', binding,
+                 '--tool-profile', 'hybrid', '--action-model-binding', binding,
                  '--action-model-url', 'http://127.0.0.1:18761',
                  '--action-model-checkpoint-sha256', 'a' * 64, '--no-vla-review',
                  '--agent-python', python, '--validate-config'])
@@ -91,8 +108,10 @@ from uni_robot_agent.integrations.robodojo.action_binding import create_binding 
 from uni_robot_agent.integrations.robolab.action_binding import create_binding as droid_binding
 from uni_robot_agent.integrations.robouse.action_binding import create_binding as cartesian_binding
 from uni_robot_agent.tools.hybrid.provider import HybridTools
+from uni_robot_agent.integrations.dexjoco.action_binding import create_binding as dexjoco_binding
+from uni_robot_agent.services.actor.backends.openpi.config import resolve_config, recipe_settings
 import sys
-assert all(callable(factory) for factory in (x5_binding, droid_binding, cartesian_binding))
+assert all(callable(factory) for factory in (x5_binding, droid_binding, cartesian_binding, dexjoco_binding))
 assert not any(name in sys.modules for name in ('isaacsim', 'mujoco', 'torch', 'scipy'))
 root = Path(uni_robot_agent.__file__).parent
 assert callable(get_prompt_builder('robodojo'))
@@ -100,11 +119,49 @@ assert callable(get_prompt_builder('robouse'))
 for resource in ('ui/web/static/index.html', 'ui/web/static/app.js',
                  'agents/opencode/bridge.js', 'agents/gemini_cli/robotBridge.ts',
                  'integrations/robodojo/deployment.toml',
-                 'integrations/robouse/recipes/libero.toml'):
+                 'integrations/robouse/recipes/libero.toml',
+                 'integrations/dexjoco/deployment.toml', 'integrations/dexjoco/SOURCE.md',
+                 'resources/prompts/dexjoco/hybrid.md', 'resources/skills/dexjoco/index.md',
+                 'services/actor/recipes/robodojo_pi05.toml',
+                 'services/actor/recipes/dexjoco_pick_bucket.toml'):
     assert (root / resource).is_file(), resource
 session = Session(SessionConfig(integration='robouse',
     env_url='http://127.0.0.1:18760', no_sam3=True))
 session.close()  # Validate configuration only; do not connect or finalize an episode.
+for profile, widths in (("robodojo_pi05", (14,14,50)), ("dexjoco_pick_bucket", (23,22,30))):
+    config = resolve_config(dict(profile=profile, native_root="/unused/source",
+        checkpoint="/unused/checkpoint", checkpoint_sha256="a" * 64))
+    assert (len(config.profile.observation_fields), len(config.profile.action_fields),
+            config.profile.action_horizon) == widths
+    assert recipe_settings(profile)["actor"]["model"] == "pi05"
+    SetupConfig(service="actor", profile=profile).resolve()
+from uni_robot_agent.services.environment.device_contracts import CoordinatedDeviceStep, DeviceRequest
+step = CoordinatedDeviceStep(device="robot", joints={"hand": {"finger": .1}})
+assert DeviceRequest.model_validate_json(DeviceRequest(command=step,
+    expected_state_version=0).model_dump_json()).command == step
+SetupConfig(integration="dexjoco").resolve()
+DeploymentConfig(integration="dexjoco", task="pick_bucket", depth=False).resolve()
+assert not any(name in sys.modules for name in ("mujoco", "jax", "openpi", "torch", "scipy"))
+resolved = SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                         no_sam3=True, tool_profile='direct').resolve()
+assert resolved.tool_profile == 'direct'
+assert resolved.tool_modules == ('skills', 'scene', 'gripper', 'episode')
+legacy = SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                       no_sam3=True, integration_options={'action_profile': 'direct'}).resolve()
+assert legacy.tool_modules == resolved.tool_modules
+dex = SessionConfig(integration='dexjoco', env_url='http://127.0.0.1:18788',
+    action_model_url='http://127.0.0.1:18769', no_sam3=True, tool_profile='hybrid',
+    integration_options={'action_model_checkpoint_sha256': 'a' * 64,
+                         'vla_review': False}).resolve()
+assert dex.tool_modules == ('skills', 'scene', 'hybrid', 'episode')
+try:
+    SessionConfig(integration='robouse', env_url='http://127.0.0.1:18760',
+                  no_sam3=True, tool_profile='direct',
+                  integration_options={'action_profile': 'hybrid'}).resolve()
+except ValueError as error:
+    assert 'select different' in str(error)
+else:
+    raise AssertionError('Conflicting tool selectors accepted')
 SetupConfig(integration='robodojo')
 DeploymentConfig(integration='robodojo', task='stack_bowls')
 rgb = DeploymentConfig(integration='robodojo', task='stack_bowls',

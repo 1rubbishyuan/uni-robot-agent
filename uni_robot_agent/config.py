@@ -135,6 +135,16 @@ def resolve_settings(args, integration_spec, *, explicit=(), agent_enabled=True)
 
             create_context_policy(args.context_policy, **context["context_options"])
     get_prompt_builder(args.integration)
+    from uni_robot_agent.integrations.composition import resolve_tool_profile
+
+    resolve_tool_profile(args, integration_spec)
+    if args.tool_profile == "minimal":
+        if "--tool-return-mode" in explicit and args.tool_return_mode != "immediate":
+            raise ValueError("minimal requires --tool-return-mode immediate (no job-control tools)")
+        if (args.observation_profile != "none" or args.skill_writing or args.tool_debug
+                or args.interaction_mode != "tool_calling"):
+            raise ValueError("minimal requires tool_calling without observation profiles, skill writing or tool debugging")
+        args.tool_return_mode = "immediate"
     integration_spec.validate_cli(args)
     if getattr(args, "skill_writing", False):
         from uni_robot_agent.tools.skills import skill_root
@@ -267,6 +277,7 @@ class SessionConfig(BaseModel):
     resource_scheduling: Literal["per-resource", "global-serial"] = "per-resource"
     observation_profile: str = "none"
     skill_writing: bool = False
+    tool_profile: str | None = None
     tool_debug: bool = False
     tools: list[str] = Field(default_factory=list)
     save_exchanges: bool = True

@@ -4,6 +4,9 @@ Experimental OpenCode and Gemini CLI adapters are described in
 [External CLI backends](external-cli-backends.md), including Qwen conversion,
 runtime requirements, tool identity and outstanding live validation.
 
+The optional [Antigravity SDK backend](antigravity.md) uses the same executor and
+Qwen gateway with its own lifecycle and pinned GenerateContent dialect.
+
 `uni_robot_agent/agents/` owns agent-specific configuration, SDK lifecycle,
 tool dispatch, event interpretation and native artifact export. `session.py`
 invokes a registered agent without switching on its name. Robot tools and
@@ -29,7 +32,7 @@ This setting requires the Codex backend; Claude Code rejects it.
 ## Adding an agent
 
 1. Add a package under `agents/<name>/` with `__init__.py`.
-2. Declare `model_protocol` (`responses` or `messages`) on the agent configuration
+2. Declare `model_protocol` (`responses`, `messages` or `gemini`) on the agent configuration
    and implement the synchronous, single-task contract in `agents/contracts.py`. An SDK may
    use an event loop internally; it must finish cleanup before `run` returns.
 3. Add its lazy import path to `agents/registry.py`. SDK imports belong in
@@ -132,7 +135,9 @@ and cancellation. These checks can run without a commercial model or robot.
 ## Program-driven control
 
 Both adapters accept the optional `CodePolicyContext` supplied by Session in
-`code_as_policy` mode. Native processes inherit its cwd/environment; direct robot
-MCP tools are empty. Cancellation revokes new program calls, and completion
+`code_as_policy` mode. Native processes inherit its cwd/environment. The direct
+MCP tool list exposes registered skill listing and reading; robot observations,
+actions and completion remain in programs. Cancellation revokes new calls through
+either entry, and completion
 requires its executed finish receipt plus normal SDK termination. See
 [Code as Policy](code-as-policy.md) for the program API and lifecycle.

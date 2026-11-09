@@ -1,13 +1,22 @@
 """Optional device protocol; no scalar gripper or simulated step counters."""
 
 from typing import Annotated, Any, Literal
+
 from pydantic import Field, model_validator
-from .contracts import Contract, CameraDescription, FiniteFloat, Pose, RequestIdentity, Vector3
+
+from .contracts import (
+    CameraDescription,
+    Contract,
+    FiniteFloat,
+    Pose,
+    RequestIdentity,
+    Vector3,
+)
 
 
 class DeviceDescription(Contract):
     name: str
-    kind: Literal["arm", "hand"]
+    kind: Literal["arm", "hand", "assembly"]
     joint_names: list[str] = Field(default_factory=list)
     joint_limits: list[tuple[FiniteFloat, FiniteFloat]] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
@@ -103,7 +112,33 @@ class DeviceOperation(Contract):
     duration_s: FiniteFloat = Field(default=1.0, gt=0)
 
 
-DeviceCommand = Annotated[JointSegment | PoseSegment | DeviceOperation, Field(discriminator="kind")]
+class CoordinatedDeviceStep(Contract):
+    """Apply named component targets together in one native control step.
+
+    The routing device is an assembly. Its adapter validates membership, frames,
+    joint limits and completeness before any component advances.
+    """
+
+    kind: Literal["coordinated_step"] = "coordinated_step"
+    device: str = Field(min_length=1)
+    poses: dict[str, Pose] = Field(default_factory=dict, max_length=64)
+    joints: dict[str, dict[str, FiniteFloat]] = Field(default_factory=dict, max_length=64)
+
+    @model_validator(mode="after")
+    def named_targets(self):
+        if not self.poses and not self.joints:
+            raise ValueError("Provide at least one coordinated target")
+        if any(not name for name in (*self.poses, *self.joints)):
+            raise ValueError("Coordinated targets require nonempty device names")
+        if any(not targets or any(not name for name in targets) for targets in self.joints.values()):
+            raise ValueError("Joint targets require nonempty named positions")
+        return self
+
+
+DeviceCommand = Annotated[
+    JointSegment | PoseSegment | DeviceOperation | CoordinatedDeviceStep,
+    Field(discriminator="kind"),
+]
 
 
 class DeviceRequest(Contract):

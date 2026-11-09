@@ -33,7 +33,8 @@ def validate_cli(args):
 def get_integration_spec():
     from . import prompt  # Register environment context without loading Isaac.
     from .session import create_session
-    from uni_robot_agent.integrations.gripper import build_gripper_spec
+    from uni_robot_agent.integrations.gripper import MINIMAL_TOOLS, DIRECT_TOOLS, HYBRID_TOOLS, build_gripper_spec
     return replace(build_gripper_spec(name="robolab", create_session=create_session,
+                              tool_profiles={"minimal": MINIMAL_TOOLS, "direct": DIRECT_TOOLS, "hybrid": HYBRID_TOOLS},
                                      add_cli_args=add_cli_args, validate_cli=validate_cli, config_model=RobolabOptions),
                    allow_automatic_retry=False)
