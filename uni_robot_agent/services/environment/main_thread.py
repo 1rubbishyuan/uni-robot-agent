@@ -1,4 +1,4 @@
-"""Marshal Arena operations onto the main thread required by Isaac Kit."""
+"""Marshal native simulator operations onto their required main thread."""
 from concurrent.futures import Future
 from queue import Empty, Queue
 import threading
@@ -22,7 +22,7 @@ class NativeOwner:
 
     def pump(self):
         if threading.get_ident() != self.thread:
-            raise RuntimeError("Only the Arena main thread may execute native operations")
+            raise RuntimeError("Only the simulator main thread may execute native operations")
         try:
             operation, args, kwargs, result = self.queue.get(timeout=.1)
         except Empty:
@@ -33,7 +33,7 @@ class NativeOwner:
             result.set_exception(error)
 
 
-def serve_native(owner, service, server):
+def serve_native(owner, service, server, *, is_running):
     """Keep servicing accepted work while HTTP and service shutdown complete."""
     errors = []
     def start():
@@ -41,10 +41,10 @@ def serve_native(owner, service, server):
             server.start()
         except BaseException as error:
             errors.append(error)
-    host = threading.Thread(target=start, name="arena-http")
+    host = threading.Thread(target=start, name="environment-http")
     host.start()
     try:
-        while host.is_alive() and owner.backend.app.is_running():
+        while host.is_alive() and is_running():
             owner.pump()
     finally:
         server.request_stop()
@@ -56,10 +56,10 @@ def serve_native(owner, service, server):
                 service.close()
             except BaseException as error:
                 errors.append(error)
-        closer = threading.Thread(target=close, name="arena-shutdown")
+        closer = threading.Thread(target=close, name="environment-shutdown")
         closer.start()
         while closer.is_alive():
             owner.pump()
         closer.join()
     if errors:
-        raise RuntimeError("Arena HTTP service failed") from errors[0]
+        raise RuntimeError("Native HTTP service failed") from errors[0]

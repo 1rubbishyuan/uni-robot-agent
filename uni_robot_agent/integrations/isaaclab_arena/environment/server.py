@@ -26,7 +26,7 @@ def prepare(args):
 def main():
     from uni_robot_agent.artifacts.store import ArtifactStore
     from uni_robot_agent.services.environment.device_contracts import DeviceEpisodeInfo
-    from .owner import NativeOwner, serve_native
+    from uni_robot_agent.services.environment.main_thread import NativeOwner, serve_native
     from uni_robot_agent.services.environment.routes import build_router
     from uni_robot_agent.services.environment.service import EnvironmentService
     from uni_robot_agent.services.hosting import HttpServer, create_app
@@ -47,7 +47,7 @@ def main():
         service = EnvironmentService(adapter, info, artifacts)
         service.initialize()
         server = HttpServer(create_app(build_router(service)), host=args.host, port=args.port)
-        serve_native(adapter, service, server)
+        serve_native(adapter, service, server, is_running=adapter.backend.app.is_running)
     finally:
         if service is not None:
             service.close()
