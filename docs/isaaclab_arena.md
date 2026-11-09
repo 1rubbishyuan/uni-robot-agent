@@ -40,14 +40,14 @@ weights use NVIDIA's noncommercial license; review the linked model card.
 
 ```bash
 uni-robot-agent setup --service actor --profile arena_g1_gr00t
-uni-robot-agent setup --service env --integration isaaclab_arena
+uni-robot-agent setup --integration isaaclab_arena
 ```
 
 Setup downloads pinned source and weights into its runtime cache. On an already
 prepared official native environment, adopt it explicitly:
 
 ```bash
-uni-robot-agent setup --service env --integration isaaclab_arena \
+uni-robot-agent setup --integration isaaclab_arena \
   --runtime-python /path/to/arena/python --native-root /path/to/arena
 uni-robot-agent setup --service actor --profile arena_g1_gr00t \
   --runtime-python /path/to/gr00t/python --native-root /path/to/gr00t \

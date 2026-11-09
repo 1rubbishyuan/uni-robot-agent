@@ -5,7 +5,7 @@ set -euo pipefail
 : "${ACTOR_URL:?Set the OpenPI actor service URL}"
 : "${ACTOR_CHECKPOINT_SHA256:?Set the verified checkpoint identity}"
 : "${PROVIDER_URL:?Set the planner model provider URL}"
-: "${MODEL:?Set the planner model name}"
+MODEL="${MODEL:-qwen3.8-flash}"
 
 uni-robot-agent run \
   --integration behavior \

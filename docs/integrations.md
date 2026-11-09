@@ -19,15 +19,25 @@ checkpoints remain separate.
 | `calvin` | Single-task Panda episodes, Direct control | [Pinned CALVIN environment and annotations](calvin.md) |
 | `robolab` | RoboLab DROID, Direct scalar-gripper control | Prepared RoboLab/Isaac environment; RGB cameras |
 | `dexjoco` | MuJoCo Panda/Allegro manipulation through Hybrid | Pinned DexJoCo environment and an identified OpenPI actor |
+| `behavior` | Experimental R1Pro wheeled mobile manipulation through Hybrid | [BEHAVIOR runtime/assets and OpenPI actor](behavior.md) |
+| `isaaclab_arena` | Experimental G1 humanoid loco-manipulation through Hybrid | [Arena runtime/assets and GR00T actor](isaaclab_arena.md) |
+| `navila` | Experimental Go2 quadruped navigation through Hybrid | [NaVILA-Bench runtime/scenes and NaVILA actor bridge](navila.md) |
 
-These simulation integrations share scene, gripper, skill and episode tools.
-RoboDojo, RoboUse and RoboLab declare Direct and Hybrid tool profiles; Hybrid
-requires an admitted environment/controller and actor binding. LIBERO-Plus,
-LIBERO-PRO, RoboTwin, RMBench and CALVIN declare Direct only.
-RoboLab has no automatic setup/deploy recipe. Use
-SAM3 only where the integration supports it; otherwise pass `--no-sam3`. Depth-based pixel
-localization requires paired depth and calibration; RGB triangulation requires
-at least two calibrated views.
+Each integration composes its supported tools. RoboDojo, RoboUse and RoboLab
+provide Direct and Hybrid profiles; Hybrid requires an admitted controller and
+actor binding. LIBERO-Plus, LIBERO-PRO, RoboTwin, RMBench and CALVIN provide Direct
+only. DexJoCo, BEHAVIOR, Arena and NaVILA provide Hybrid with scene, skill and
+episode tools, without Direct gripper tools. Actor STOP yields to the planner,
+which decides when to call `finish`; native termination and metrics remain
+authoritative.
+
+The three new mobile adapters have CPU contract validation; native learned-policy
+rollouts remain unverified. Arena requires NVIDIA driver 580.65.06 or newer,
+and NaVILA's pinned Isaac Sim 4.1 runtime does not support Blackwell. Consult
+the individual guides before preparing runtimes. RoboLab has no automatic
+setup/deploy recipe. Use SAM3 only where supported; otherwise pass `--no-sam3`.
+Depth localization requires paired depth and calibration; RGB triangulation
+requires at least two calibrated views.
 
 ## Real-robot release status
 
@@ -49,7 +59,8 @@ configuration check. The CLI is `uni-robot-agent`; the Python package is `uni_ro
 `--env-url` points to an already prepared episode, including its full allocated
 path when using a pool. The harness checks optional expected identity fields;
 it does not use them to create or reset a simulator. The episode's metadata
-provides its task instruction, arms, cameras, calibration and action binding.
+provides its task instruction, available arms/devices, cameras, calibration and
+action binding. Profiles need not expose scalar grippers.
 `--instruction` overrides the instruction for the agent and actor.
 
 | Tool family | Interface |

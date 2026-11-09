@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Generalize Hybrid predictions to numeric chunks and symbolic navigation, with
+  source-clock camera history and coordinated joint/base/height commands. Keep
+  `actor_act` and existing numeric bindings on the shared execution path.
+- Add experimental BEHAVIOR R1Pro/Pi0.5, IsaacLab Arena G1/GR00T and NaVILA-Bench
+  Go2/NaVILA integrations. CPU contract checks do not establish native rollouts;
+  pinned runtime and GPU limits are documented in each integration guide.
+- Centralize lazy actor backend registration and delegate configuration and
+  preparation to each backend. OpenPI recipes reuse one inference implementation.
+- Upgrade actor HTTP protocol to v3: clients and services must upgrade and restart
+  together. New mobile adapters use device protocol/tool schema `devices-2`;
+  existing scalar and `devices-1` environments retain their contracts.
+
 - Add an offline `uni-robot-agent doctor` command that checks the installed
   package split, required and optional dependencies, agent CLI binaries,
   provider profiles, integration imports, skills root, output-directory

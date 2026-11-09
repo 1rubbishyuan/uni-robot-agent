@@ -62,7 +62,7 @@ For a direct service launch, adapt
 The setup verification reports the checkpoint identity needed by the agent.
 
 Run [`behavior_hybrid.sh`](../examples/behavior_hybrid.sh) against both prepared
-services. The example disables the optional reviewer. Remove `--no-vla-review`
+services. The example defaults to Qwen `qwen3.8-flash` and disables the optional reviewer. Remove `--no-vla-review`
 when enabling it and configure its provider as described in [running](running.md).
 The agent still decides when to invoke `actor_act` in either case.
 
@@ -71,7 +71,7 @@ The agent still decides when to invoke `actor_act` in either case.
 | Boundary | Meaning |
 |---|---|
 | Captured observations | Native 61D robot proprioception and head/left-wrist/right-wrist RGB |
-| OpenPI input transform | Extracts the original 23D model state; gripper state is physical aperture |
+| OpenPI input transform | Extracts the original 23D model state; gripper state is physical finger position |
 | OpenPI output | 32 samples of 23 values; native output transforms already restore joint deltas |
 | Base action | Normalized model command maps to local x/y velocity up to 0.75 m/s and yaw up to 1 rad/s |
 | Torso and arms | Absolute named joint positions in radians |
