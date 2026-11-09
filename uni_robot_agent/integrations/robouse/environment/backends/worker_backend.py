@@ -65,5 +65,8 @@ class WorkerBackend(Backend):
     def capture(self, cameras, depth):
         return unpack_frames(self.worker.call("capture", cameras=cameras, depth=depth))
 
+    def robot_model(self):
+        return self.worker.call("robot_model")
+
     def close(self):
         self.worker.close()

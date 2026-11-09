@@ -60,6 +60,11 @@ class LiberoAdapter:
             metadata={"control_constraints": self.binding.constraint, "observation_source": "native_libero_wrapper"},
         )
 
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources, mujoco_robot_model
+        model = self.binding.model
+        add_robot_resources(self.description, model=mujoco_robot_model(
+            model, [model.site_bodyid[entry[1]] for entry in self.binding.entries]))
+
     def episode_identity(self):
         return self.instruction, self.metadata
 

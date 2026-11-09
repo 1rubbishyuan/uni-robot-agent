@@ -85,6 +85,8 @@ class RoboLabAdapter:
                     **self.model.public, "drive_parameters": self.metadata.get("drive_parameters")}},
             },
         )
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources
+        add_robot_resources(self.description, manual=self.description.metadata["robot_manual"])
         return self._state()
 
     def _native_robot_state(self):

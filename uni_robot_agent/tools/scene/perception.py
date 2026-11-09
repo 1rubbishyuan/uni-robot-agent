@@ -34,6 +34,7 @@ def snapshot_metadata(manifest, cameras, *, mirror):
     return {
         "snapshot_id": manifest["snapshot_id"],
         "image_state_version": manifest["state_version"],
+        "observation_path": str(mirror.local_path(manifest["manifest"])),
         "captured_at": manifest["captured_at"],
         "camera_calibration": {name: {
             "image_size": manifest["cameras"][name]["image_size"],

@@ -70,6 +70,10 @@ class Worker:
             self.held_opening = float(np.clip(np.abs(array(self.native.u.joint_pos)[0, 7:9]).mean()/.04, 0, 1))
         return {"cameras": meta["cameras"], "family": family}
 
+    def robot_model(self):
+        from uni_robot_agent.integrations.robouse.environment.robot_reference import worker_model
+        return worker_model(self)
+
     def control_state(self):
         n, family = self.native, self.family
         extra = {}
