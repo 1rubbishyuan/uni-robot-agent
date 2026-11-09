@@ -31,10 +31,11 @@ episode tools, without Direct gripper tools. Actor STOP yields to the planner,
 which decides when to call `finish`; native termination and metrics remain
 authoritative.
 
-The three new mobile adapters have CPU contract validation; native learned-policy
-rollouts remain unverified. Arena requires NVIDIA driver 580.65.06 or newer,
-and NaVILA's pinned Isaac Sim 4.1 runtime does not support Blackwell. Consult
-the individual guides before preparing runtimes. RoboLab has no automatic
+The three new mobile adapters have CPU contract validation; their current native
+validation results and limitations are summarized in [Hybrid](hybrid.md).
+Arena uses its pinned official Isaac Sim 5.1 branch; NaVILA's pinned Isaac Sim
+4.1 runtime does not support Blackwell. Consult the individual guides before
+preparing runtimes. RoboLab has no automatic
 setup/deploy recipe. Use SAM3 only where supported; otherwise pass `--no-sam3`.
 Depth localization requires paired depth and calibration; RGB triangulation
 requires at least two calibrated views.

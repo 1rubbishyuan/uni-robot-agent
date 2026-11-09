@@ -28,7 +28,7 @@
 
 ## What's New
 
-**Hybrid** now supports numeric action chunks and navigation instructions through reusable actor backends and integration-owned bindings. New experimental adapters cover [R1Pro mobile manipulation](docs/behavior.md), [G1 humanoids](docs/isaaclab_arena.md) and [Go2 navigation](docs/navila.md), alongside [DexJoCo dexterous hands](docs/dexjoco.md). Native rollouts for the three new adapters remain unverified. [Learn more](docs/hybrid.md).
+**Hybrid** now supports numeric action chunks and navigation instructions through reusable actor backends and integration-owned bindings. New experimental adapters cover [R1Pro mobile manipulation](docs/behavior.md), [G1 humanoids](docs/isaaclab_arena.md) and [Go2 navigation](docs/navila.md), alongside [DexJoCo dexterous hands](docs/dexjoco.md). Native validation is in progress; these adapters do not yet establish benchmark performance. [Learn more](docs/hybrid.md).
 
 **Minimal mode** offers a simple three-tool baseline (`move`, `hold`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
 

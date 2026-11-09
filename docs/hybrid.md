@@ -150,11 +150,18 @@ control point and timing consistent with the declared profile. CPU fixtures veri
 contracts, receipts, ordering and conversion. They do not establish physical
 safety, task success, or pretrained VLA quality on new environments.
 
-The BEHAVIOR R1Pro, Arena G1 and NaVILA Go2 adapters have CPU contract checks,
-not validated native learned-policy rollouts. Arena's pinned Isaac Sim 6.2/CUDA 13
-stack requires driver 580.65.06 or newer; NaVILA's Isaac Sim 4.1 stack cannot run
-on Blackwell GPUs. BEHAVIOR requires separately installed native assets/runtime
-and task-compatible weights. The [BEHAVIOR](behavior.md), [Arena](isaaclab_arena.md)
+The BEHAVIOR R1Pro, Arena G1 and NaVILA Go2 adapters have CPU contract checks.
+A Qwen + Pi0.5 R1Pro run executed 3,024 native control steps; the official task
+result was unsuccessful and the original run had a finalization error. A G1
+planner run also executed, but an initial box-motion anomaly reproduces without
+actor inference, so it is not a valid policy evaluation. NaVILA model inference
+has run; native Go2 navigation remains unverified.
+
+Arena uses the pinned official Isaac Sim 5.1 branch with CPU physics and GPU
+rendering. NaVILA's pinned Isaac Sim 4.1 stack cannot run on Blackwell GPUs;
+experimental newer-runtime diagnostics do not change that supported contract.
+BEHAVIOR requires separately installed native assets/runtime and task-compatible
+weights. The [BEHAVIOR](behavior.md), [Arena](isaaclab_arena.md)
 and [NaVILA](navila.md) guides describe setup and remaining acceptance work.
 Their examples default to Qwen with review disabled.
 
