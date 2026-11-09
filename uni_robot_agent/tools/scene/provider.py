@@ -1,4 +1,6 @@
 """Read and localize immutable scenes without owning motion or lifecycle."""
+from dataclasses import replace
+
 from uni_robot_agent.context.prompt import PromptContribution
 from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
 from uni_robot_agent.services.environment.contracts import CaptureRequest
@@ -111,17 +113,30 @@ def tool_specs(cameras, *, segmentation_enabled=True, depth_cameras=None, calibr
 class SceneTools(ToolProvider):
     provider_id = "scene"
 
-    def __init__(self, episode, *, perception=None):
+    def __init__(self, episode, *, perception=None, names=NAMES):
         self.episode = episode
         self.perception = perception
+        if not names or len(set(names)) != len(names) or not set(names) <= set(NAMES):
+            raise ValueError("Select distinct supported scene tools")
+        self.names = tuple(names)
 
     def _specs(self):
         cameras = self.episode.description.environment.cameras
-        return tool_specs([camera.name for camera in cameras], segmentation_enabled=self.perception is not None,
+        specs = tool_specs([camera.name for camera in cameras], segmentation_enabled=self.perception is not None,
                           depth_cameras=[camera.name for camera in cameras if camera.has_depth],
                           calibrated_cameras=[camera.name for camera in cameras if camera.has_calibration],
                           scene_geometry=self.episode.description.environment.metadata.get("scene_geometry", False),
                           device_episode=self.episode.description.protocol_version == "devices-1")
+        specs = [spec for spec in specs if spec.name in self.names]
+        if "locate" not in self.names:
+            channels = "RGB, depth and calibration" if any(camera.has_depth for camera in cameras) else (
+                "RGB and calibration" if any(camera.has_calibration for camera in cameras) else "RGB")
+            specs = [replace(spec, description=(
+                f"Capture {channels} without advancing action steps. Select cameras or omit for all views. "
+                "RGB is attached; observation_path is the readable immutable snapshot JSON. "
+                "Calibration, when available, belongs to each returned image grid."))
+                if spec.name == "capture_scene" else spec for spec in specs]
+        return specs
 
     @property
     def prompt_contributions(self):
@@ -145,9 +160,11 @@ class SceneTools(ToolProvider):
     def robot_reference(self):
         metadata = self.episode.description.environment.metadata
         ref = metadata.get("artifacts", {}).get("robot_calibration")
+        resources = self.episode.robot_resources()
+        result = {"robot_resources": resources} if resources else {}
         if ref is None:
-            return {}
-        return {"robot_calibration_path": str(self.episode.artifact_mirror.local_path(ref)),
+            return result
+        return {**result, "robot_calibration_path": str(self.episode.artifact_mirror.local_path(ref)),
                 "robot_calibration_sha256": ref["sha256"],
                 "robot_manual": metadata["robot_manual"]}
 

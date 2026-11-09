@@ -168,7 +168,8 @@ It replaces the fixed provider tuple and the separate evaluation-name whitelist.
 Each of the eight environment entry points declares its supported profiles.
 Shared `DIRECT_TOOLS`, `HYBRID_TOOLS` and `MINIMAL_TOOLS` definitions avoid copying
 tool lists. Minimal composes a selected `GripperTools` subset (`move`, `hold`)
-with `EpisodeTools` (`finish`). It starts with a persisted multimodal observation;
+with capture-only `SceneTools` and `EpisodeTools` (`finish`). Capture-only
+composition does not configure perception. It starts with a persisted multimodal observation;
 see [minimal tool behavior and calibration](integrations.md#minimal-robot-tools).
 Hybrid is instantiated only when selected; environment bindings still own native
 semantic conversion. Duplicate module names and overlapping policy names fail
@@ -180,6 +181,14 @@ can expose unavailable tools without opening their services. Prompt resources
 follow the configured composition before debug visibility filtering, preserving
 the existing ablation contract. Workspace and Observation retain their existing
 session-level assembly paths.
+
+Integration adapters own robot reference extraction. The environment service
+publishes their declared JSON/text payloads into the existing artifact store;
+`Episode` resolves exact local paths through the shared hash-verified mirror.
+Session assembly supplies the resource manifest once in initial input, while
+scene tools also return it on demand. Observation paths reference the stored
+snapshot JSON; camera matrices remain attached to each image/state version.
+The service and tools do not dispatch on integration names or read native assets.
 
 ## Service boundaries
 

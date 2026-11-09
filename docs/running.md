@@ -255,7 +255,7 @@ uni-robot-agent run --integration robouse --model MODEL \
 
 For the [minimal robot tool set](integrations.md#minimal-robot-tools), select
 `--tool-profile minimal` and connect to an environment with depth disabled.
-It exposes only `move`, `hold` and `finish` as harness tools and selects immediate
+It exposes only `move`, `hold`, `capture_scene` and `finish` as harness tools and selects immediate
 returns automatically. The first model input includes RGB, state and calibration;
 no initial `capture_scene` call is needed. Native SDK helpers keep their existing
 configuration. Direct and Hybrid keep their current defaults and execution modes.

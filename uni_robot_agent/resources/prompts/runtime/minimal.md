@@ -1,4 +1,4 @@
-Use move, hold and finish to complete the instruction. Physical calls share one
+Use move, hold, capture_scene and finish to complete the instruction. Physical calls share one
 exclusive episode queue; order calls by intended submission sequence. Inspect
 completed feedback before dependent actions.
 
@@ -15,6 +15,10 @@ measured arm poses and existing gripper commands while consuming control steps;
 use it for justified settling or continued opening, then inspect the result.
 
 Initial input and completed actions include RGB images and measured robot state.
+Use capture_scene for fresh or additional camera views without advancing control
+steps, including after image publication failure. Omit cameras for all views.
+Read observation_path for the stored snapshot; it preserves the returned image
+calibration. Do not use dummy motion or hold calls just to obtain observations.
 Camera matrices belong to the named image and image_state_version, not a future
 view. intrinsic_K maps optical coordinates to image pixels; T_world_from_optical
 maps optical coordinates to world metres. Disabled or unsupported calibration
