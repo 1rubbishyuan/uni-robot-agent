@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Clarify minimal-mode gripper sequencing, action budgets, recovery and
+  evidence required before submitting task completion.
+
 - Add an offline `uni-robot-agent doctor` command that checks the installed
   package split, required and optional dependencies, agent CLI binaries,
   provider profiles, integration imports, skills root, output-directory
