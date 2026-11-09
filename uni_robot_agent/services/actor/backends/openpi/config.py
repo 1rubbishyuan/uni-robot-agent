@@ -1,11 +1,10 @@
 """Native OpenPI configuration; model semantics are supplied by the caller."""
-import tomllib
-from importlib import resources
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from uni_robot_agent.services.actor.contracts import ActorProfile
+from uni_robot_agent.services.actor.config import load_recipe
 
 
 class OpenpiConfig(BaseModel):
@@ -59,10 +58,11 @@ class OpenpiConfig(BaseModel):
 
 
 def recipe_settings(name: str) -> dict:
-    if not name or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789_" for char in name):
-        raise ValueError("Invalid actor recipe name")
-    resource = resources.files("uni_robot_agent.services.actor").joinpath(f"recipes/{name}.toml")
-    return tomllib.loads(resource.read_text())
+    """Compatibility entry point for existing OpenPI callers."""
+    recipe = load_recipe(name)
+    if recipe.settings.get("backend", "openpi") != "openpi":
+        raise ValueError("OpenPI configuration requires an OpenPI recipe")
+    return recipe.settings
 
 
 def resolve_config(settings: dict, *, legacy: bool = False) -> OpenpiConfig:
@@ -82,3 +82,7 @@ def resolve_config(settings: dict, *, legacy: bool = False) -> OpenpiConfig:
         values.pop("profile", None)
         values = {**defaults, **values}
     return OpenpiConfig.model_validate(values)
+
+
+def service_limits(config):
+    return {"max_batch_size": 1} if config.inference_mode == "single" else {}
