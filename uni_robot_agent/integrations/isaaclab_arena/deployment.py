@@ -1,5 +1,4 @@
 """Prepare a pinned Arena runtime; keep simulator requirements out of the planner."""
-from pathlib import Path
 
 from uni_robot_agent.services.deployment.config import LaunchPlan, Recipe
 from uni_robot_agent.services.deployment.runtime import query_python
@@ -29,27 +28,13 @@ def validate(args):
 def external_data(args):
     if not args.native_root:
         raise ValueError("External Arena runtime requires --native-root")
-    return {"native_root": str(args.native_root.expanduser().resolve())}
+    return {"native_root": str(args.native_root.expanduser().resolve()),
+            "assets_dir": str(args.assets_dir.expanduser().resolve()) if args.assets_dir else None}
 
 
 def prepare(context):
-    settings = context.recipe.settings
-    root = Path(context.step("source", lambda: context.git(settings["repository"], settings["revision"],
-                                                         context.root / "source")))
-    lab = Path(context.step("isaaclab-source", lambda: context.git(
-        settings["isaaclab_repository"], settings["isaaclab_revision"], root / "submodules/IsaacLab")))
-    context.step("build-tools", lambda: context.pip("setuptools>=77", "wheel", "toml"))
-    context.step("isaacsim", lambda: context.pip("isaacsim[all,extscache]==5.1.0.0",
-        options=("--extra-index-url", "https://pypi.nvidia.com")))
-    context.step("torch", lambda: context.pip("torch==2.7.0", "torchvision==0.22.0",
-        options=("--index-url", "https://download.pytorch.org/whl/cu128")))
-    # Install only native simulation packages; GR00T owns its separate runtime.
-    for package in sorted((lab / "source").glob("isaaclab*")):
-        context.step(package.name, lambda package=package: context.pip(
-            "-e", package, options=("--no-build-isolation",)))
-    context.step("arena", lambda: context.pip("-e", root, "onnxruntime==1.23.2", "qpsolvers==4.8.1",
-                                            options=("--no-build-isolation",)))
-    context.data["native_root"] = str(root)
+    raise ValueError("Arena requires a prepared official Isaac Sim 5.1 / Lab 2.3 runtime. "
+                     "Supply --runtime-python and --native-root; see docs/isaaclab_arena.md.")
 
 
 def verify(runtime):
@@ -67,6 +52,8 @@ def plan(args, runtime, output, run_id):
         "--native-root", runtime.data["native_root"], "--task", TASK,
         "--run-id", run_id, "--seed", str(seed), "--no-depth",
         "--output-dir", str(output / "environment"), "--host", args.host, "--port", str(port))
+    if runtime.data.get("assets_dir"):
+        command += ("--assets-dir", runtime.data["assets_dir"])
     host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
     return LaunchPlan(command, f"http://{host}:{port}",
         {"integration": "isaaclab_arena", "episode_id": run_id, "metadata.task_id": TASK, "metadata.seed": seed},

@@ -27,8 +27,9 @@ constraints. Review is optional and does not define native task success.
 The planner, actor and simulator have independent interpreters:
 
 - GR00T: Python 3.12, pinned official N1.6 source, Torch 2.7.1/cu128. The recipe
-  follows upstream's dependency lock and uses its official `Gr00tPolicy` and
-  processor directly. It does not require another inference server.
+  verifies the official dependency lock SHA256 and installs it with `--frozen`.
+  The four TensorRT/CUDA13 export packages are excluded; inference uses the
+  official PyTorch `Gr00tPolicy` and processor directly. It does not require another inference server.
 - Arena: Python 3.11, Isaac Sim 5.1 and the official
   `feature/arena_v0.2_on_lab_2.3` branch at the revision in `SOURCE.md`.
   Physics runs on CPU PhysX, as in this branch's published evaluation; RTX
@@ -36,16 +37,21 @@ The planner, actor and simulator have independent interpreters:
   Headless graphics, native libraries and Kit initialization must pass native
   acceptance on the target host.
 
+The actor requires a working C compiler (`CC`) and CUDA 12.8 toolkit
+(`CUDA_HOME`) for its native dependency initialization. Setup verifies them
+without modifying system compilers, drivers or libraries. Supply both as
+`--runtime-env` values so the prepared runtime retains them.
+
 Do not install both native dependency stacks into the planner environment. Install
 matching harness/runtime versions into their respective interpreters. The public
 weights use NVIDIA's noncommercial license; review the linked model card.
 
 ```bash
-uni-robot-agent setup --service actor --profile arena_g1_gr00t
-uni-robot-agent setup --integration isaaclab_arena
+uni-robot-agent setup --service actor --profile arena_g1_gr00t \
+  --runtime-env CC=/path/to/gcc --runtime-env CUDA_HOME=/path/to/cuda-12.8
 ```
 
-Setup downloads pinned source and inference weights into its runtime cache.
+Actor setup downloads pinned source and inference weights into its runtime cache.
 The actor downloads 6.57 GB of model and processor files, excluding optimizer
 and training-state shards. Arena and GR00T do not share a Python environment. On an already
 prepared official native environment, adopt it explicitly:
@@ -57,6 +63,12 @@ uni-robot-agent setup --service actor --profile arena_g1_gr00t \
   --runtime-python /path/to/gr00t/python --native-root /path/to/gr00t \
   --checkpoint /path/to/checkpoint
 ```
+
+Arena currently adopts a prepared native runtime, following the pinned branch's
+[official installation](https://github.com/isaac-sim/IsaacLab-Arena/blob/aad4f25f44cc439c363c2b60f1fd170dfd10d2a5/docker/Dockerfile.isaaclab_arena).
+Install the matching harness runtime in that interpreter first. The upstream
+Isaac Sim and Lab pip metadata contain conflicting web dependencies; the harness
+does not claim a validated automatic installer for this native stack.
 
 Setup records and verifies the actor checkpoint digest. Supply that same digest
 as `--action-model-checkpoint-sha256` to the planner. Deployment never repairs or
@@ -82,10 +94,10 @@ A compatible GPU host must additionally validate startup, camera images, WBC,
 seeded reset, terminal-frame preservation and native-policy versus harness replay.
 Then run the actual planner with fresh observations and bounded actor calls.
 
-The server currently uses the common native-owner thread. Kit thread behavior has
-not been validated for this Arena pin; a native startup failure must be resolved
-before claiming an operational environment. No GPU rollout score is implied by
-the existence of the adapter or a successful dependency preflight.
+The server creates Kit and runs native operations on the main thread; HTTP
+workers submit operations to that owner. Native startup and service execution
+must both pass acceptance before claiming an operational environment. No GPU
+rollout score is implied by a successful dependency preflight.
 
 Native success uses this release's `objects_in_proximity` box/bin predicate
 (x/y/z thresholds 0.260/0.130/0.150 m). Its thirty-second timeout and drop
