@@ -23,6 +23,8 @@ def external_data(args):
 
 def prepare(context):
     settings = context.recipe.settings
+    if not context.args.checkpoint and "asset_repository" not in settings:
+        raise ValueError("This OpenPI recipe requires an externally downloaded --checkpoint")
     source = Path(context.step("source", lambda: context.git(
         settings["repository"], settings["revision"], context.root / "source",
         submodules=settings.get("submodules", False))))
