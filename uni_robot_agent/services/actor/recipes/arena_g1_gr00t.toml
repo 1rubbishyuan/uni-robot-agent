@@ -1,0 +1,97 @@
+name = "actor-arena-g1-gr00t"
+backend = "gr00t"
+python = "python3.12"
+repository = "https://github.com/NVIDIA/Isaac-GR00T.git"
+revision = "9b37aa1ce69c73c6d165233fa88128283bba4508"
+uv_version = "0.9.17"
+asset_repository = "nvidia/GN1x-Tuned-Arena-G1-Loco-Manipulation"
+asset_revision = "dfe74af855007f26093f362cd2d7a2f404b64b93"
+asset_patterns = ["*"]
+
+[actor]
+model = "gr00t_n1_6"
+runtime = "gr00t_native"
+model_config_name = "arena_g1_locomanipulation"
+embodiment_tag = "NEW_EMBODIMENT"
+source_revision = "9b37aa1ce69c73c6d165233fa88128283bba4508"
+language_key = "annotation.human.task_description"
+camera_mapping = {"ego_view" = "head"}
+observation_mapping = {"left_arm" = ["left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint", "left_elbow_joint", "left_wrist_roll_joint", "left_wrist_pitch_joint", "left_wrist_yaw_joint"], "right_arm" = ["right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint", "right_elbow_joint", "right_wrist_roll_joint", "right_wrist_pitch_joint", "right_wrist_yaw_joint"], "left_hand" = ["left_hand_index_0_joint", "left_hand_index_1_joint", "left_hand_middle_0_joint", "left_hand_middle_1_joint", "left_hand_thumb_0_joint", "left_hand_thumb_1_joint", "left_hand_thumb_2_joint"], "right_hand" = ["right_hand_index_0_joint", "right_hand_index_1_joint", "right_hand_middle_0_joint", "right_hand_middle_1_joint", "right_hand_thumb_0_joint", "right_hand_thumb_1_joint", "right_hand_thumb_2_joint"], "waist" = ["waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint"]}
+action_mapping = {"left_arm" = ["left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint", "left_elbow_joint", "left_wrist_roll_joint", "left_wrist_pitch_joint", "left_wrist_yaw_joint"], "right_arm" = ["right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint", "right_elbow_joint", "right_wrist_roll_joint", "right_wrist_pitch_joint", "right_wrist_yaw_joint"], "left_hand" = ["left_hand_index_0_joint", "left_hand_index_1_joint", "left_hand_middle_0_joint", "left_hand_middle_1_joint", "left_hand_thumb_0_joint", "left_hand_thumb_1_joint", "left_hand_thumb_2_joint"], "right_hand" = ["right_hand_index_0_joint", "right_hand_index_1_joint", "right_hand_middle_0_joint", "right_hand_middle_1_joint", "right_hand_thumb_0_joint", "right_hand_thumb_1_joint", "right_hand_thumb_2_joint"], "waist" = ["waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint"], "base_height_command" = ["base_height"], "navigate_command" = ["base_vx", "base_vy", "base_yaw_rate"]}
+
+[actor.profile]
+name = "arena_g1_locomanipulation"
+cameras = ["head"]
+action_horizon = 50
+control_frequency_hz = 50
+image_convention = "RGB HWC; native GR00T processor owns model preprocessing"
+observation_fields = [
+  {"name" = "left_shoulder_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_shoulder_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_shoulder_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_elbow_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "right_shoulder_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_shoulder_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_shoulder_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_elbow_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "left_hand_index_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_index_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_middle_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_middle_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_2_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "right_hand_index_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_index_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_middle_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_middle_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_2_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "waist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+  {"name" = "waist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+  {"name" = "waist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+]
+action_fields = [
+  {"name" = "left_shoulder_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_shoulder_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_shoulder_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_elbow_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "left_wrist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_arm"},
+  {"name" = "right_shoulder_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_shoulder_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_shoulder_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_elbow_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "right_wrist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_arm"},
+  {"name" = "left_hand_index_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_index_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_middle_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_middle_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "left_hand_thumb_2_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "left_hand"},
+  {"name" = "right_hand_index_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_index_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_middle_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_middle_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_0_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_1_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "right_hand_thumb_2_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "right_hand"},
+  {"name" = "waist_yaw_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+  {"name" = "waist_roll_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+  {"name" = "waist_pitch_joint", "unit" = "rad", "semantics" = "joint_position", "control_point" = "waist"},
+  {"name" = "base_height", "unit" = "m", "semantics" = "controller_height_reference", "frame" = "ground", "control_point" = "pelvis"},
+  {"name" = "base_vx", "unit" = "m/s", "semantics" = "linear_velocity", "frame" = "base_heading", "control_point" = "pelvis"},
+  {"name" = "base_vy", "unit" = "m/s", "semantics" = "linear_velocity", "frame" = "base_heading", "control_point" = "pelvis"},
+  {"name" = "base_yaw_rate", "unit" = "rad/s", "semantics" = "angular_velocity", "frame" = "base_heading", "control_point" = "pelvis"},
+]

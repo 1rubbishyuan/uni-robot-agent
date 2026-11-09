@@ -30,6 +30,10 @@ _PACKAGE = "uni_robot_agent.services.actor.backends"
 _BACKENDS = {
     "openpi": BackendDefinition("openpi", f"{_PACKAGE}.openpi", "OpenpiBackend",
                                 f"{_PACKAGE}.openpi.deployment"),
+    "gr00t": BackendDefinition("gr00t", f"{_PACKAGE}.gr00t", "Gr00tBackend",
+                              f"{_PACKAGE}.gr00t.deployment"),
+    "navila": BackendDefinition("navila", f"{_PACKAGE}.navila", "NaVILABackend",
+                               f"{_PACKAGE}.navila.deployment"),
     "xpolicylab": BackendDefinition("xpolicylab", f"{_PACKAGE}.xpolicylab", "XPolicyLabBackend"),
 }
 _ALIASES = {"pi05": "openpi"}
