@@ -14,16 +14,15 @@ from uuid import uuid4
 
 import httpx
 
-from uni_robot_agent.tools.presentation import receipt_summary
 from uni_robot_agent.tools.results import MotionFeedback, ResultFields, ResultState
 
 
 @dataclass(frozen=True)
 class CodeResult:
-    """Original payload/images with optional typed feedback and explicit summary.
+    """Original payload/images with full JSON output and optional typed feedback.
 
     Treat data as a receipt, not mutable robot state. Typed views are constructed
-    lazily; neither inspecting them nor summarizing them performs robot calls.
+    lazily; inspecting them or formatting the full receipt performs no robot calls.
     """
 
     data: dict[str, Any]
@@ -62,16 +61,20 @@ class CodeResult:
     def feedback(self) -> MotionFeedback | None:
         return self._fields.feedback
 
-    def summary(self) -> str:
-        """Return compact receipt JSON for explicit printing; open images separately."""
-        return receipt_summary(self._fields, data=self.data, images=self.images, call_id=self.call_id)
+    def __str__(self) -> str:
+        """Serialize the complete receipt for printing or saving; open images separately."""
+        return json.dumps({
+            "data": self.data,
+            "images": [str(path) for path in self.images],
+            "call_id": self.call_id,
+        }, ensure_ascii=False)
 
 
 class ToolCallError(RuntimeError):
     """A failed tool call; inspect result without automatically replaying it."""
 
     def __init__(self, result: CodeResult):
-        super().__init__(str(result.data))
+        super().__init__(str(result))
         self.result = result
 
 

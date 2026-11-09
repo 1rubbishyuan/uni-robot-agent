@@ -809,7 +809,7 @@ def _run_agent(
         endpoint = gateway.start() if gateway is not None else None
         if interaction_mode == "code_as_policy":
             from uni_robot_agent.context.code_as_policy import prepare_code_policy
-            from uni_robot_agent.execution.code_as_policy.bridge import CodePolicyBridge, DirectToolsDisabled
+            from uni_robot_agent.execution.code_as_policy.bridge import CodePolicyBridge, DirectSkillTools
 
             code_bridge = CodePolicyBridge(request["executor"], event_bus=event_bus)
             code_url = code_bridge.start()
@@ -827,7 +827,7 @@ def _run_agent(
                      ]))},
                 finish_request=lambda: code_bridge.finish_request, revoke=code_bridge.revoke,
             )
-            request["executor"] = DirectToolsDisabled()
+            request["executor"] = DirectSkillTools(code_bridge)
         result = agent.run(model_endpoint=endpoint, **request)
         if result.stop_reason or result.error:
             cancel_agent(result.stop_reason or "agent_error")
