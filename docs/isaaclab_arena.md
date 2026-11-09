@@ -105,3 +105,5 @@ termination remain unchanged. This is the pinned Isaac 5.1 benchmark definition,
 not the redesigned task predicates on Arena main. Calling finish,
 reviewer approval, target tracking and model predictions do not set success.
 Source and weight identities are listed in [SOURCE.md](../uni_robot_agent/integrations/isaaclab_arena/SOURCE.md).
+
+The initial head image is refreshed through the native renderer before it reaches the planner. This refresh checks that both physics counters and the complete native reset-state fingerprint stay unchanged; it does not consume control steps. Native zero-navigation checks currently reproduce a startup box ejection, including through the upstream registered environment, so those trajectories are diagnostic runs and do not establish valid task scores.

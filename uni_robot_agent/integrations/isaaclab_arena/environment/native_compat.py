@@ -84,6 +84,23 @@ def reset_fingerprint(env):
     return digest.hexdigest()
 
 
+
+def refresh_initial_observation(env):
+    """Flush the pinned RTX pipeline without advancing or changing the reset state."""
+    native = env.unwrapped
+    before = reset_fingerprint(native)
+    counters = (native.common_step_counter, native._sim_step_counter)
+    # Isaac Sim 5.1 can return the reset camera before the scene render is ready.
+    for _ in range(4):
+        native.sim.render()
+    native.scene.sensors["robot_head_cam"].update(0., force_recompute=True)
+    observation = native.observation_manager.compute()
+    if ((native.common_step_counter, native._sim_step_counter) != counters
+            or reset_fingerprint(native) != before):
+        raise RuntimeError("Initial camera refresh changed the native reset state")
+    return observation
+
+
 def create_native(path, *, seed, assets_dir=None):
     preflight(path)
     from isaaclab.app import AppLauncher
@@ -117,8 +134,9 @@ def create_native(path, *, seed, assets_dir=None):
         config.seed = seed
         env = TerminalPreservingEnv(cfg=config)
         native = env.unwrapped
-        observation, _ = env.reset(seed=seed)
+        env.reset(seed=seed)
         native.initial_reset_complete = True
+        observation = refresh_initial_observation(env)
         action = native.action_manager.get_term("g1_action")
         if (not np.isclose(native.step_dt, CONTROL_DT) or native.cfg.decimation != 4
                 or action.action_dim != 50 or action.get_wbc_version != "homie_v2"):
