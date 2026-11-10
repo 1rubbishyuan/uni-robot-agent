@@ -159,8 +159,12 @@ native control steps with the original task evaluator reporting success. Before
 that run, aligning the cold spawn with the upstream seeded reset removed the
 box-motion anomaly; three seeds retained the original physics and reset poses.
 This is a single successful episode, not a success-rate estimate or an additional
-post-release settling check. NaVILA inference and native Go2 locomotion have run;
-planner-driven navigation acceptance is still pending.
+post-release settling check. A Qwen + NaVILA Go2 run completed seven `actor_act`
+calls, 23 movement predictions and 1,575 native control steps, then explicitly
+called `finish`. The native evaluator reported success with distance to goal
+1.387 m and SPL 0.834; finalization and outcome readback completed normally.
+This is one episode under the explicit `isaac51` Hybrid profile, not a benchmark
+success rate or an evaluation equivalent to the upstream standalone Isaac 4.1 run.
 
 Arena uses the pinned official Isaac Sim 5.1 branch with CPU physics and GPU
 rendering. NaVILA retains its pinned `isaac41` profile, which rejects Blackwell

@@ -96,9 +96,14 @@ retain their native values.
 ## Validation status
 
 CPU checks cover profile and recipe agreement, native action roundtrips, units,
-clipping, atomic step receipts, cancellation and result isolation. Native runtime
-acceptance and learned-policy rollouts require the separately prepared simulator,
-assets and checkpoint; they have not been established by these CPU checks.
+clipping, atomic step receipts, cancellation and result isolation. A Qwen3.8-flash
+run with the public Pi0.5 checkpoint and review disabled executed 3,024 native
+steps and 189 predictions across 16 motion-producing `actor_act` calls; a final
+seventeenth call was rejected because the episode no longer admitted motion.
+The native `turning_on_radio` result was unsuccessful. The original run also
+exposed a finalization failure; after fixing metric serialization and shutdown
+ordering, a separate native check verified finish, receipt, outcome, records and
+artifact readback. That check does not change the earlier rollout's failed status.
 No benchmark success rate is claimed. The synchronous Hybrid run is not declared
 timing-equivalent to the official standalone policy evaluation.
 
