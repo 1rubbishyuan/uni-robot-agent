@@ -180,6 +180,10 @@ def assemble_session(args) -> SessionAssembly:
             skill_writing=getattr(args, "skill_writing", False),
         )
         contributions = tuple(getattr(observation_profile, "prompt_contributions", ()))
+        references = session.episode.robot_resources() if hasattr(session.episode, "robot_resources") else []
+        if references:
+            (session_dir / "robot_resources.json").write_text(
+                json.dumps(references, indent=2, allow_nan=False) + "\n")
         initial_images, initial_metadata = (), None
         if args.tool_profile == "minimal":
             from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
@@ -199,16 +203,21 @@ def assemble_session(args) -> SessionAssembly:
         def build_prompt(task: str):
             context = replace(prompt_context, task=task)
             base_prompt = prompt_builder(context)
+            if references:
+                base_prompt = base_prompt.append(user=(
+                    "Robot reference resources (read-only exact paths; use native file tools when needed):\n"
+                    + json.dumps(references, allow_nan=False)))
             if initial_metadata is not None:
+                from uni_robot_agent.tools.minimal import result_view
+                model_metadata = result_view(initial_metadata, initial=True)
                 base_prompt = replace(base_prompt, images=initial_images).append(
-                    user="Initial RGB observation (images in image_cameras order):\n"
-                         + json.dumps(initial_metadata, allow_nan=False),
+                    user="Initial RGB observation (images in observation.image_cameras order):\n"
+                         + json.dumps(model_metadata, allow_nan=False, separators=(",", ":")),
                 )
-            for provider in session.tool_providers:
-                for contribution in provider.prompt_contributions:
-                    base_prompt = base_prompt.append(
-                        system=contribution.system, user=contribution.user, source=contribution.source,
-                    )
+            for contribution in assembly.prompt_contributions:
+                base_prompt = base_prompt.append(
+                    system=contribution.system, user=contribution.user, source=contribution.source,
+                )
             return assemble_prompt(base_prompt, context, contributions)
 
         return SessionAssembly(

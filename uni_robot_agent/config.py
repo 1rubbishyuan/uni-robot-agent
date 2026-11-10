@@ -94,8 +94,16 @@ def resolve_settings(args, integration_spec, *, explicit=(), agent_enabled=True)
         for flag in explicit
     ):
         raise ValueError(
-            "context budget/image options require --context-policy sliding_window"
+            "context budget/image options require a non-identity context policy"
         )
+    policy_options = {
+        "observation_window": {"--context-observation-horizon", "--context-image-token-allowance"},
+        "sliding_window": {"--context-target-input-tokens", "--context-keep-observation-blocks",
+                           "--context-min-recent-tool-images", "--context-image-eviction-batch-size"},
+    }
+    for owner, flags in policy_options.items():
+        if args.context_policy != owner and (used := explicit & flags):
+            raise ValueError(f"{sorted(used)[0]} requires --context-policy {owner}")
     local = getattr(args, "deploy", None) == "local"
     if getattr(args, "camera_calibration", None) is not None and not local:
         raise ValueError("--camera-calibration/--no-camera-calibration require --deploy local; "
@@ -130,7 +138,7 @@ def resolve_settings(args, integration_spec, *, explicit=(), agent_enabled=True)
                 "context policy requires --provider-url or UNI_ROBOT_AGENT_PROVIDER_URL"
             )
         context = resolve_context_config(args)
-        if args.context_policy == "sliding_window":
+        if args.context_policy != "identity":
             from uni_robot_agent.context.history import create_context_policy
 
             create_context_policy(args.context_policy, **context["context_options"])
@@ -192,6 +200,13 @@ def resolve_context_config(args) -> dict:
             "min_recent_tool_images": args.context_min_recent_tool_images,
             "image_eviction_batch_size": args.context_image_eviction_batch_size,
         }
+    if policy == "observation_window":
+        options = {
+            "observation_horizon": args.context_observation_horizon,
+            "keep_recent_blocks": args.context_keep_recent_blocks,
+            "max_estimated_input_tokens": getattr(args, "context_max_input_tokens", None),
+            "image_token_allowance": args.context_image_token_allowance,
+        }
     return {"context_policy": policy, "context_options": options}
 
 
@@ -237,7 +252,9 @@ class AgentConfig(BaseModel):
     provider_retries: int = Field(default=2, ge=0)
     provider_retry_backoff_s: int = Field(default=5, ge=0)
     model_parallel_tool_calls: bool = True
-    context_policy: Literal["identity", "sliding_window"] = "identity"
+    context_policy: Literal["identity", "sliding_window", "observation_window"] = "identity"
+    context_observation_horizon: int = Field(default=2, gt=0)
+    context_image_token_allowance: int = Field(default=1536, gt=0)
     context_max_input_tokens: int | None = Field(default=None, gt=0)
     context_target_input_tokens: int | None = Field(default=None, gt=0)
     context_keep_recent_blocks: int = Field(default=4, ge=0)

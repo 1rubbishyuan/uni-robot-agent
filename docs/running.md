@@ -255,7 +255,7 @@ uni-robot-agent run --integration robouse --model MODEL \
 
 For the [minimal robot tool set](integrations.md#minimal-robot-tools), select
 `--tool-profile minimal` and connect to an environment with depth disabled.
-It exposes only `move`, `hold` and `finish` as harness tools and selects immediate
+It exposes only `move`, `hold`, `capture_scene` and `finish` as harness tools and selects immediate
 returns automatically. The first model input includes RGB, state and calibration;
 no initial `capture_scene` call is needed. Native SDK helpers keep their existing
 configuration. Direct and Hybrid keep their current defaults and execution modes.
@@ -735,3 +735,47 @@ Install `uni-robot-agent[antigravity]` and select `--agent antigravity` with
 `--provider-url`, `--provider-profile aliyun.gemini_chat_completions`,
 `--reasoning-effort none` and `--context-policy identity`. The initial backend
 supports `tool_calling` with Qwen. See [setup, constraints and smoke validation](antigravity.md).
+
+
+### Compact minimal results and observation history
+
+The minimal tool profile uses compact model-facing JSON. Measured arm poses use
+`state.arms[name].pose` (world metres and fixed-axis XYZ radians), with joints,
+measured/commanded gripper values, native steps and ended state retained. Normal
+feedback omits duplicated poses and IK statistics; rejected/recovered motion and
+errors retain diagnostic evidence. Initial input retains static base transforms.
+`observation` associates image attachments with same-frame camera matrices,
+rounded to at most five decimal places. `observation.artifact_ref` points to the
+original snapshot JSON; `observation.cameras[name].image_path` is the directly
+readable RGB file. Snapshot artifact IDs are not filenames. RGB-only results omit
+disabled/null matrices. The raw tool events, stored snapshots, initial observation and image bytes stay intact.
+Direct/Hybrid outputs and tool execution are unchanged.
+
+Select `--context-policy observation_window --context-observation-horizon 2`
+independently of the tool profile. This policy supports Responses and
+GenerateContent histories. It keeps the latest two distinct tool-observation
+groups, removing older images and their inline matrices together. The default
+`--context-keep-recent-blocks 4` retains camera descriptive metadata for the latest
+four observation groups; older groups retain snapshot/time/camera references and
+per-camera image paths for retrieval. Applying the policy to an already-windowed
+history continues aging the retained camera metadata as new observations arrive.
+All action arguments, result state/feedback, assistant text, reasoning and
+compaction summaries remain. User/reference images, explicitly retained
+observations (`observation.retain_in_context=true`), unknown image provenance and
+unfinished call batches are protected. Native compaction requests receive the
+unmodified history. These rules do not guarantee retention of every transient
+visual fact: use a larger horizon when evidence has not been recorded as memory.
+
+The window never deletes whole turns to meet a budget. An optional
+`--context-max-input-tokens` rejects an over-budget protected history rather than
+silently discarding it. Estimates count text separately from an image allowance
+(`--context-image-token-allowance`, default 1536), not encoded image bytes; they
+are not provider billing counts. Existing `identity`/`sliding_window` defaults
+and algorithms are unchanged. No new summarization calls or reasoning-replay
+changes are introduced. Test result compaction alone before combining it with
+the image window when measuring behavioral effects.
+
+For Qwen through `aliyun.chat_completions`, `--reasoning-effort none` sends
+`enable_thinking=false` and omits `reasoning_effort` from the upstream Chat request.
+The adapter uses an 8192-token output limit in this mode, versus 65536 when
+thinking is enabled. Other reasoning levels retain the existing thinking behavior.

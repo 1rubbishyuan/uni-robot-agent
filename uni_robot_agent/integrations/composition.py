@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from uni_robot_agent.execution.scheduler import ToolExecutionPolicy
@@ -18,6 +18,8 @@ class ToolModule:
     policies: Mapping[str, ToolExecutionPolicy] = field(default_factory=dict)
     runtime_prompts: tuple[str, ...] = ()
     declare_unavailable: Callable[[Any], list[ToolDef]] | None = None
+    model_view: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    prompt_contributions: tuple | None = None
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,15 @@ class ToolAssembly:
 
     @property
     def tools(self) -> list[ToolDef]:
-        return [tool for provider in self.providers for tool in provider.get_tools()]
+        return [replace(tool, model_view=module.model_view) if module.model_view is not None else tool
+                for module, provider in zip(self.modules, self.providers)
+                for tool in provider.get_tools()]
+
+    @property
+    def prompt_contributions(self):
+        return tuple(contribution for module, provider in zip(self.modules, self.providers)
+                     for contribution in (module.prompt_contributions if module.prompt_contributions is not None
+                                          else provider.prompt_contributions))
 
     @property
     def policies(self) -> dict[str, ToolExecutionPolicy]:

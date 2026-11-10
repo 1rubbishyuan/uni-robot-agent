@@ -140,6 +140,13 @@ class Episode:
                 self.storage_errors[name] = f"{type(error).__name__}: {error}"
                 logger.warning("Could not persist %s: %s", name, error)
 
+    def robot_resources(self):
+        """Resolve declared robot references through the shared verified mirror."""
+        return [{"name": item["name"], "description": item["description"],
+                 "path": str(self.artifact_mirror.local_path(item["artifact"])),
+                 "media_type": item["artifact"]["media_type"], "sha256": item["artifact"]["sha256"]}
+                for item in self.description.environment.metadata.get("robot_resources", [])]
+
     def image_paths(self, manifest):
         return {camera: str(self.artifact_mirror.local_path(item["rgb"]))
                 for camera, item in manifest["cameras"].items()}
@@ -173,7 +180,7 @@ class PreparedEpisodeSession:
         try:
             info = env.connect()
             if args.tool_profile == "minimal" and any(camera.has_depth for camera in info.environment.cameras):
-                raise ValueError("minimal supports RGB only; start the environment service with depth disabled")
+                raise ValueError("minimal supports calibrated RGB or RGB-only; start the environment service with depth disabled")
             args._episode_identity = info.model_dump(mode="json")
             args.camera_depth_enabled = {camera.name: camera.has_depth
                                          for camera in info.environment.cameras}

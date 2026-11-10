@@ -81,6 +81,22 @@ class RoboTwinAdapter:
                       "control_timing": "30 Hz is the upstream nominal policy rate; native trajectory duration varies."},
         )
 
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources, urdf_kinematics
+        models, arms = {}, {}
+        for name in ARMS:
+            model = urdf_kinematics(getattr(env.robot, name + "_urdf_path"))
+            model_id = model["source_sha256"]
+            models.setdefault(model_id, model)
+            root = getattr(env.robot, name + "_entity_origion_pose")
+            arms[name] = {"model_id": model_id,
+                "base_position": root.p.tolist(), "base_quaternion_wxyz": root.q.tolist(),
+                "arm_joint_names": [joint.get_name() for joint in getattr(env.robot, name + "_arm_joints")],
+                "gripper_joints": [{"name": joint.get_name(), "multiplier": float(multiplier), "offset": float(offset)}
+                    for joint, multiplier, offset in getattr(env.robot, name + "_gripper")],
+                "gripper_scale": list(map(float, getattr(env.robot, name + "_gripper_scale"))),
+                "tcp_offset_from_ee_m": [0.12, 0., 0.]}
+        add_robot_resources(self.description, model={"format": "robotwin_kinematics_v1", "models": models, "arms": arms})
+
     def episode_identity(self):
         return self.instruction, self.metadata
 

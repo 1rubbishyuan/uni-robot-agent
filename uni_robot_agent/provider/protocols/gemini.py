@@ -64,8 +64,8 @@ class GeminiProtocol:
         return {**copy.deepcopy(request), '_ura_parallel': parallel_tool_calls}
 
     def validate_context(self, context_manager):
-        if context_manager.policy_metadata['name'] not in {'identity', 'sliding_window'}:
-            raise ValueError('Gemini supports identity or sliding_window context')
+        if context_manager.policy_metadata['name'] not in {'identity', 'sliding_window', 'observation_window'}:
+            raise ValueError('Gemini supports identity, sliding_window or observation_window context')
 
     def buffered_stream_response(self, body, request, forward):
         return None

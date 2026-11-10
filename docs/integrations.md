@@ -112,11 +112,11 @@ See [runtime defaults](running.md#single-episode-cli) for capability selection.
 
 All eight gripper integrations support `--tool-profile minimal`: RoboDojo,
 RoboUse, RoboLab, RoboTwin, LIBERO-Plus, LIBERO-PRO, RMBench and CALVIN.
-It exposes `move`, `hold` and `finish`, reusing the same schemas, controllers,
+It exposes `move`, `hold`, `capture_scene` and `finish`, reusing the same schemas, controllers,
 execution receipts and outcome storage as Direct. `move` already accepts a
 gripper opening, so separate grasp/release tools are unnecessary.
 
-Minimal selects immediate tool returns and omits skill, scene, Hybrid, observer,
+Minimal selects immediate tool returns and omits skill, localization, Hybrid, observer,
 workspace and background-job tools. Explicit background returns, tool debugging,
 skill writing, observation profiles and Code as Policy are rejected. Planner
 SDK native computation/file tools retain their existing configuration. Direct
@@ -130,6 +130,31 @@ Initial input includes RGB images, measured robot state and per-image calibratio
 Codex, Claude Code, Gemini CLI, OpenCode and Antigravity accept these images as
 multimodal user input. The shared artifact store retains images and snapshot
 manifests; `initial_observation.json` records the initial image/state references.
+`capture_scene` requests all or selected camera views without advancing control
+steps. It does not initialize SAM or expose `locate` or `view_env_state`.
+Initial input and image-bearing minimal results include `observation.artifact_ref`,
+the readable JSON of the immutable snapshot, with original same-frame calibration.
+Model-facing `observation.cameras` contains rounded camera matrices and each view's
+absolute `image_path`; image attachments remain unchanged. Snapshot artifact IDs
+are opaque references, not local image filenames. Other profiles retain
+`observation_path` and `camera_calibration`.
+
+All eight integrations publish robot reference files independently of the tool
+profile. Initial input lists their exact local paths, media types and SHA-256
+hashes in `robot_resources`; the list is saved as `robot_resources.json` and
+returned by scene tools. Native agent file tools may read those exact paths.
+Existing `robot_calibration_path`, hash and `robot_manual` scene fields remain.
+Static robot references do not replace per-observation camera matrices.
+
+Reference detail follows the native integration, not a fabricated common URDF:
+Dojo/Lab retain their existing geometry and gripper calibration; RoboTwin/RMBench
+and CALVIN publish their actual URDF kinematic trees and control mappings;
+LIBERO-Plus/PRO and MuJoCo RoboUse backends publish robot-only compiled bodies,
+joints, sites and geometry parameters. RoboUse workers publish ManiSkill URDF
+kinematics, RoboCasa/Genesis robot model parameters, or Factory articulation
+names and limits. Kinematic exports omit meshes; Factory does not export a USD
+kinematic tree. Each resource states its format and limitations. No task objects,
+goal state, grader inputs or whole simulator scene files are published.
 
 Completed gripper actions in every profile reuse their final snapshot when it
 contains current images and the camera's declared calibration. Otherwise they

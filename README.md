@@ -30,7 +30,7 @@
 
 **Hybrid** now supports humanoids, wheeled robots and quadrupeds through reusable actor backends and integration-owned bindings. New integrations include R1Pro, G1 and Go2. [Learn more](docs/hybrid.md).
 
-**Minimal mode** offers a simple three-tool baseline (`move`, `hold`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
+**Minimal mode** offers a small four-tool baseline (`move`, `hold`, `capture_scene`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
 
 **Code as Policy** is here: control robots with code. Enable it with
 `--interaction-mode code_as_policy`. [Learn more](docs/code-as-policy.md).

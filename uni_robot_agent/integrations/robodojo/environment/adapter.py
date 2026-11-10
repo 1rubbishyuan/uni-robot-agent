@@ -167,6 +167,9 @@ class Adapter:
             }},
         })
 
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources
+        add_robot_resources(self.description)
+
     def _robot_key(self, robot):
         manager = self.env.robot_manager
         return manager.robot_key[manager.robot_list.index(robot)]

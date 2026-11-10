@@ -40,6 +40,12 @@ class RoboUseAdapter:
                       "initial_orientation": {n: list(a.control_pose.quaternion) for n, a in measured.items()}},
         )
 
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources
+        from .robot_reference import direct_model
+        model = (episode.backend.robot_model() if getattr(episode.backend, "uni_robot_agent_worker", False)
+                 else direct_model(self.binding))
+        add_robot_resources(self.description, model=model)
+
     def read_state(self):
         ep = self.episode
         return EnvironmentState(arms=self.binding.read(self.commands), state_version=ep.steps,

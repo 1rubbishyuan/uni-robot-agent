@@ -50,6 +50,15 @@ class CalvinAdapter:
             observation_interval_steps=1,
             metadata={"control_constraints": "World-frame absolute TCP poses; gripper targets below 0.5 close, otherwise open.",
                       "evaluation_protocol": "single_task", "observation_source": "native_calvin"})
+        from uni_robot_agent.integrations.robot_resources import add_robot_resources, urdf_kinematics
+        robot = env.robot
+        model = urdf_kinematics(robot.filename)
+        model["control"] = {"base_position": list(robot.base_position),
+            "base_quaternion_wxyz": [robot.base_orientation[3], *robot.base_orientation[:3]],
+            "tcp_link_id": robot.tcp_link_id, "arm_joint_ids": list(robot.arm_joint_ids),
+            "gripper_joint_ids": list(robot.gripper_joint_ids), "gripper_joint_limits": list(robot.gripper_joint_limits),
+            "opening": "Binary: normalized targets below 0.5 close; otherwise open."}
+        add_robot_resources(self.description, model=model)
         self.cache(observation)
 
     def episode_identity(self):

@@ -48,7 +48,7 @@ class EnvironmentService:
     def __init__(self, backend: EnvironmentBackend, info: EpisodeInfo, artifacts, snapshots=None):
         self.backend, self.artifacts = backend, artifacts
         self._info = info.model_copy(deep=True)
-        # Publish integration-owned static JSON before any host exposes episode info.
+        # Publish integration-owned static resources before any host exposes episode info.
         # This also covers prepared/batched hosts that do not use the standalone server.
         metadata = self._info.environment.metadata
         if metadata.get("goal_region_search") and "goal_region_search" not in self._info.capabilities:
@@ -58,6 +58,17 @@ class EnvironmentService:
             metadata.setdefault("artifacts", {}).update({
                 name: artifacts.put_json(payload) for name, payload in payloads.items()
             })
+        texts = metadata.pop("artifact_texts", {})
+        if texts:
+            metadata.setdefault("artifacts", {}).update({
+                name: artifacts.put_bytes(item["text"].encode(), item["media_type"])
+                for name, item in texts.items()
+            })
+        if metadata.get("robot_resources"):
+            metadata["robot_resources"] = [
+                {**item, "artifact": metadata["artifacts"][item["name"]]}
+                for item in metadata["robot_resources"]
+            ]
         self.snapshots = snapshots or SnapshotStore(artifacts)
         self._motion_lock = threading.RLock()
         self._state_lock = threading.RLock()
