@@ -32,7 +32,7 @@ def load_task_requirements(task: str) -> str:
 def build(context: PromptContext) -> Prompt:
     episode = context.episode
     info = episode.description if episode is not None else None
-    if context.tool_profile == "minimal":
+    if context.tool_profile == "clean":
         prompt = Prompt(user=context.task or (episode.instruction if episode else ""), system=(
             "Use the registered robot tools to complete the task. Do not inspect simulator "
             "internals or bypass these tools. Positions are world metres; state quaternions "
@@ -47,14 +47,14 @@ def build(context: PromptContext) -> Prompt:
         return prompt.append(user="No prepared episode is connected. Measured state and calibration are unavailable.")
     prompt = prompt.append(
         system="Environment description:\n" + info.environment.model_dump_json(indent=2),
-        user=None if context.tool_profile == "minimal" else (f"Initial measured environment state: {episode.state.model_dump_json()}\n"
+        user=None if context.tool_profile == "clean" else (f"Initial measured environment state: {episode.state.model_dump_json()}\n"
               f"Native remaining control steps: {episode.remaining_steps}"),
     )
     if info.environment.cameras and not any(camera.has_calibration for camera in info.environment.cameras):
         prompt = prompt.append(system=(
             "Camera calibration is disabled for this episode. Observations provide RGB without depth, "
             "camera intrinsics or camera extrinsics. "
-            + ("locate, when exposed, provides 2D segmentation only. " if context.tool_profile != "minimal" else "")
+            + ("locate, when exposed, provides 2D segmentation only. " if context.tool_profile != "clean" else "")
             + "Capturing again does not enable metric localization. Use visible relations and bounded "
             "motions with feedback; keep inferred coordinates distinct from measurements. "
             "Robot proprioception and the published robot geometry remain available."

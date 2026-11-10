@@ -1,4 +1,4 @@
-"""Model-only result views for minimal manipulation; execution records stay intact."""
+"""Model-only result views for clean manipulation; execution records stay intact."""
 from copy import deepcopy
 
 from uni_robot_agent.context.prompt import PromptContribution
@@ -7,7 +7,7 @@ from uni_robot_agent.tools.presentation import round_physical
 
 
 RESULT_NOTES = (PromptContribution(system=(
-    "Minimal result format: call_ok describes call validity, not object success. "
+    "Clean result format: call_ok describes call validity, not object success. "
     "Tool schemas define parameters, defaults, limits and returned evidence. "
     "Read each arm's control_frame and grasp_site_description in the environment description. "
     "steps_executed counts accepted control commands; executed_native_steps counts environment steps. "
@@ -29,7 +29,7 @@ RESULT_NOTES = (PromptContribution(system=(
     "at most five decimals for display; observation.artifact_ref is snapshot JSON with original calibration, "
     "not an image. Read images from observation.cameras[name].image_path; snapshot artifact IDs are not filenames. "
     "Missing matrices do not imply known geometry. Static robot resources and initial poses remain in initial input."
-), source="tools/minimal"),)
+), source="tools/clean"),)
 
 
 def _pose6(pose):

@@ -16,6 +16,7 @@ from uni_robot_agent.config import (
 )
 from uni_robot_agent.agents import get_agent_backend, list_agent_backends
 from uni_robot_agent.integrations import load_integration
+from uni_robot_agent.integrations.composition import canonical_tool_profile
 
 
 def _add_doctor_arguments(parser: argparse.ArgumentParser) -> None:
@@ -103,9 +104,9 @@ def build_parser(integration_spec=None) -> argparse.ArgumentParser:
         "--skill-writing", action=argparse.BooleanOptionalAction, default=False,
         help="Enable writing Markdown experience within the episode skill namespace",
     )
-    common.add_argument("--tool-profile",
+    common.add_argument("--tool-profile", type=canonical_tool_profile,
         choices=tuple(integration_spec.tool_profiles) if integration_spec else None,
-        help="Integration tool composition; defaults to its declared default profile")
+        help="Integration tool composition; minimal is an alias for clean; defaults to its declared default profile")
     visibility = common.add_argument_group("Tool visibility debugging")
     visibility.add_argument(
         "--tool-debug", action="store_true",

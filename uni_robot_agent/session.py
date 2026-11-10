@@ -109,7 +109,7 @@ def assemble_session(args) -> SessionAssembly:
         policies = assembly.policies
         workspace = WorkspaceProvider()
         # File helpers remain TUI-only unless explicitly selected for an ablation.
-        if getattr(args, "command", "run") != "run" and args.tool_profile != "minimal":
+        if getattr(args, "command", "run") != "run" and args.tool_profile != "clean":
             tools.extend(workspace.get_tools())
 
         profile_name = getattr(args, "observation_profile", "none")
@@ -185,7 +185,7 @@ def assemble_session(args) -> SessionAssembly:
             (session_dir / "robot_resources.json").write_text(
                 json.dumps(references, indent=2, allow_nan=False) + "\n")
         initial_images, initial_metadata = (), None
-        if args.tool_profile == "minimal":
+        if args.tool_profile == "clean":
             from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
             episode = session.episode
             snapshot = episode.observation()
@@ -208,7 +208,7 @@ def assemble_session(args) -> SessionAssembly:
                     "Robot reference resources (read-only exact paths; use native file tools when needed):\n"
                     + json.dumps(references, allow_nan=False)))
             if initial_metadata is not None:
-                from uni_robot_agent.tools.minimal import result_view
+                from uni_robot_agent.tools.clean import result_view
                 model_metadata = result_view(initial_metadata, initial=True)
                 base_prompt = replace(base_prompt, images=initial_images).append(
                     user="Initial RGB observation (images in observation.image_cameras order):\n"

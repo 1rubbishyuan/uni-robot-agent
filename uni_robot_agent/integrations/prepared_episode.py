@@ -179,8 +179,8 @@ class PreparedEpisodeSession:
         env = EnvironmentClient(args.env_url, tracer=self.context.tracer)
         try:
             info = env.connect()
-            if args.tool_profile == "minimal" and any(camera.has_depth for camera in info.environment.cameras):
-                raise ValueError("minimal supports calibrated RGB or RGB-only; start the environment service with depth disabled")
+            if args.tool_profile == "clean" and any(camera.has_depth for camera in info.environment.cameras):
+                raise ValueError("clean supports calibrated RGB or RGB-only; start the environment service with depth disabled")
             args._episode_identity = info.model_dump(mode="json")
             args.camera_depth_enabled = {camera.name: camera.has_depth
                                          for camera in info.environment.cameras}
