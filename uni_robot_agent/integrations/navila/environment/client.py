@@ -1,4 +1,4 @@
-"""Own one Python 3.10 episode worker; ambiguous calls permanently poison it."""
+"""Own one native episode worker; ambiguous calls permanently poison it."""
 import json
 import os
 from pathlib import Path
@@ -11,7 +11,7 @@ from PIL import Image
 
 
 class NativeClient:
-    def __init__(self, python, root, *, task, seed, output):
+    def __init__(self, python, root, *, task, seed, output, runtime_profile="isaac41", record_frames=False):
         output = Path(output).resolve()
         output.mkdir(parents=True, exist_ok=True)
         self.capture_dir = output / "native-frames"
@@ -21,7 +21,8 @@ class NativeClient:
         try:
             self.process = subprocess.Popen([str(python), str(Path(__file__).with_name("worker.py")),
                 "--native-root", str(Path(root).resolve()), "--task", task, "--seed", str(seed),
-                "--capture-dir", str(self.capture_dir)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                "--capture-dir", str(self.capture_dir), "--runtime-profile", runtime_profile,
+                *(["--record-native-frames"] if record_frames else [])], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=self.log, text=True, bufsize=1,
                 env={**os.environ, "PYTHONPATH": "", "PYTHONNOUSERSITE": "1"})
         except BaseException:
@@ -31,6 +32,7 @@ class NativeClient:
             identity = self._receive(0, 900)
             self.instruction, self.seed = identity["instruction"], identity["seed"]
             self.policy_sha256 = identity["policy_sha256"]
+            self.runtime = identity["runtime"]
         except BaseException:
             self.failed = True
             self.close()

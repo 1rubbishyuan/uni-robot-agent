@@ -8,7 +8,10 @@ from uni_robot_agent.integrations.simulation import server_parser
 def parser():
     result = server_parser(__doc__, 18790)
     result.add_argument("--worker-python", type=Path, required=True,
-                        help="Prepared Python 3.10 Isaac Sim 4.1 interpreter")
+                        help="Prepared interpreter for the selected native runtime")
+    result.add_argument("--runtime-profile", choices=["isaac41", "isaac51"], default="isaac41")
+    result.add_argument("--record-native-frames", action="store_true",
+                        help="Save every native control tick for video and execution auditing")
     return result
 
 
@@ -20,7 +23,8 @@ def prepare(args):
     if args.depth or args.seed < 0:
         raise ValueError("NaVILA requires RGB observations and a nonnegative seed")
     native = NativeClient(args.worker_python, args.native_root, task=args.task, seed=args.seed,
-                          output=Path(args.output_dir) / "native")
+                          output=Path(args.output_dir) / "native", runtime_profile=args.runtime_profile,
+                          record_frames=args.record_native_frames)
     try:
         return NaVILAAdapter(native, episode_id=args.run_id, task=args.task)
     except BaseException:

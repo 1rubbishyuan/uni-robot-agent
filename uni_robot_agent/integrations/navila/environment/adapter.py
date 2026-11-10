@@ -27,7 +27,7 @@ class NaVILAAdapter:
         self._record_frame()
         digest = hashlib.sha256(self.frame.rgb.tobytes() + json.dumps(self.measured, sort_keys=True).encode()).hexdigest()
         self.metadata = {"benchmark": "navila", "task_id": task, "native_revision": REVISION,
-            "seed": native.seed, "reset_sha256": digest, "warmup_steps": 100,
+            "runtime": dict(native.runtime), "seed": native.seed, "reset_sha256": digest, "warmup_steps": 100,
             "locomotion_checkpoint_sha256": native.policy_sha256, "max_episode_steps": MAX_STEPS,
             "evaluation_regime": "hybrid_explicit_finish", "native_history": dict(HISTORY)}
         self.description = DeviceEnvironmentDescription(world_frame="world",
@@ -86,6 +86,7 @@ class NaVILAAdapter:
         target_steps = round(command.duration_s / CONTROL_DT)
         velocity = command.velocities["base"]
         requested = [velocity.linear_m_s[0], 0., velocity.angular_rad_s[2]]
+        start_tick = self.steps
         executed, stop_reason = 0, None
         for _ in range(target_steps):
             if cancellation.is_set():
@@ -112,6 +113,7 @@ class NaVILAAdapter:
         self.completed_commands += int(completed)
         return {"execution_status": "completed" if completed else "partial" if executed else "rejected",
                 "steps_executed": executed, "samples_completed": int(completed),
+                "native_tick_start": start_tick, "native_tick_end": self.steps,
                 "duration_s": executed * CONTROL_DT, "stop_reason": stop_reason,
                 "requested_forward_m": requested[0] * command.duration_s,
                 "requested_yaw_rad": requested[2] * command.duration_s}

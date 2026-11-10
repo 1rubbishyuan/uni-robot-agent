@@ -136,6 +136,16 @@ def create_native(root, *, task, seed, runtime_profile="isaac41"):
     lab_root = subprocess.check_output(["git", "-C", str(lab_path), "rev-parse", "--show-toplevel"], text=True).strip()
     validate_source(lab_root, lab_revision)
     application = AppLauncher(headless=True, enable_cameras=True).app
+    if runtime_profile == "isaac51":
+        import faulthandler
+        import signal
+        # A native fault on a physics thread cannot be recovered by AppLauncher's
+        # deferred Python signal callback. Preserve process failure for the owner.
+        faulthandler.disable()
+        signal.signal(signal.SIGSEGV, signal.SIG_DFL)
+        signal.signal(signal.SIGABRT, signal.SIG_DFL)
+        faulthandler.enable()
+    simulation_context = importlib.import_module(namespace + ".sim").SimulationContext
     native = None
     try:
         import torch
@@ -193,12 +203,16 @@ def create_native(root, *, task, seed, runtime_profile="isaac41"):
         native.preserve_terminal = True
         result = NativeEpisode(env, application, episode, info, seed=seed, policy_sha256=policy_sha256)
         result.runtime = runtime
-        result.simulation_context = importlib.import_module(namespace + ".sim").SimulationContext
+        result.simulation_context = simulation_context
         return result
     except BaseException:
         try:
             if native is not None:
                 native.close()
         finally:
-            application.close()
+            simulation_context.clear_instance()
+            if runtime_profile == "isaac51":
+                application.close(wait_for_replicator=False)
+            else:
+                application.close()
         raise
