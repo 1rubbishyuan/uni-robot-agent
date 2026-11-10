@@ -94,7 +94,11 @@ receives Responses events after the gateway buffers the complete reply.
 Omni Gemini does not reliably consume images inside Chat tool results. The
 adapter keeps the result acknowledgements together and places their images in
 a following user message, labelled by the original tool-call IDs. Text receipts
-and image bytes are preserved.
+and image pixels are preserved. Both Omni profiles convert inline PNGs to
+lossless WebP without resizing; JPEGs and remote image URLs pass through.
+Encoding occurs after context selection. For long image-heavy sessions, use
+`sliding_window` to evict old tool images in batches; WebP alone does not bound
+request growth.
 
 The Claude adapter sends adaptive thinking and native `output_config.effort`.
 It converts function/custom tools, tool results and images, and retains native

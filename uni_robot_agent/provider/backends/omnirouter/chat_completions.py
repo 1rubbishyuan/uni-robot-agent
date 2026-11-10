@@ -1,5 +1,6 @@
 """Codex Responses to OmniRouter's Gemini Chat Completions route."""
 from uni_robot_agent.provider.conversions import responses_chat
+from uni_robot_agent.provider.image_encoding import encode_chat_images
 
 
 class OmniChatCompletionsAdapter:
@@ -10,6 +11,7 @@ class OmniChatCompletionsAdapter:
     def encode_request(self, request):
         encoded = responses_chat.encode_request(request)
         encoded.body["messages"] = _tool_images_as_user_content(encoded.body["messages"])
+        encode_chat_images(encoded.body["messages"])
         effort = (request.get("reasoning") or {}).get("effort")
         model = str(request.get("model", ""))
         if model.startswith("gemini-4-argon"):
