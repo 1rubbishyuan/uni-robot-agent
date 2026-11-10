@@ -62,7 +62,7 @@ def message_response(body: bytes) -> dict:
             if index not in open_blocks:
                 raise ValueError("Stop outside an open content block")
             open_blocks.remove(index)
-            if index in fragments:
+            if fragments.get(index):
                 blocks[index]["input"] = json.loads(fragments[index])
         elif kind == "message_delta":
             message.update(event.get("delta", {}))
