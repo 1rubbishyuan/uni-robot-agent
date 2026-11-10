@@ -1,0 +1,19 @@
+backend = "navila"
+runtime = "navila_tcp"
+model = "navila-llama3-8b-8f"
+upstream_host = "127.0.0.1"
+upstream_port = 54321
+# Replace with the declared digest of the weights loaded by this dedicated server.
+checkpoint_sha256 = "REPLACE_WITH_CHECKPOINT_SHA256"
+exclusive_upstream = true
+request_timeout_s = 180
+
+[http]
+host = "127.0.0.1"
+port = 18763
+
+[batching]
+max_batch_size = 1
+
+[sessions]
+max_sessions = 1

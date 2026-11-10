@@ -33,11 +33,14 @@ class ActorArchive:
     def write_chunk(self, index, record, *, proposal=None):
         path = self.directory / f"{index:02d}.npz"
         try:
-            if proposal is not None:
-                self.directory.mkdir(parents=True, exist_ok=True)
-                np.savez_compressed(path, raw_actions=proposal.raw_actions, scoped_actions=proposal.scoped_actions)
+            self.directory.mkdir(parents=True, exist_ok=True)
+            if proposal is not None and record.get("prediction", {}).get("kind", "numeric") == "numeric":
+                raw, scoped = np.asarray(proposal.raw_actions, dtype=float), np.asarray(proposal.scoped_actions, dtype=float)
+                if not np.isfinite(raw).all() or not np.isfinite(scoped).all():
+                    raise ValueError("Archived numeric actions must be finite")
+                np.savez_compressed(path, raw_actions=raw, scoped_actions=scoped)
             path = self.directory / f"{index:02d}.json"
-            archived = {"schema": "hybrid.v2", **record, "review_images": self._relative_images(record["review_images"])}
+            archived = {"schema": "hybrid.v3", **record, "review_images": self._relative_images(record["review_images"])}
             previous = record["context"]["previous_actor"]
             if previous is not None:
                 archived["context"] = {**record["context"], "previous_actor": {

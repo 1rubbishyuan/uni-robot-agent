@@ -1,0 +1,4 @@
+name = "env-behavior-r1pro"
+python = "python3.11"
+repository = "https://github.com/StanfordVL/BEHAVIOR-1K.git"
+revision = "fe66cc74538f7eba3c57255da0ee88e8ce113c87"

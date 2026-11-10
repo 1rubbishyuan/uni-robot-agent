@@ -121,7 +121,7 @@ class SceneTools(ToolProvider):
                           depth_cameras=[camera.name for camera in cameras if camera.has_depth],
                           calibrated_cameras=[camera.name for camera in cameras if camera.has_calibration],
                           scene_geometry=self.episode.description.environment.metadata.get("scene_geometry", False),
-                          device_episode=self.episode.description.protocol_version == "devices-1")
+                          device_episode=self.episode.description.protocol_version in {"devices-1", "devices-2"})
 
     @property
     def prompt_contributions(self):

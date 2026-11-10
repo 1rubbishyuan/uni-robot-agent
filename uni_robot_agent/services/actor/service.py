@@ -1,9 +1,11 @@
 """Actor sessions, admission, receipts, and one model batching queue."""
 
+import json
 import math
 import threading
 import time
 from concurrent.futures import Future
+from copy import deepcopy
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -13,7 +15,7 @@ from uni_robot_agent.telemetry.logging import get_logger
 
 from .backend import ActorBackend, ActorWork
 from .contracts import (CreateSession, PredictReply, PredictRequest, Receipt, SessionInfo,
-                        validate_vector)
+                        validate_observation, validate_prediction)
 
 
 @dataclass
@@ -106,7 +108,8 @@ class ActorService:
                     "model_mismatch",
                     "Actor model or profile differs from the requested model",
                 )
-            if len(self._sessions) >= self.max_sessions:
+            # Closed records retain receipts without reserving model capacity.
+            if sum(session.status != "closed" for session in self._sessions.values()) >= self.max_sessions:
                 raise self._error(
                     "session_limit", "Actor session capacity reached", status=503
                 )
@@ -187,16 +190,8 @@ class ActorService:
                     "Actor session request limit reached; create a new session",
                 )
             profile = self.info.profile
-            if set(request.observation.images) != set(profile.cameras) or len(
-                request.observation.state
-            ) != len(profile.observation_fields):
-                raise self._error(
-                    "invalid_observation",
-                    "Actor cameras or state dimensions differ from its profile",
-                    status=422,
-                )
             try:
-                validate_vector(request.observation.state, profile.observation_fields, "observation")
+                validate_observation(request.observation, profile)
             except ValueError as exc:
                 raise self._error("invalid_observation", str(exc), status=422) from exc
             try:
@@ -232,7 +227,7 @@ class ActorService:
 
     def _complete(self, request, session, result, model_future):
         try:
-            actions = model_future.result()
+            prediction = model_future.result()
             reply = PredictReply(
                 session_id=request.session_id,
                 request_id=request.request_id,
@@ -240,21 +235,17 @@ class ActorService:
                 model_id=self.info.model_id,
                 checkpoint_sha256=self.info.checkpoint_sha256,
                 profile=self.info.profile.name,
-                actions=actions,
+                prediction=prediction,
             )
-            if len(reply.actions) != self.info.profile.action_horizon or any(
-                len(row) != len(self.info.profile.action_fields)
-                for row in reply.actions
-            ):
-                raise ValueError("Actor returned actions outside its declared profile")
-            for row in reply.actions:
-                validate_vector(row, self.info.profile.action_fields, "action")
+            validate_prediction(reply.prediction, self.info.profile)
         except BaseException as exc:  # noqa: BLE001 - always complete admitted requests.
             error = ServiceError(
                 "inference_failed",
                 str(exc),
                 status=500,
                 details={
+                    **(deepcopy(exc.details) if isinstance(exc, ServiceError) else {}),
+                    # Admission and correlation are owned by this service.
                     "accepted": True,
                     "request_id": request.request_id,
                     "session_id": request.session_id,
@@ -292,6 +283,7 @@ class ActorService:
                 finally:
                     session.state, session.status = None, "closed"
         if error:
+            logger.error("Actor inference failed: %s", json.dumps(error.payload(), default=str))
             result.set_exception(error)
         else:
             result.set_result(reply)

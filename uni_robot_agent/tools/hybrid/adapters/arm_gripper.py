@@ -10,7 +10,7 @@ import jsonschema
 import numpy as np
 from PIL import Image
 
-from uni_robot_agent.services.actor.contracts import ActorObservation, validate_vector
+from uni_robot_agent.services.actor.contracts import ActorObservation, NumericChunk, validate_vector
 from uni_robot_agent.services.actor.images import encode_image
 from uni_robot_agent.services.environment.contracts import ArmCommand, JointCommand, JointTarget, Pose, PoseCommand, PreviewRequest, StepRequest
 from uni_robot_agent.tools.gripper.opening import native_opening
@@ -114,7 +114,8 @@ class ArmGripperBinding:
             openings[arm] = value
         return {"active_groups": active_groups, "openings": openings, "opening_requests": requests}
 
-    def encode_observation(self, manifest, instruction, images):
+    def encode_observation(self, inputs, instruction):
+        manifest, images = inputs.manifest, inputs.images
         values = list(self.observation_encoder(manifest["state"]))
         validate_vector(values, self.profile.observation_fields, "observation")
         encoded = {}
@@ -126,7 +127,10 @@ class ArmGripperBinding:
     def _values(self, row, fields):
         return [float(row[self.indices[name]]) for name in fields]
 
-    def decode_prediction(self, actions, manifest, images, scope):
+    def decode_prediction(self, prediction, manifest, images, scope):
+        if not isinstance(prediction, NumericChunk):
+            raise ValueError("This binding requires numeric actor predictions")
+        actions = prediction.actions
         raw = np.asarray(actions, dtype=float)
         if raw.shape != (self.action_horizon, len(self.indices)) or not np.isfinite(raw).all():
             raise ValueError("Actor returned an invalid action matrix")

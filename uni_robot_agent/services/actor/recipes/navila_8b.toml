@@ -1,0 +1,12 @@
+name = "actor-navila-8b-bridge"
+backend = "navila"
+python = "python3.11"
+packages = ["numpy", "Pillow"]
+
+[actor]
+runtime = "navila_tcp"
+model = "navila-llama3-8b-8f"
+model_config_name = "llama_3_8f"
+upstream_host = "127.0.0.1"
+upstream_port = 54321
+exclusive_upstream = true

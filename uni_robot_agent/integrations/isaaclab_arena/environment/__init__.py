@@ -1,0 +1,1 @@
+"""Pinned Arena simulator boundary."""

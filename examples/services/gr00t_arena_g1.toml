@@ -1,0 +1,22 @@
+# Obtain checkpoint_sha256 from the matching actor setup runtime manifest.
+backend = "gr00t"
+profile = "arena_g1_gr00t"
+native_root = "/path/to/pinned/Isaac-GR00T"
+checkpoint = "/path/to/pinned/GN1x-Tuned-Arena-G1-Loco-Manipulation"
+checkpoint_sha256 = "REPLACE_WITH_VERIFIED_CHECKPOINT_SHA256"
+
+[http]
+host = "127.0.0.1"
+port = 18762
+
+[batching]
+max_batch_size = 1
+max_wait_ms = 5
+max_queue_size = 64
+
+[sessions]
+max_sessions = 1
+idle_timeout_s = 1800
+receipt_ttl_s = 3600
+max_receipts = 128
+max_session_requests = 4096
