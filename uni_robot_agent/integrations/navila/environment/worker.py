@@ -77,8 +77,8 @@ def main():
                         raise ValueError("Navigation completion must be an explicit boolean")
                     result = native.finish(request["stopped"])
                 elif operation == "close":
-                    native.close()
-                    result = {"closed": True}
+                    # Kit may exit the process during close; acknowledge before cleanup.
+                    result = {"closing": True}
                 else:
                     raise ValueError("Unsupported native worker operation")
             print(json.dumps({"request_id": request_id, "result": result}, allow_nan=False), file=wire, flush=True)

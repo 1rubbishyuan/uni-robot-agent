@@ -126,6 +126,11 @@ class NativeClient:
             return
         try:
             if not self.failed and self.process.poll() is None:
-                self._call("close")
+                reply = self._call("close")
+                if reply != {"closing": True}:
+                    raise RuntimeError("Native worker did not acknowledge shutdown")
+                # The acknowledgement precedes Kit cleanup, which can exit the process.
+                # Give this owned worker time to finish before escalating termination.
+                self.process.wait(timeout=30)
         finally:
             self._terminate()
