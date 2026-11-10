@@ -22,10 +22,11 @@ class AliyunChatCompletionsAdapter:
     def encode_request(self, request: dict[str, Any]) -> EncodedRequest:
         encoded = responses_chat.encode_request(request)
         body = encoded.body
-        body.update(enable_thinking=self.thinking,
+        thinking = self.thinking and (request.get("reasoning") or {}).get("effort") != "none"
+        body.update(enable_thinking=thinking,
                     reasoning_effort=(request.get("reasoning") or {}).get("effort", "max"),
-                    max_tokens=65536 if self.thinking else 8192)
-        if not self.thinking:
+                    max_tokens=65536 if thinking else 8192)
+        if not thinking:
             body.pop('reasoning_effort', None)
         if body["stream"]:
             body["stream_options"] = {"include_usage": True}
