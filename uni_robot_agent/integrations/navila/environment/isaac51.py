@@ -51,13 +51,18 @@ def migrated_source(path, text):
     return text
 
 
-def prepare(source, output, go2_usd):
+def prepare(source, output, go2_usd, assets_dir=None):
     source = clean_source(source)
     output, go2_usd = Path(output).resolve(), Path(go2_usd).resolve(strict=True)
     if digest(go2_usd) != GO2_SHA256:
         raise ValueError("Isaac 5.1 migration requires the original Isaac 4.1 Go2 asset")
     dependency = go2_usd.parent / "Props/instanceable_meshes.usd"
     dependency.resolve(strict=True)
+    assets = Path("isaaclab_exts/omni.isaac.vlnce/assets")
+    assets_dir = Path(assets_dir or source / assets).resolve(strict=True)
+    dataset = assets_dir / "vln_ce_isaac_v1.json.gz"
+    if not dataset.is_file() or not (assets_dir / "matterport_usd").is_dir():
+        raise ValueError("Prepare the NaVILA episode dataset and Matterport scenes before migration")
     output.mkdir(parents=True, exist_ok=False)
     tracked = set(subprocess.check_output(["git", "-C", str(source), "ls-files"], text=True).splitlines())
     files = []
@@ -76,13 +81,13 @@ def prepare(source, output, go2_usd):
                               "prepared_sha256": digest(target)})
             else:
                 target.symlink_to(original)
-    assets = Path("isaaclab_exts/omni.isaac.vlnce/assets")
-    (output / assets).symlink_to(source / assets, target_is_directory=True)
+    (output / assets).symlink_to(assets_dir, target_is_directory=True)
     (output / "logs").symlink_to(source / "logs", target_is_directory=True)
     (output / "LICENSE").symlink_to(source / "LICENSE")
     manifest = {"profile": "isaac51", "source": str(source), "revision": REVISION,
                 "isaaclab_revision": ISAACLAB_REVISION, "isaacsim": ISAACSIM_VERSION,
-                "migration_sha256": digest(__file__), "go2_usd": str(go2_usd),
+                "migration_sha256": digest(__file__), "assets_dir": str(assets_dir),
+                "dataset_sha256": digest(dataset), "go2_usd": str(go2_usd),
                 "go2_sha256": GO2_SHA256, "go2_dependency_sha256": digest(dependency), "files": files}
     (output / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
     return output
@@ -109,6 +114,11 @@ def load_prepared(root):
     actual = {str(p.relative_to(root)) for p in root.rglob("*.py") if "assets" not in p.relative_to(root).parts}
     if actual != expected:
         raise ValueError("Prepared native runtime contains additional or missing Python modules")
+    assets = root / "isaaclab_exts/omni.isaac.vlnce/assets"
+    if (assets.resolve() != Path(manifest["assets_dir"])
+            or digest(assets / "vln_ce_isaac_v1.json.gz") != manifest["dataset_sha256"]
+            or not (assets / "matterport_usd").is_dir()):
+        raise ValueError("Prepared native dataset or scene directory changed")
     usd = Path(manifest["go2_usd"])
     if (digest(usd) != GO2_SHA256
             or digest(usd.parent / "Props/instanceable_meshes.usd") != manifest["go2_dependency_sha256"]):
@@ -170,5 +180,6 @@ if __name__ == "__main__":
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--go2-usd", type=Path, required=True)
+    parser.add_argument("--assets-dir", type=Path, help="Prepared dataset and Matterport scenes outside the clean source checkout")
     arguments = parser.parse_args()
-    print(prepare(arguments.source_root, arguments.output_root, arguments.go2_usd))
+    print(prepare(arguments.source_root, arguments.output_root, arguments.go2_usd, arguments.assets_dir))
