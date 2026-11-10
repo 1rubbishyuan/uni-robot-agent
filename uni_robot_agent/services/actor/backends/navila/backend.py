@@ -17,7 +17,7 @@ class NaVILABackend:
         self.config = config
         identity = {"runtime": config.runtime, "model": config.model, "source_revision": REVISION,
             "checkpoint_revision": CHECKPOINT_REVISION, "checkpoint_sha256": config.checkpoint_sha256,
-            "preprocessing": "episode_uniform_8_jpeg75", "decoding": "strict_single_command_v1",
+            "preprocessing": "episode_uniform_8_jpeg75", "decoding": "strict_single_command_v2",
             "identity_assurance": "operator_declared"}
         self.info = ActorInfo(model=config.model, runtime=config.runtime,
             model_id=hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest(),
@@ -49,9 +49,13 @@ class NaVILABackend:
             try:
                 images, evidence = prepare_history(work.observation.history["front"])
                 text = predict(self.config, images, work.observation.instruction)
-                label, parameters = decode_action(text)
-                return [SymbolicPrediction(label=label, parameters=parameters,
-                    evidence={**evidence, "native_output": text, "identity_assurance": "operator_declared"})]
+                evidence = {**evidence, "native_output": text, "identity_assurance": "operator_declared"}
+                try:
+                    label, parameters = decode_action(text)
+                except ValueError as error:
+                    raise ServiceError("native_decode_failed", str(error), status=502,
+                        details={"stage": "decode", "evidence": evidence}) from error
+                return [SymbolicPrediction(label=label, parameters=parameters, evidence=evidence)]
             except Exception as error:
                 self._failed = True
                 return [error]

@@ -1,9 +1,11 @@
 """Actor sessions, admission, receipts, and one model batching queue."""
 
+import json
 import math
 import threading
 import time
 from concurrent.futures import Future
+from copy import deepcopy
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -242,6 +244,8 @@ class ActorService:
                 str(exc),
                 status=500,
                 details={
+                    **(deepcopy(exc.details) if isinstance(exc, ServiceError) else {}),
+                    # Admission and correlation are owned by this service.
                     "accepted": True,
                     "request_id": request.request_id,
                     "session_id": request.session_id,
@@ -279,6 +283,7 @@ class ActorService:
                 finally:
                     session.state, session.status = None, "closed"
         if error:
+            logger.error("Actor inference failed: %s", json.dumps(error.payload(), default=str))
             result.set_exception(error)
         else:
             result.set_result(reply)
