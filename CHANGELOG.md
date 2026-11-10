@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Compact minimal-mode result JSON while retaining readable image/snapshot paths
+  and full stored observations. Add opt-in `observation_window` history selection
+  for recent observation images and calibration; action history and reasoning remain.
+- Honor `reasoning_effort="none"` in the Qwen Chat adapter by disabling thinking.
+
 - Add `capture_scene` to minimal mode for observations without action steps,
   alongside readable snapshot JSON and initial robot reference resources across
   gripper integrations. Preserve existing scene fields and ordinary tool profiles.

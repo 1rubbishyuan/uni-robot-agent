@@ -774,3 +774,8 @@ are not provider billing counts. Existing `identity`/`sliding_window` defaults
 and algorithms are unchanged. No new summarization calls or reasoning-replay
 changes are introduced. Test result compaction alone before combining it with
 the image window when measuring behavioral effects.
+
+For Qwen through `aliyun.chat_completions`, `--reasoning-effort none` sends
+`enable_thinking=false` and omits `reasoning_effort` from the upstream Chat request.
+The adapter uses an 8192-token output limit in this mode, versus 65536 when
+thinking is enabled. Other reasoning levels retain the existing thinking behavior.
