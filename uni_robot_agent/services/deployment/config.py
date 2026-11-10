@@ -98,7 +98,7 @@ def validate_deployment(args):
     if getattr(args, 'deploy_gpu', 0) < 0:
         raise ValueError('GPU index must be nonnegative')
     if service != 'env' and getattr(args, 'runtime_profile', None):
-        raise ValueError('--runtime-profile only applies to RoboUse environments')
+        raise ValueError('--runtime-profile only applies to environment services')
     if service == 'env' and getattr(args, 'profile', None):
         raise ValueError('--profile only applies to actor services')
     if getattr(args, 'camera_calibration', None) is not None and (
@@ -123,7 +123,7 @@ def add_runtime_arguments(parser):
     parser.add_argument('--checkpoint', type=Path)
     parser.add_argument('--checkpoint-sha256')
     parser.add_argument('--worker-python', type=Path)
-    parser.add_argument('--runtime-profile', help='RoboUse runtime family; setup defaults to mujoco')
+    parser.add_argument('--runtime-profile', help='Native runtime profile selected by the environment integration')
     parser.add_argument('--runtime-env', action='append', default=[], metavar='KEY=VALUE',
                         help='Explicit native runtime environment setting, persisted by setup')
 
