@@ -106,4 +106,19 @@ not the redesigned task predicates on Arena main. Calling finish,
 reviewer approval, target tracking and model predictions do not set success.
 Source and weight identities are listed in [SOURCE.md](../uni_robot_agent/integrations/isaaclab_arena/SOURCE.md).
 
-The initial head image is refreshed through the native renderer before it reaches the planner. This refresh checks that both physics counters and the complete native reset-state fingerprint stay unchanged; it does not consume control steps. Native zero-navigation checks currently reproduce a startup box ejection, including through the upstream registered environment, so those trajectories are diagnostic runs and do not establish valid task scores.
+The initial head image is refreshed through the native renderer before it reaches
+the planner. This checks both physics counters and the complete native reset-state
+fingerprint without consuming control steps.
+
+Before PhysX creates its first contacts, the box spawn is aligned with the pinned
+upstream reset sampler for the requested seed. The ordinary native reset still
+runs, and its actual PhysX pose must match that sample exactly. This prevents
+high-friction contact anchors from the midpoint spawn acting across the first
+randomized reset. Asset geometry, materials, solver parameters, reset ranges and
+termination rules are retained; Python random state is restored after sampling.
+
+Native hold checks for seeds 0, 1 and 2 each completed 150 control steps with no
+termination. All three reset poses matched the upstream sampler component by
+component, and maximum box displacement stayed below 44 micrometres. These checks
+validate startup stability, not planner task success. Earlier rollouts containing
+the startup box ejection remain diagnostic and must not be counted as task scores.
