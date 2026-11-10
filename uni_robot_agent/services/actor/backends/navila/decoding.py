@@ -2,7 +2,7 @@
 import math
 import re
 
-_PREFIX = re.compile(r"I think I should ", re.IGNORECASE)
+_PREFIX = re.compile(r"(?:I think I should|The next action is) ", re.IGNORECASE)
 _STOP = re.compile(r"stop(?: because I have finished the instruction)?", re.IGNORECASE)
 _FORWARD = re.compile(r"move forward (?:by )?(25|50|75) (?:cm|centimeters?)", re.IGNORECASE)
 _TURN = re.compile(r"turn (left|right) (?:by )?(15|30|45) degrees?", re.IGNORECASE)
@@ -13,7 +13,7 @@ def decode_action(text):
         raise ValueError("NaVILA must return one nonempty navigation decision")
     # Whitespace and one sentence terminator do not change the command grammar.
     normalized = " ".join(text.strip().split()).removesuffix(".")
-    # The published checkpoint uses this sentence wrapper around its decisions.
+    # The published checkpoint uses these sentence wrappers around its decisions.
     # Keep full matching: negation, explanations of motion and compound actions fail.
     normalized = _PREFIX.sub("", normalized, count=1) if _PREFIX.match(normalized) else normalized
     if _STOP.fullmatch(normalized):
