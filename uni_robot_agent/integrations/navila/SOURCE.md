@@ -57,8 +57,12 @@ checkpoint digest and dedicates the upstream server to one bridge session.
 
 The original model environment uses Torch 2.3. A separate Blackwell runtime
 using Torch 2.7.0+cu128 and FlashAttention 2.8.3 has passed pinned-weight loading
-and native server inference. This is a model-runtime check; no Hybrid task success
-or benchmark score follows from it. Keep model and simulator dependencies in
+and native server inference. With the explicit `isaac51` simulator profile, one
+end-to-end Hybrid validation (`episode:0`, seed 42, Qwen3.8-Flash without reviewer,
+harness commit `000d4cf`) also achieved native task success after the planner's
+explicit finish. See [validation details](../../../docs/navila.md#observation-execution-and-evaluation).
+This single episode does not establish an aggregate success rate or equivalence
+to original Isaac 4.1 benchmark scores. Keep model and simulator dependencies in
 separate environments.
 
 The native reset retains the 100-step zero-command Go2 warmup. The environment

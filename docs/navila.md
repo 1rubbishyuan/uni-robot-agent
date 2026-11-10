@@ -39,9 +39,9 @@ from the original runtime; official benchmark-score equivalence is not claimed.
 
 The model server has its own compatibility requirements. An isolated Blackwell
 model runtime with Torch 2.7.0+cu128 and FlashAttention 2.8.3 has loaded the pinned
-8B weights and completed native server inference. This establishes model
-execution, not Hybrid navigation success or parity with the original Torch 2.3
-runtime. The actor bridge does not install this model environment.
+8B weights and completed native server inference. The same model runtime has
+also completed the single Hybrid episode described below with the explicit
+`isaac51` environment. The actor bridge does not install this model environment.
 
 ## Prepare the Isaac 5.1 migration
 
@@ -217,3 +217,14 @@ Preserve the full route instruction for the initial native-model comparison.
 Agent-written subgoals are a separate experiment. CPU contract tests validate
 parsing, framing, history and lifecycle behavior; they do not establish GPU
 compatibility or navigation success rates.
+
+A native validation on 2026-11-10 at harness commit `000d4cf` completed
+`episode:0`, seed 42, with Qwen3.8-Flash, reviewer disabled, and the explicit
+`isaac51` profile on RTX 5090. Seven `actor_act` calls produced 23 acknowledged
+motion segments over 1,575 control ticks (31.5 simulation seconds). The actor did
+not predict STOP; the planner inspected the result and explicitly called `finish`
+to declare navigation STOP. The native evaluator reported success, distance to
+goal 1.387 m, path length 9.765 m and SPL 0.834. All 1,576 recorded frames had
+verified hashes and contiguous tick spans. This validates one end-to-end Hybrid
+episode; it is not an aggregate success rate or a score comparable to the
+original Isaac 4.1 benchmark.
