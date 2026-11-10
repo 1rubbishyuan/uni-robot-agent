@@ -10,7 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from uni_robot_agent.services.hosting import create_app, serve
 
-from .backends.openpi.config import resolve_config
+from .config import apply_service_limits, resolve_actor
+from .registry import backend_names
 from .routes import build_router
 from .service import ActorService
 
@@ -41,9 +42,9 @@ class SessionConfig(BaseModel):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--backend", choices=["openpi", "pi05", "xpolicylab"])
-    parser.add_argument("--runtime", choices=["openpi_jax"])
-    parser.add_argument("--profile", help="Named native OpenPI deployment recipe")
+    parser.add_argument("--backend", choices=backend_names())
+    parser.add_argument("--runtime")
+    parser.add_argument("--profile", help="Named actor deployment recipe")
     parser.add_argument("--model-config", dest="model_config_name")
     parser.add_argument("--checkpoint")
     parser.add_argument("--checkpoint-sha256")
@@ -61,10 +62,6 @@ def main():
     http_settings = settings.pop("http", {})
     batch_settings = settings.pop("batching", {})
     session_settings = settings.pop("sessions", {})
-    configured_backend = settings.pop("backend", "pi05")
-    backend = args.backend or configured_backend
-    if backend not in {"openpi", "pi05", "xpolicylab"}:
-        parser.error(f"Unsupported actor backend: {backend}")
     for field in (
         "runtime",
         "profile",
@@ -86,35 +83,19 @@ def main():
     ):
         if getattr(args, field) is not None:
             batch_settings[config_key] = getattr(args, field)
-    if backend in {"pi05", "openpi"}:
-        config = resolve_config(settings, legacy=backend == "pi05")
-        if config.inference_mode == "single":
-            batch_settings.setdefault("max_batch_size", 1)
-    else:
-        from .backends.xpolicylab.config import XPolicyLabConfig
-
-        config = XPolicyLabConfig.model_validate(settings)
-        batch_settings.setdefault("max_batch_size", 1)
-        session_settings.setdefault("max_sessions", 1)
+    try:
+        resolved = resolve_actor(settings, backend=args.backend)
+        apply_service_limits(resolved, batch_settings, session_settings)
+    except ValueError as error:
+        parser.error(str(error))
     http = HttpConfig.model_validate(http_settings)
     batch = BatchConfig.model_validate(batch_settings)
     sessions = SessionConfig.model_validate(session_settings)
-    if backend == "xpolicylab" and (batch.max_batch_size != 1 or sessions.max_sessions != 1):
-        parser.error("XPolicyLab bridge requires max_batch_size=1 and max_sessions=1")
-    if backend in {"pi05", "openpi"} and config.inference_mode == "single" and batch.max_batch_size != 1:
-        parser.error("This pinned OpenPI API requires max_batch_size=1")
     if batch.max_queue_size < batch.max_batch_size:
         parser.error("max_queue_size must be at least max_batch_size")
     if args.cuda_device is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda_device
-    if backend in {"pi05", "openpi"}:
-        from .backends.openpi.backend import OpenpiBackend
-
-        model = OpenpiBackend(config)
-    else:
-        from .backends.xpolicylab.backend import XPolicyLabBackend
-
-        model = XPolicyLabBackend(config)
+    model = resolved.definition.create(resolved.config)
     service = None
     try:
         service = ActorService(

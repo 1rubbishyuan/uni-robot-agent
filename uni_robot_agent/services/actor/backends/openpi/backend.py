@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-from uni_robot_agent.services.actor.contracts import ActorInfo
+from uni_robot_agent.services.actor.contracts import ActorInfo, NumericChunk
 
 from .config import OpenpiConfig
 
@@ -32,7 +32,8 @@ class OpenpiBackend:
         self.runtime.close_session(state)
 
     def predict_batch(self, requests):
-        return self.runtime.predict_batch(requests)
+        return [result if isinstance(result, Exception) else NumericChunk(actions=result)
+                for result in self.runtime.predict_batch(requests)]
 
     def close(self):
         self.runtime.close()

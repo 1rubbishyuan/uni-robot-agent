@@ -78,10 +78,12 @@ uni_robot_agent/
 │   │   ├── backend.py          # ActorBackend, ActorWork
 │   │   ├── images.py
 │   │   ├── server.py           # configured model loading and serving
-│   │   └── backends/openpi/
-│   │       ├── backend.py      # one Pi05Backend
-│   │       ├── config.py
-│   │       └── openpi_jax.py   # native runtime adapter
+│   │   ├── registry.py         # lazy backend/config/deployment registration
+│   │   └── backends/
+│   │       ├── openpi/         # one OpenpiBackend, recipe-selected native runtime
+│   │       ├── gr00t/          # official GR00T policy and processor
+│   │       ├── navila/         # official external TCP model bridge
+│   │       └── xpolicylab/     # official external WebSocket model bridge
 │   └── perception/
 │       ├── contracts.py
 │       ├── client.py           # PerceptionClient
@@ -91,12 +93,13 @@ uni_robot_agent/
 │       ├── backend.py          # PerceptionBackend
 │       ├── server.py
 │       └── backends/sam3.py
-├── integrations/
-│   ├── robolab/                 # Direct DROID adapter and native environment host
-│   ├── robouse/                 # Direct native backends and deployment recipes
-│   └── robodojo/                # spec, prompt, bindings, environment/adapter.py
+├── integrations/               # specs, tool compositions, physical bindings and native adapters
+│   ├── robodojo/, robouse/, robolab/
+│   ├── dexjoco/                 # dexterous arm/hand
+│   └── behavior/, isaaclab_arena/, navila/  # mobile embodiments
 ├── tools/
 │   ├── gripper/                 # arm/gripper schemas and high-level motion
+│   ├── hybrid/                  # typed proposals, optional review and bounded execution
 │   └── scene/                   # snapshot localization and geometry
 └── provider/                   # model APIs, retries, adapters and wire traces
 ```
@@ -123,7 +126,9 @@ an explicit `finish` operation.
 `ActorClient` checks `/info`, including protocol, model identity, profile and
 an optional expected checkpoint hash, then creates an explicit HTTP session.
 Every prediction includes `session_id`, `request_id` and `sequence`. The reply
-must match those identities, model/checkpoint and the declared action shape.
+must match those identities, model/checkpoint and the declared prediction type,
+shape or label/parameters. Actor v3 supports numeric chunks and symbolic
+predictions; optional camera history retains source frame identities and timing.
 One session permits one accepted inference at a time.
 
 Actor failures have explicit outcomes:
@@ -221,6 +226,7 @@ and action decoding.
 |---|---|---|---|
 | `robodojo_pi05` | Three cameras and fourteen X5 joint/gripper values | 50 × 14 absolute joint/gripper targets | True batches with per-session noise |
 | `dexjoco_pick_bucket` | Two cameras, measured TCP xyz/wxyz and sixteen finger positions | 30 × 22 absolute TCP xyz/rotation-vector and finger targets | Single observation per inference call |
+| `behavior_r1pro_pi05` | Three cameras and native 61D proprioception; original transform selects 23D state | 32 × 23 joint/gripper targets and normalized base commands | Single observation per inference call |
 
 Recipes can map named physical fields into one or several model input arrays
 with `observation_mapping`; omitted mapping retains the `state` key. Every
@@ -229,7 +235,7 @@ observation field must appear exactly once. `prompt_key`, `image_container`,
 embedding robot-specific key names in the backend. These mappings do not perform
 physical frame or unit conversions; those remain in the integration binding.
 
-Both recipes instantiate `OpenpiBackend`, `ActorService` and `ActorClient`.
+All OpenPI recipes instantiate `OpenpiBackend`, `ActorService` and `ActorClient`.
 Observation width, physical action width and the model's internal sampling width
 are independent: X5 uses a 32-wide latent space for 14-wide physical actions;
 DexJoCo single-arm uses a 32-wide latent space for 22-wide physical actions.
@@ -257,6 +263,30 @@ backend. A different model serving protocol can implement `ActorBackend`, as the
 existing XPolicyLab bridge does. Importing clients, configuration or CLI help
 never loads JAX, Torch or a simulator.
 
+## Backend configuration and preparation
+
+`registry.py` resolves a lazy backend definition. Its configuration module owns
+backend-specific options and service limits; its deployment module owns native
+source, weights, dependencies and launch configuration. Shared deployment retains
+cache, process and shutdown ownership. Adding another environment for an existing
+model protocol requires a recipe/profile and integration binding, not a duplicate
+backend or another branch in the process manager.
+
+| Backend | Model boundary | Managed preparation |
+|---|---|---|
+| `openpi` | Native OpenPI/JAX; recipe mappings preserve upstream transforms | Pinned source/environment and supported checkpoint sources; R1Pro weights supplied explicitly |
+| `gr00t` | Official `Gr00tPolicy` and processor, numeric chunks | `arena_g1_gr00t`; separate Python 3.12 model runtime |
+| `navila` | Official TCP server, symbolic navigation from image history | `navila_8b` prepares the bridge; GPU model server is externally prepared |
+| `xpolicylab` | Official WebSocket server, explicitly mapped numeric profile | External upstream and direct bridge launch; no managed deployment |
+
+GR00T, NaVILA and XPolicyLab admit one active session and batch size one. OpenPI
+limits depend on the selected runtime capability. Omitted batch/session limits
+receive backend-compatible defaults; explicit incompatible values are rejected.
+The backend decodes model output but never executes robot commands. Native runtime
+and GPU restrictions are documented in [Arena](isaaclab_arena.md),
+[NaVILA](navila.md) and [BEHAVIOR](behavior.md); source/configuration validation is
+not evidence of a successful native rollout.
+
 ## Start services
 
 Install the base harness into each prepared runtime environment, alongside its
@@ -264,6 +294,9 @@ native dependencies. Copy and edit the appropriate TOML example:
 
 - [`pi05_robodojo.toml`](../examples/services/pi05_robodojo.toml)
 - [`openpi_dexjoco_single.toml`](../examples/services/openpi_dexjoco_single.toml)
+- [`openpi_behavior_r1pro.toml`](../examples/services/openpi_behavior_r1pro.toml)
+- [`gr00t_arena_g1.toml`](../examples/services/gr00t_arena_g1.toml)
+- [`navila_8b.toml`](../examples/services/navila_8b.toml)
 - [`xpolicylab_x5.toml`](../examples/services/xpolicylab_x5.toml)
 - [`sam3.toml`](../examples/services/sam3.toml)
 
@@ -280,11 +313,13 @@ PYTHON=/absolute/path/to/sam3/bin/python \
 ```
 
 The equivalent Python entrypoints are `uni_robot_agent.services.actor.server` and
-`uni_robot_agent.services.perception.server`. Actor TOML selects `backend`, `runtime`,
-`profile`, `model_config_name`, `checkpoint`, and optional pinned source/hash
-fields. A string `profile` selects a packaged model recipe; a full profile table
-can accompany an explicit native model configuration. Recipes with a required
-working directory must be launched there; managed deployment sets it automatically.
+`uni_robot_agent.services.perception.server`. Actor TOML selects `backend` and
+its native or bridge options, such as runtime, source/checkpoint identity or
+upstream endpoint. A string `profile` selects a packaged recipe; its backend must
+match the selected backend. Recipes without an explicit backend retain legacy
+OpenPI behavior. A full profile table can accompany an explicit model configuration
+where supported. Recipes with a required working directory must be launched there;
+managed deployment sets it automatically.
 `[http]`, `[batching]` and `[sessions]` configure host, queue and session
 limits. CLI arguments override the corresponding TOML values; see each
 entrypoint's `--help`. The actor's `--identity-output` writes the resolved
@@ -318,8 +353,9 @@ Connect the harness with HTTP URLs, for example:
 ```
 
 The ports are deployment examples, not discovery defaults. A pooled environment
-uses its allocated full episode URL. Independent environments may share an actor
-and perception service through separate clients and actor sessions.
+uses its allocated full episode URL. Independent environments may share model
+services only when the selected backend supports their concurrency and session
+requirements; an exclusive upstream bridge cannot serve concurrent episodes.
 
 ## XPolicyLab bridge
 
@@ -330,8 +366,11 @@ model adapter owns preprocessing, normalization and decoding. One selected model
 serves one episode. Checkpoint compatibility must be validated for that episode's
 observation and control semantics; equal vector dimensions are insufficient.
 
-Actor protocol **`uni_robot_agent.actor.v2`** deliberately replaces v1. Upgrade
-clients and actor services together. `ActorProfile.observation_fields` and
+Actor protocol **`uni_robot_agent.actor.v3`** carries a typed `prediction` reply.
+Upgrade clients and services together and restart them with fresh sessions; v2
+HTTP clients cannot reuse the new wire contract or old session IDs. XPolicyLab
+continues to emit numeric chunks with unchanged physical meanings.
+`ActorProfile.observation_fields` and
 `action_fields` independently list scalar names, units, semantics, optional frame,
 control point, delta reference and bounds. The profile also declares cameras,
 control frequency, action horizon and image convention. There is no required arm,
@@ -353,7 +392,7 @@ For existing bridge configurations, replace top-level `action_horizon`, `cameras
 `action_semantics`, `control_frequency_hz` and `gripper_convention` with the full
 profile and the three explicit mappings in the updated example. There is no
 silent v1 fallback. The pinned Pi0.5 backend keeps its legacy profile, transforms
-and binding-side clipping as a separate compatibility path under actor v2.
+and binding-side clipping as a separate numeric compatibility path under actor v3.
 
 The upstream adapter must condition on the current instruction and generate a
 new proposal from each supplied observation. Policies that return an old queued
@@ -430,9 +469,10 @@ Use one bridge and one exclusive upstream process per episode, with
 `max_batch_size=1` and `max_sessions=1`. Do not connect other evaluators or bridges
 to that upstream: its model state is global, and the bridge cannot enforce
 exclusivity across processes. Open/reset happens when the actor session is
-created, and normal close invokes `trial_end` before disconnecting. Closed
-session receipts retain the service's sole session slot until expiry; restart
-the bridge for the next episode. Multi-episode pooling is not supported here.
+created, and normal close invokes `trial_end` before disconnecting. A successfully
+closed session releases its active slot while bounded receipts remain available.
+A healthy bridge can then admit a new sequential episode; concurrent episodes
+remain unsupported.
 
 Reset, inference, invalid output, or shutdown failures make the backend unusable
 for new work. After an uncertain or failed call, stop this run and restart the
@@ -474,14 +514,16 @@ wire reference or snapshot identity. The store has no robot or provider logic.
 
 ## Add an actor backend
 
-For another checkpoint with an existing compatible Pi0.5 profile, write a TOML
-configuration. For another model family, implement `ActorBackend` under
-`services/actor/backends/` and add its configuration/loading choice to the actor
-entrypoint. The native model wrapper can be small:
+For another checkpoint using a compatible model protocol, write a recipe or TOML
+configuration and validate its physical profile against an integration binding.
+For another model protocol, implement `ActorBackend` under
+`services/actor/backends/`, provide `config.resolve_config` and `service_limits`,
+and register a `BackendDefinition`. Optional managed preparation belongs in that
+backend's deployment module. The native model wrapper can be small:
 
 ```python
 from uni_robot_agent.services.actor.backend import ActorWork
-from uni_robot_agent.services.actor.contracts import ActorInfo
+from uni_robot_agent.services.actor.contracts import ActorInfo, NumericChunk
 
 
 class MyActorBackend:
@@ -496,17 +538,22 @@ class MyActorBackend:
 
     def predict_batch(self, requests: list[ActorWork]):
         observations = [request.observation for request in requests]
-        return self.model.predict_batch(observations)
+        matrices = self.model.predict_batch(observations)
+        return [NumericChunk(actions=matrix) for matrix in matrices]
 
     def close(self):
         self.model.close()
 ```
 
-`info` declares the model/checkpoint identity and complete profile: cameras,
-separate observation/action fields, their units, semantics, frames, control points
-and delta references, plus frequency, horizon and image conventions. The backend returns one action matrix or exception per request in
-input order. A stateful model returns per-session state from `create_session`
-and consumes `ActorWork.state` during prediction.
+`info` declares model/checkpoint identity and a complete numeric or symbolic
+profile: cameras, observations, physical semantics, optional history requirements,
+and either action fields/timing or labels/parameters. Return one `NumericChunk`,
+`SymbolicPrediction` or exception per request in input order. Numeric output must
+match the full declared horizon; symbolic output must match a declared label and
+its exact parameter fields. A stateful model returns per-session state from
+`create_session` and consumes `ActorWork.state` during prediction. Keep native
+preprocessing, normalization and history selection in the backend; frame/unit
+conversion and physical command compilation remain in integration bindings.
 
 Compose it with the existing service and routes:
 
@@ -521,9 +568,10 @@ serve(app, host="127.0.0.1", port=8601)
 ```
 
 No new HTTP client, facade or server is needed. Add an action binding when
-the new model needs different snapshot/action conversions, then verify profile
-compatibility, native batching, ordering, admission and failure recovery using a
-fake backend before a native-runtime smoke test.
+the new model needs different observation/prediction conversions, then verify
+profile compatibility, batching, ordering, admission and failure recovery using
+a fake backend before a native-runtime smoke test. Keep tests under `tests/`;
+fixture passes alone do not demonstrate native policy performance.
 
 ## MCP and provider delivery
 

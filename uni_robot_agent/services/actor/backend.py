@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .contracts import ActorInfo, ActorObservation
+from .contracts import ActorInfo, ActorObservation, Prediction
 
 
 @dataclass(frozen=True)
@@ -20,5 +20,5 @@ class ActorBackend(Protocol):
     def close_session(self, state: Any) -> None: ...
     def predict_batch(
         self, requests: Sequence[ActorWork]
-    ) -> list[list[list[float]] | Exception]: ...
+    ) -> list[Prediction | Exception]: ...
     def close(self) -> None: ...

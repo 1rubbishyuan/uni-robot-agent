@@ -1,17 +1,21 @@
 # Hybrid actor collaboration
 
-Hybrid is an independent tool family. An actor proposes a chunk; an optional
+Hybrid is an independent tool family. The planner calls `actor_act` with a
+language instruction; an actor proposes numeric actions or a symbolic instruction,
+and the integration binding translates it into executable samples. An optional
 reviewer selects a bounded prefix, stops, or uses a correction capability exposed
-by the integration. Every next chunk uses a fresh observation, including after
-Direct motion. A discarded suffix is never replayed.
+by the integration. Every next proposal uses a fresh observation, including after
+Direct motion. A discarded suffix is never replayed. Disabling review with
+`--no-vla-review` preserves this planner-driven collaboration and execution path.
 
 ## Tool composition
 
-Select `--tool-profile hybrid` on RoboDojo, RoboUse or RoboLab; binding admission
-still depends on the actual environment/controller and actor profile. The
-`--action-profile hybrid` alias remains supported. Direct profiles instantiate
-skills, scene, gripper and episode providers; Hybrid adds a configured
-`HybridTools` provider and its runtime prompt resources.
+Select `--tool-profile hybrid` on an integration that declares it; binding
+admission depends on the actual controller and actor profile. The
+`--action-profile hybrid` alias remains supported. RoboDojo, RoboUse and RoboLab
+can compose Hybrid with Direct tools. DexJoCo, BEHAVIOR, IsaacLab Arena and NaVILA
+compose Hybrid with scene, skills and episode tools, without gripper tools.
+Integrations own these compositions; a backend never chooses the visible tools.
 
 The Hybrid module creates actor/reviewer clients through session ownership.
 Direct does not instantiate an empty Hybrid provider. Explicit visibility
@@ -41,11 +45,21 @@ have executed partly without incrementing a completed-command counter.
 
 ## Profiles and admitted bindings
 
-Actor v2 declares independent ordered observation and action fields. Each scalar
-has a name, unit and semantic meaning, with optional frame, control point, delta
-reference and bounds. Frequency, horizon, cameras and image conventions are also
-explicit. The backend maps these fields to model wire keys. The integration
-validates their physical meaning against the actual environment.
+Actor v3 declares a numeric or symbolic profile. Numeric profiles retain
+independent ordered observation/action fields, action horizon and control
+frequency. Symbolic profiles declare allowed labels and each label's parameters.
+Each scalar has a name, unit and semantic meaning, with optional frame, control
+point, delta reference and bounds. Cameras and image conventions are explicit.
+The backend maps this contract to native model inputs/outputs; the integration
+validates its physical meaning against the actual environment.
+
+`NumericChunk` carries the complete action matrix; `SymbolicPrediction` carries
+one declared label and typed parameters. Both can retain inference evidence.
+`ObservationInputs` supplies snapshot state, images and optional camera history.
+History requirements declare frame-count bounds and episode/recent scope. Native
+sensors own sampling and retain frame IDs, simulation times and state versions;
+the backend owns model-specific selection and padding. Capturing only when
+`actor_act` runs cannot substitute for intermediate sensor history.
 
 | Binding | Supported contract | Preview and review |
 |---|---|---|
@@ -53,6 +67,10 @@ validates their physical meaning against the actual environment.
 | `robodojo_x5_joint` | Dual X5 absolute joints and continuous normalized openings, 25 Hz | Native FK; bounded pose corrections |
 | `robolab_droid_joint` | Seven Panda joints; observed finger-angle fraction, commanded normalized physical gap | Requested and nominal slew-limited flange FK; bounded corrections |
 | `robouse_cartesian` | Admitted LIBERO full-pose or RoboCasa fixed-orientation public world control points; absolute poses or latest-ACK-relative deltas | Absolute target previews are nominal requests; deltas do not advertise predicted future motion |
+| `dexjoco_tcp_hand` | Absolute TCP pose and named dexterous finger positions | Student/stop; native clipping recorded |
+| `behavior_r1pro_joint` | R1Pro torso/arm/gripper positions and local base velocity; OpenPI Pi0.5 | Student/stop; atomic 30 Hz control |
+| `arena_g1_locomanipulation` | G1 arm/hand joints, heading-frame velocity and pelvis height; GR00T | Student/stop; native whole-body controller at 50 Hz |
+| `navila_go2` | NaVILA front-camera history and discrete navigation predictions | Student/stop; one bounded locomotion segment or yield to planner |
 
 Generic bindings do not require `xpolicylab_ws`: any backend declaring the exact
 compatible profile can serve them. The legacy Pi0.5 path deliberately retains its
@@ -75,28 +93,39 @@ fields, rotation commands and rotation corrections.
    episode, snapshots and command receipts.
 2. Add a pure binding factory with signature
    `create_binding(name, args, description, actor_info)`. Validate complete profile
-   compatibility; encode captured observations; decode and validate the entire
-   proposal before execution; compile individual rows against the latest ACK.
+   compatibility; implement `encode_observation(ObservationInputs, instruction)`
+   and `decode_prediction(prediction, manifest, images, scope)`; validate the full
+   proposal before execution and compile each sample against the latest ACK.
+   A non-motion prediction can return `YieldToAgent` without issuing a command.
 3. Compose reusable adapters/corrections where they fit, or implement
    `HybridBinding` for another command family. Declare strict scope/constraint
    schemas and only the correction capabilities that the device supports.
 4. Pass that factory to `configure_hybrid` in the integration's session assembly.
-   Declare the hybrid tool name and exclusive resource policy alongside its other
-   tools. No change to the common runner, executor or actor backend is needed when
-   existing service contracts can represent the device and model.
+   Declare its Hybrid tool composition and resource policy alongside other tools.
+   No change to the common runner, executor or actor backend is needed when
+   existing service contracts represent the device and model. A new model recipe
+   can supply checkpoint/configuration mappings to an existing backend.
 
-For a dexterous hand, the binding may encode joint/tactile state and compile timed
-`JointSegment` commands through `/device-steps`. It need not expose arms or scalar
-grippers. If the device needs a new native command or the model needs a new wire
-protocol, extend that owning service boundary; do not hide it inside Hybrid.
-This change includes a CPU device fixture, not a production hand driver or WAM.
+For a dexterous hand, the binding can encode available joint/sensor state and
+compile device commands through `/device-steps`, as DexJoCo does. For mobile
+robots, `CoordinatedControlStep` combines named radian/metre joint targets, body
+velocities and height references in one acknowledged step. The native controller
+owns balance and contact handling. Neither path requires scalar gripper tools.
+If a device needs a new command or a model needs a new wire protocol, extend that
+owning service boundary; do not hide it inside Hybrid.
 
 ## Migration and validation
 
-Upgrade matching clients and services together: actor protocol v1 becomes v2,
-scalar environment protocol 3 becomes 4, and its tool schema 7 becomes 8. The
-separate device protocol is unchanged. Replace `active_arms` with `active_groups`.
-Opening overrides now live under `constraints.gripper_openings_m` when metric
+Actor HTTP protocol is now `uni_robot_agent.actor.v3`. Upgrade clients and actor
+services together, restart services and open fresh sessions; pre-upgrade session
+IDs cannot be reused. Replies carry a typed `prediction`; numeric Python clients
+retain the `reply.actions` view. Existing numeric profile semantics and
+`actor_act` arguments remain unchanged. New mobile environments advertise
+`devices-2` for coordinated control; existing `devices-1`, scalar protocol 4 and
+tool schema 8 remain supported. Snapshots retain schema 2 with optional history.
+
+For older Hybrid configurations, replace `active_arms` with `active_groups`.
+Opening overrides live under `constraints.gripper_openings_m` when metric
 calibration exists, or `constraints.gripper_targets` for normalized openings.
 These fields are optional adapter capabilities, not universal Hybrid parameters.
 
@@ -120,6 +149,44 @@ Keep a selected checkpoint's training semantics, normalization, camera identity,
 control point and timing consistent with the declared profile. CPU fixtures verify
 contracts, receipts, ordering and conversion. They do not establish physical
 safety, task success, or pretrained VLA quality on new environments.
+
+The BEHAVIOR R1Pro, Arena G1 and NaVILA Go2 adapters have CPU contract checks.
+A Qwen + Pi0.5 R1Pro run executed 3,024 native control steps; the official task
+result was unsuccessful and the original run had a finalization error. A separate
+native check verified the subsequent finalization fix without changing that result.
+A Qwen + GR00T G1 run completed four `actor_act` calls, 21 predictions and 1,003
+native control steps with the original task evaluator reporting success. Before
+that run, aligning the cold spawn with the upstream seeded reset removed the
+box-motion anomaly; three seeds retained the original physics and reset poses.
+This is a single successful episode, not a success-rate estimate or an additional
+post-release settling check. A Qwen + NaVILA Go2 run completed seven `actor_act`
+calls, 23 movement predictions and 1,575 native control steps, then explicitly
+called `finish`. The native evaluator reported success with distance to goal
+1.387 m and SPL 0.834; finalization and outcome readback completed normally.
+This is one episode under the explicit `isaac51` Hybrid profile, not a benchmark
+success rate or an evaluation equivalent to the upstream standalone Isaac 4.1 run.
+
+Arena uses the pinned official Isaac Sim 5.1 branch with CPU physics and GPU
+rendering. NaVILA retains its pinned `isaac41` profile, which rejects Blackwell
+GPUs, and adds an explicitly selected `isaac51` compatibility profile. The latter
+pins the source migration and isolates visual material subsets from collision
+geometry while preserving mesh vertices, triangles, the locomotion policy and
+sensors. A full-scene native check completed 100 warmup and 150 commanded control
+steps, travelling 0.849 m; it is not a NaVILA navigation success result.
+BEHAVIOR requires separately installed native assets/runtime and task-compatible
+weights. The [BEHAVIOR](behavior.md), [Arena](isaaclab_arena.md)
+and [NaVILA](navila.md) guides describe setup and remaining acceptance work.
+Their examples default to Qwen with review disabled.
+
+## Symbolic navigation
+
+NaVILA predicts forward/turn/stop instructions from RGB history and language.
+Its binding compiles movement into a bounded velocity segment; the environment's
+Go2 controller executes and captures intermediate sensor frames. Actor STOP
+returns `YieldToAgent`: it does not end the episode or claim arrival. The planner
+can observe, request another phase or call `finish`. Native private metrics
+establish the final outcome. Requested displacement is never reported as measured
+travel, and no simulator reference route or exact goal is passed to the model.
 
 ## Coordinated dexterous devices
 

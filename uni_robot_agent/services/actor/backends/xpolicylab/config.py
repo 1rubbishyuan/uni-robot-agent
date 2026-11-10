@@ -55,3 +55,11 @@ class XPolicyLabConfig(BaseModel):
         return self.model_dump(mode="json", exclude={
             "upstream_url", "xpolicylab_root", "request_timeout_s",
         })
+
+
+def resolve_config(settings):
+    return XPolicyLabConfig.model_validate(settings)
+
+
+def service_limits(config):
+    return {"max_batch_size": 1, "max_sessions": 1}

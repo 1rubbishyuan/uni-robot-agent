@@ -5,7 +5,9 @@ from dataclasses import dataclass, field
 import math
 from typing import Any, Protocol
 
-from uni_robot_agent.services.actor.contracts import ActorObservation
+from uni_robot_agent.services.actor.contracts import ActorObservation, Prediction
+
+from .observations import ObservationInputs
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,17 @@ class Proposal:
     scoped_actions: Any
     metadata: dict = field(default_factory=dict)
     preview: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class YieldToAgent:
+    """Return control without issuing a physical command or claiming success."""
+    reason: str
+    metadata: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        if not self.reason.strip():
+            raise ValueError("Returning control requires a reason")
 
 
 @dataclass(frozen=True)
@@ -93,8 +106,8 @@ class HybridBinding(Protocol):
     reviewer_supported: bool
 
     def validate_scope(self, active_groups: list[str], constraints: dict) -> dict: ...
-    def encode_observation(self, manifest: dict, instruction: str, images: dict[str, str]) -> ActorObservation: ...
-    def decode_prediction(self, actions, manifest: dict, images: dict[str, str], scope: dict) -> Proposal: ...
+    def encode_observation(self, inputs: ObservationInputs, instruction: str) -> ActorObservation: ...
+    def decode_prediction(self, prediction: Prediction, manifest: dict, images: dict[str, str], scope: dict) -> Proposal | YieldToAgent: ...
     def preview(self, proposal: Proposal, environment) -> dict: ...
     def review_context(self, proposal: Proposal, scope: dict) -> dict: ...
     def validate_decision(self, decision: dict, context: dict, actions_per_chunk: int) -> dict: ...

@@ -68,6 +68,9 @@ class RemoteArtifactMirror:
                 frame["rgb"] = self.mirror_ref(frame["rgb"])
             if frame.get("depth_m") is not None:
                 frame["depth_m"] = self.mirror_ref(frame["depth_m"])
+        for samples in local.get("history", {}).values():
+            for sample in samples:
+                sample["rgb"] = self.mirror_ref(sample["rgb"])
         # Exclude mirror-only metadata from the stored manifest so equivalent
         # source and local snapshots keep the same content-addressed identity.
         manifest_for_storage = copy.deepcopy(local)
@@ -78,6 +81,10 @@ class RemoteArtifactMirror:
                         name: value for name, value in frame[key].items()
                         if name not in {"remote_artifact_id", "remote_sha256"}
                     }
+        for samples in manifest_for_storage.get("history", {}).values():
+            for sample in samples:
+                sample["rgb"] = {key: value for key, value in sample["rgb"].items()
+                                 if key not in {"remote_artifact_id", "remote_sha256"}}
         manifest_ref = self.store.put_json({
             key: value for key, value in manifest_for_storage.items()
             if key not in {"snapshot_id", "manifest", "remote_snapshot_id"}

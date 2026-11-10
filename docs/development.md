@@ -250,14 +250,26 @@ and test request conversion, response delivery, error handling and recording.
 Provider retries concern model exchanges, not physical actions. A new planner
 using an existing protocol should reuse that provider path.
 
-For a new hybrid embodiment, follow [the binding contract](hybrid.md). Reuse
-`integrations.hybrid.configure_hybrid` and inject the integration's binding factory;
-no central binding registry is needed.
+For a new Hybrid embodiment, follow [the binding contract](hybrid.md). Reuse
+`integrations.hybrid.configure_hybrid` and inject the integration's binding factory.
+`encode_observation(ObservationInputs, instruction)` consumes captured state, images
+and declared camera history; `decode_prediction(...)` accepts a typed numeric or
+symbolic prediction and returns a proposal or yields to the agent. The binding
+owns physical frames, units and command compilation, while shared tools own
+inference, review and bounded execution. Reuse an existing backend when its model
+protocol fits. Integration discovery imports `integrations.<name>` lazily and calls
+`get_integration_spec`; no central integration/binding list needs editing.
 
-For an action or perception model, add a backend to the corresponding service
-and declare its input/output profile. Put environment-specific conversions in
-the integration's binding. Keep native model loading in its service process;
-see [service extension examples](services.md).
+For an action model, implement `ActorBackend`, its configuration and service limits,
+and register a lazy `BackendDefinition` in `services/actor/registry.py`. Optional
+managed preparation belongs in that backend's deployment module. Shared deployment
+code retains process/cache ownership without model-specific branches. The backend
+returns `NumericChunk` or `SymbolicPrediction`; model preprocessing and history
+selection stay there. Native environment sensors buffer history using source frame
+identities, simulation times and state versions; tool-call timing must not invent
+missing observations. Environment-specific physical conversion stays in the
+integration binding. Native model libraries are loaded only in the model process.
+For perception, use its existing backend contract. See [service examples](services.md).
 
 For scheduling changes, extend `execution/` against declared tool policies and
 test resource ownership, cancellation and job completion. Tools declare what

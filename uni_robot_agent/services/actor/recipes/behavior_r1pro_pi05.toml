@@ -1,0 +1,124 @@
+name = "actor-behavior-r1pro-pi05"
+backend = "openpi"
+python = "python3.11"
+repository = "https://github.com/wensi-ai/openpi.git"
+revision = "0cc8e355f7bac0976db1cc3139b1ff0379feea60"
+installer = "uv-sync"
+project = "."
+submodules = false
+uv_version = "0.9.5"
+# The official checkpoint is distributed separately; supply --checkpoint.
+
+[actor]
+model = "pi05"
+runtime = "openpi_jax"
+model_config_name = "pi05_b1k"
+source_revision = "0cc8e355f7bac0976db1cc3139b1ff0379feea60"
+source_sha256 = "5338398f477171f296814d7705a02338ff033a57aff307251eaf80f42782a287"
+source_files_sha256 = {"uv.lock" = "75657cfbac40473237a6eaebc994fe998b249b44a4671d38129af198f00e4ed6"}
+pythonpath = ["src", "packages/openpi-client/src"]
+assets_id = "turning_on_radio"
+inference_mode = "single"
+image_keys = {head = "observation/image_0", left_wrist = "observation/image_1", right_wrist = "observation/image_2"}
+image_container = ""
+image_layout = "HWC"
+resize = [224, 224]
+policy_rng_seed = 0
+observation_mapping = {"observation/state" = ["base_vx", "base_vy", "base_wz", "left_arm_position_0", "left_arm_position_1", "left_arm_position_2", "left_arm_position_3", "left_arm_position_4", "left_arm_position_5", "left_arm_position_6", "left_arm_velocity_0", "left_arm_velocity_1", "left_arm_velocity_2", "left_arm_velocity_3", "left_arm_velocity_4", "left_arm_velocity_5", "left_arm_velocity_6", "left_eef_position_0", "left_eef_position_1", "left_eef_position_2", "left_eef_quaternion_xyzw_0", "left_eef_quaternion_xyzw_1", "left_eef_quaternion_xyzw_2", "left_eef_quaternion_xyzw_3", "left_finger_position_0", "left_finger_position_1", "left_finger_velocity_0", "left_finger_velocity_1", "right_arm_position_0", "right_arm_position_1", "right_arm_position_2", "right_arm_position_3", "right_arm_position_4", "right_arm_position_5", "right_arm_position_6", "right_arm_velocity_0", "right_arm_velocity_1", "right_arm_velocity_2", "right_arm_velocity_3", "right_arm_velocity_4", "right_arm_velocity_5", "right_arm_velocity_6", "right_eef_position_0", "right_eef_position_1", "right_eef_position_2", "right_eef_quaternion_xyzw_0", "right_eef_quaternion_xyzw_1", "right_eef_quaternion_xyzw_2", "right_eef_quaternion_xyzw_3", "right_finger_position_0", "right_finger_position_1", "right_finger_velocity_0", "right_finger_velocity_1", "trunk_position_0", "trunk_position_1", "trunk_position_2", "trunk_position_3", "trunk_velocity_0", "trunk_velocity_1", "trunk_velocity_2", "trunk_velocity_3"]}
+
+[actor.profile]
+kind = "numeric"
+name = "behavior_r1pro_joint"
+cameras = ["head", "left_wrist", "right_wrist"]
+observation_fields = [
+  {name = "base_vx", unit = "m/s", semantics = "velocity", frame = "base"},
+  {name = "base_vy", unit = "m/s", semantics = "velocity", frame = "base"},
+  {name = "base_wz", unit = "rad/s", semantics = "velocity", frame = "base"},
+  {name = "left_arm_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_4", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_5", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_6", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_velocity_0", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_1", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_2", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_3", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_4", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_5", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_arm_velocity_6", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "left_eef_position_0", unit = "m", semantics = "position", frame = "base"},
+  {name = "left_eef_position_1", unit = "m", semantics = "position", frame = "base"},
+  {name = "left_eef_position_2", unit = "m", semantics = "position", frame = "base"},
+  {name = "left_eef_quaternion_xyzw_0", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "left_eef_quaternion_xyzw_1", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "left_eef_quaternion_xyzw_2", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "left_eef_quaternion_xyzw_3", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "left_finger_position_0", unit = "m", semantics = "joint_position"},
+  {name = "left_finger_position_1", unit = "m", semantics = "joint_position"},
+  {name = "left_finger_velocity_0", unit = "m/s", semantics = "joint_velocity"},
+  {name = "left_finger_velocity_1", unit = "m/s", semantics = "joint_velocity"},
+  {name = "right_arm_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_4", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_5", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_6", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_velocity_0", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_1", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_2", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_3", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_4", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_5", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_arm_velocity_6", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "right_eef_position_0", unit = "m", semantics = "position", frame = "base"},
+  {name = "right_eef_position_1", unit = "m", semantics = "position", frame = "base"},
+  {name = "right_eef_position_2", unit = "m", semantics = "position", frame = "base"},
+  {name = "right_eef_quaternion_xyzw_0", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "right_eef_quaternion_xyzw_1", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "right_eef_quaternion_xyzw_2", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "right_eef_quaternion_xyzw_3", unit = "unitless", semantics = "quaternion_xyzw", frame = "base"},
+  {name = "right_finger_position_0", unit = "m", semantics = "joint_position"},
+  {name = "right_finger_position_1", unit = "m", semantics = "joint_position"},
+  {name = "right_finger_velocity_0", unit = "m/s", semantics = "joint_velocity"},
+  {name = "right_finger_velocity_1", unit = "m/s", semantics = "joint_velocity"},
+  {name = "trunk_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_velocity_0", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "trunk_velocity_1", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "trunk_velocity_2", unit = "rad/s", semantics = "joint_velocity"},
+  {name = "trunk_velocity_3", unit = "rad/s", semantics = "joint_velocity"},
+]
+action_fields = [
+  {name = "base_command_0", unit = "normalized", semantics = "normalized_base_velocity", frame = "base"},
+  {name = "base_command_1", unit = "normalized", semantics = "normalized_base_velocity", frame = "base"},
+  {name = "base_command_2", unit = "normalized", semantics = "normalized_base_velocity", frame = "base"},
+  {name = "trunk_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "trunk_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_4", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_5", unit = "rad", semantics = "joint_position"},
+  {name = "left_arm_position_6", unit = "rad", semantics = "joint_position"},
+  {name = "left_gripper_command_0", unit = "normalized", semantics = "normalized_gripper_position"},
+  {name = "right_arm_position_0", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_1", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_2", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_3", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_4", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_5", unit = "rad", semantics = "joint_position"},
+  {name = "right_arm_position_6", unit = "rad", semantics = "joint_position"},
+  {name = "right_gripper_command_0", unit = "normalized", semantics = "normalized_gripper_position"},
+]
+action_horizon = 32
+control_frequency_hz = 30.0
+image_convention = "RGB HWC; model preprocessing belongs to the upstream adapter"
+history = {}

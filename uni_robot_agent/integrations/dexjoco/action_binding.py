@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 
 from uni_robot_agent.services.actor.contracts import (
+    NumericChunk,
     ActorField,
     ActorObservation,
     ActorProfile,
@@ -153,7 +154,8 @@ class DexjocoBinding:
             joints[hand.name] = dict(zip(hand.joint_names, values, strict=True))
         return poses, joints
 
-    def encode_observation(self, manifest, instruction, images):
+    def encode_observation(self, inputs, instruction):
+        manifest, images = inputs.manifest, inputs.images
         poses, joints = self._measured(manifest)
         values = [value for item in self.layout
                   for value in (*poses[item["arm"]].position, *poses[item["arm"]].quaternion)]
@@ -165,7 +167,10 @@ class DexjocoBinding:
                 encoded[name] = encode_image(np.asarray(image.convert("RGB")))
         return ActorObservation(instruction=instruction, state=values, images=encoded)
 
-    def decode_prediction(self, actions, manifest, images, scope):
+    def decode_prediction(self, prediction, manifest, images, scope):
+        if not isinstance(prediction, NumericChunk):
+            raise ValueError("This binding requires numeric actor predictions")
+        actions = prediction.actions
         raw = np.asarray(actions, dtype=float)
         if raw.shape != (self.action_horizon, len(self.profile.action_fields)) or not np.isfinite(raw).all():
             raise ValueError("Actor returned an invalid DexJoCo action matrix")

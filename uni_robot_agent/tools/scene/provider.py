@@ -126,7 +126,7 @@ class SceneTools(ToolProvider):
                           depth_cameras=[camera.name for camera in cameras if camera.has_depth],
                           calibrated_cameras=[camera.name for camera in cameras if camera.has_calibration],
                           scene_geometry=self.episode.description.environment.metadata.get("scene_geometry", False),
-                          device_episode=self.episode.description.protocol_version == "devices-1")
+                          device_episode=self.episode.description.protocol_version in {"devices-1", "devices-2"})
         specs = [spec for spec in specs if spec.name in self.names]
         if "locate" not in self.names:
             channels = "RGB, depth and calibration" if any(camera.has_depth for camera in cameras) else (

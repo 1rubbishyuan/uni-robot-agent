@@ -82,8 +82,9 @@ These adaptations do not claim upstream policy or success-rate equivalence.
 ## Shared actor
 
 `services/actor/` uses one shared `BatchWorker` and typed HTTP protocol
-`uni_robot_agent.actor.v2`. Each explicit actor session owns a seed-zero JAX noise
-sequence and inference index, with one request in flight. The pinned Python
+`uni_robot_agent.actor.v3`. The RoboDojo OpenPI recipe emits `NumericChunk`
+predictions with unchanged physical action semantics. Each explicit session owns
+a seed-zero JAX noise sequence and inference index, with one request in flight. The pinned Python
 policy lives in `services/actor/backends/openpi/openpi_jax.py`; it owns no network
 server or separate inference queue. Batching preserves assigned noise
 (50 x 32 per sample) and returns 50 x 14 actions; floating-point outputs need not

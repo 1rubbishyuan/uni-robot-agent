@@ -165,6 +165,8 @@ def prepare(args, adapter, *, report=print):
     with runtime_lock(root, args.setup_timeout_s):
         request = {name: str(getattr(args, name)) if getattr(args, name, None) is not None else None
                    for name in ('runtime_python', 'native_root', 'assets_dir', 'checkpoint', 'worker_python', 'python')}
+        if getattr(args, 'runtime_profile', None) is not None:
+            request['runtime_profile'] = args.runtime_profile
         request['environment'] = environment_options(args.runtime_env)
         request['wheel_sha256'] = file_hash(args.wheel) if args.wheel else None
         request_file = root / 'prepare-request.json'

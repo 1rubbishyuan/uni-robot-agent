@@ -1,0 +1,5 @@
+name = "env-isaaclab-arena-g1"
+python = "python3.11"
+repository = "https://github.com/isaac-sim/IsaacLab-Arena.git"
+revision = "aad4f25f44cc439c363c2b60f1fd170dfd10d2a5"
+isaaclab_revision = "5528d986d8909825a29f3c97656108abf054a261"

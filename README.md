@@ -28,7 +28,7 @@
 
 ## What's New
 
-**Hybrid** now separates shared orchestration, reusable actor backends and integration-specific bindings. [DexJoCo](docs/dexjoco.md) adds dexterous-hand manipulation with OpenPI/Pi0.5. [Learn more](docs/hybrid.md).
+**Hybrid** now supports humanoids, wheeled robots and quadrupeds through reusable actor backends and integration-owned bindings. New integrations include R1Pro, G1 and Go2. [Learn more](docs/hybrid.md).
 
 **Minimal mode** offers a small four-tool baseline (`move`, `hold`, `capture_scene`, `finish`) for studying robot-use agents with either RGB plus camera intrinsics/extrinsics or RGB-only observations ([`--tool-profile minimal`](docs/integrations.md#minimal-robot-tools)).
 
@@ -151,6 +151,9 @@ for remote-host access and other options.
 | **CALVIN** | Native Panda single-task episodes; no five-task chain runner | [Integration](docs/calvin.md) |
 | **RoboLab** | Single-DROID tasks in a separately prepared Isaac Sim / Isaac Lab runtime | [Integration](https://github.com/Open-RUA/uni-robot-agent/blob/main/docs/robolab.md) |
 | **DexJoCo** | Dexterous-hand manipulation with a Panda arm and 16-DoF Allegro hand using Hybrid Pi0.5 control | [Integration](docs/dexjoco.md) |
+| **BEHAVIOR** | Experimental R1Pro wheeled mobile manipulation with Hybrid Pi0.5 | [Integration](docs/behavior.md) |
+| **IsaacLab Arena** | Experimental G1 humanoid loco-manipulation with Hybrid GR00T | [Integration](docs/isaaclab_arena.md) |
+| **NaVILA-Bench** | Experimental Go2 quadruped navigation with Hybrid NaVILA | [Integration](docs/navila.md) |
 
 ### Real robots
 
