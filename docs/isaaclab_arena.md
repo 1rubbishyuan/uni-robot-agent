@@ -122,3 +122,12 @@ termination. All three reset poses matched the upstream sampler component by
 component, and maximum box displacement stayed below 44 micrometres. These checks
 validate startup stability, not planner task success. Earlier rollouts containing
 the startup box ejection remain diagnostic and must not be counted as task scores.
+
+A subsequent seed-0 Hybrid episode with Qwen3.8-flash and the matched GR00T N1.6
+checkpoint, with review disabled, completed successfully under the unchanged
+native success predicate. The planner issued four `actor_act` calls; the robot
+lifted the box, carried it to the table, placed it in the blue bin and withdrew
+its hands. Native termination occurred after 1,003 control samples (20.06 seconds).
+All 1,003 action receipts and the final outcome were archived over HTTP before
+verified service shutdown. This is one successful end-to-end episode, not a
+benchmark success rate or evidence of arbitrary navigation instruction following.
