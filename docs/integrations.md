@@ -266,6 +266,9 @@ one execution loop. The integration selects its binding through a factory;
 | RoboLab DROID | `robolab_droid_joint` | Seven measured joints plus normalized finger angle; joint and physical-gap targets |
 | RoboUse LIBERO / RoboCasa | `robouse_cartesian` | World public-control-point absolute poses or latest-ACK-relative deltas; native rotation constraints |
 | DexJoCo | `dexjoco_tcp_hand` | Absolute world TCP pose plus named Allegro finger positions in one native step |
+| BEHAVIOR R1Pro | `behavior_r1pro_joint` | Torso, arm and gripper joint targets with local base velocity at 30 Hz |
+| Arena G1 | `arena_g1_locomanipulation` | Arm/hand targets, heading-frame velocity and pelvis height through the native whole-body controller at 50 Hz |
+| NaVILA Go2 | `navila_go2` | Front-camera history to discrete movement; bounded native locomotion segments or yield to the planner |
 
 Except for the pinned legacy Pi0.5 path, bindings validate semantics without
 requiring a particular backend runtime. XPolicyLab can serve any of these
