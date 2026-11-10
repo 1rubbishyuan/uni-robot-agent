@@ -6,6 +6,8 @@ from typing import Callable
 
 from uni_robot_agent.provider.backends.tencent.responses import TencentResponsesAdapter
 from uni_robot_agent.provider.contracts import ProviderAdapter
+from uni_robot_agent.provider.backends.omnirouter.chat_completions import OmniChatCompletionsAdapter
+from uni_robot_agent.provider.backends.omnirouter.messages import OmniMessagesAdapter
 from uni_robot_agent.provider.backends.passthrough import PassthroughAdapter
 from uni_robot_agent.provider.backends.aliyun.chat_completions import (
     AliyunChatCompletionsAdapter,
@@ -37,6 +39,8 @@ class ProviderProfile:
 _PROFILES = {
     profile.name: profile
     for profile in (
+        ProviderProfile("omnirouter.chat_completions", "responses", "chat_completions", OmniChatCompletionsAdapter),
+        ProviderProfile("omnirouter.messages", "responses", "messages", OmniMessagesAdapter),
         ProviderProfile('aliyun.gemini_chat_completions', 'gemini', 'chat_completions', AliyunGeminiChatAdapter),
         ProviderProfile(
             "passthrough.responses",

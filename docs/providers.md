@@ -18,6 +18,8 @@ does not identify the hosting service or select an adapter automatically.
 | `moonshot.chat_completions` | Responses | Chat Completions |
 | `deepseek.chat_completions` | Responses | Chat Completions |
 | `minimax.chat_completions` | Responses | Chat Completions |
+| `omnirouter.chat_completions` | Responses | Chat Completions |
+| `omnirouter.messages` | Responses | Messages |
 
 Codex declares Responses input; Claude Code declares Messages input. An omitted
 `--provider-profile` resolves to `passthrough.responses` or `passthrough.messages`
@@ -60,6 +62,57 @@ Responses conversion path; compatibility includes the selected model's reasoning
 mode. A rejected provider request fails before motion and retains its original
 response in the actor-session archive. See [Hybrid review evidence](hybrid.md#reviewer-decision-contract-and-evidence).
 
+## OmniRouter with Codex
+
+OmniRouter's Claude and Gemini routes do not implement the Responses API used
+by Codex. Select an explicit conversion profile alongside the service URL and
+credentials. Both profiles work with `--interaction-mode code_as_policy` and
+retain the existing robot API and execution lifecycle.
+
+Append these options to your configured `run` or `tui` command:
+
+```sh
+# Claude Opus 5.5 through native Messages
+--agent codex --model claude-opus-5-5 --reasoning-effort medium \
+  --provider-url https://omnirouter-api.cc/v1 \
+  --provider-profile omnirouter.messages --codex-web-search disabled \
+  --interaction-mode code_as_policy
+
+# Gemini 4 Argon through Chat Completions
+--agent codex --model gemini-4-argon-medium --reasoning-effort medium \
+  --provider-url https://omnirouter-api.cc/v1 \
+  --provider-profile omnirouter.chat_completions --codex-web-search disabled \
+  --interaction-mode code_as_policy
+```
+
+Provide the matching route's credential through `UNI_ROBOT_AGENT_API_KEY`.
+The Gemini model suffix selects OmniRouter's `low`, `medium`, or `high` route;
+it must match the requested reasoning effort. The bare `gemini-4-argon` name
+is not an equivalent OmniRouter route. Gemini requests use non-streaming JSON
+upstream because this service can return an empty SSE response; Codex still
+receives Responses events after the gateway buffers the complete reply.
+Omni Gemini does not reliably consume images inside Chat tool results. The
+adapter keeps the result acknowledgements together and places their images in
+a following user message, labelled by the original tool-call IDs. Text receipts
+and image bytes are preserved.
+
+The Claude adapter sends adaptive thinking and native `output_config.effort`.
+It converts function/custom tools, tool results and images, and retains native
+thinking/signature blocks by response and tool-call identity within one live
+provider session. It never invents signatures. Restart/resume of signed history
+across provider sessions is unsupported; start a fresh session. Native search
+and forced/named tool choice are unsupported, so this profile cannot serve as
+the Hybrid reviewer. Use a separately configured compatible reviewer profile.
+Initial developer instructions join the native system prompt; later developer
+instructions are explicitly labelled user content because Messages has no
+mid-conversation developer role.
+
+Validation covers actual Codex code execution, native image reading and a
+subsequent tool-result roundtrip, with `identity` context. This is provider
+compatibility evidence, not a robot benchmark or validation of long-run context
+compaction. Service model availability and reasoning behavior remain properties
+of the selected OmniRouter route.
+
 ## Ownership and extension
 
 Paths are relative to `uni_robot_agent/provider/`.
@@ -71,7 +124,7 @@ Paths are relative to `uni_robot_agent/provider/`.
 | `client.py` | Context preparation, upstream requests, bounded retries and provider-session cleanup |
 | `gateway.py` | Local HTTP ingress, buffered forwarding, delivery and binding commit/revocation |
 | `protocols/` | Responses, Chat Completions and Messages parsing, protocol errors, SSE and Messages keepalive |
-| `conversions/` | Responses/Chat translation and reversible tool-name mapping |
+| `conversions/` | Responses/Chat/Messages translation and reversible tool-name mapping |
 | `backends/<service>/` | Service-specific parameters, endpoints and optional resource management |
 | `recording/` | Client/context/provider/training views and archived image references |
 | `image_encoding.py` | Shared image encoding used by service backends |
