@@ -2,16 +2,19 @@
 
 ## Unreleased
 
-- Compact minimal-mode result JSON while retaining readable image/snapshot paths
+- Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
+  configuration alias without changing tools, observations or context behavior.
+
+- Compact clean-mode result JSON while retaining readable image/snapshot paths
   and full stored observations. Add opt-in `observation_window` history selection
   for recent observation images and calibration; action history and reasoning remain.
 - Honor `reasoning_effort="none"` in the Qwen Chat adapter by disabling thinking.
 
-- Add `capture_scene` to minimal mode for observations without action steps,
+- Add `capture_scene` to clean mode for observations without action steps,
   alongside readable snapshot JSON and initial robot reference resources across
   gripper integrations. Preserve existing scene fields and ordinary tool profiles.
 
-- Clarify minimal-mode gripper sequencing, action budgets, recovery and
+- Clarify clean-mode gripper sequencing, action budgets, recovery and
   evidence required before submitting task completion.
 
 - Generalize Hybrid predictions to numeric chunks and symbolic navigation, with
