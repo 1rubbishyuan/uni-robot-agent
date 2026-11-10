@@ -14,6 +14,10 @@
   environment that declares `physical_hardware` count as stopped only when its
   receipt confirms the stop. Job controls now list each cancelled job, and a
   cancelled result carries `no_execution`, `execution_status` and `reason`.
+- Add the `wholepath` motion mode (environment metadata `motion_execution`):
+  `move` sends one preflighted `PathCommand` through an optional backend
+  `step_path`, and gripper-only actions hold every joint for `steps` control
+  periods. `stepwise` stays the default and its tools are unchanged.
 
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.

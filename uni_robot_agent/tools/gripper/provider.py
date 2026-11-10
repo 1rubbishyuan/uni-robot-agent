@@ -7,7 +7,7 @@ from uni_robot_agent.services.environment.contracts import EpisodeInfo, RequestR
 from uni_robot_agent.tools.toolkit import ActionOutcome, ToolOutput, ToolProvider, ToolSpec, bind_tools, schema
 from uni_robot_agent.tools.gripper.contracts import MOTION_PROFILES, GripperRequest, HoldRequest, MoveRequest, motion_profiles
 from uni_robot_agent.tools.gripper.opening import native_opening, normalized_opening_tolerance
-from uni_robot_agent.tools.gripper.motion import ClientPrimitiveBackend, MotionExecutor
+from uni_robot_agent.tools.gripper.motion import ClientPrimitiveBackend, MotionExecutor, motion_execution
 from uni_robot_agent.tools.presentation import round_physical, state_for_model
 from uni_robot_agent.tools.scene.perception import snapshot_images, snapshot_metadata
 
@@ -16,7 +16,9 @@ POSE6 = {"type": "array", "items": {"type": "number"}, "minItems": 6, "maxItems"
 OPENING = {"type": "number", "minimum": 0, "maximum": 1, "description": "Normalized opening: 0=closed, 1=open."}
 NAMES = ("move", "grasp", "release", "hold")
 # Motion stops after which the requested action did not finish as planned.
-INCOMPLETE_STOPS = frozenset({"planning_rejected", "unsafe_motion", "tracking_interrupted", "native_end"})
+INCOMPLETE_STOPS = frozenset({"planning_rejected", "unsafe_motion", "tracking_interrupted", "native_end",
+                              # A whole path that ran only its verified reachable part.
+                              "reachable_prefix"})
 
 
 def tool_policies():
@@ -24,14 +26,33 @@ def tool_policies():
             concurrency="exclusive", mutates_world=True) for name in NAMES}
 
 
-def tool_specs(arms, *, opening_models=None, profiles=MOTION_PROFILES, normalized_opening_tolerance=None):
+def tool_specs(arms, *, opening_models=None, profiles=MOTION_PROFILES, normalized_opening_tolerance=None,
+               execution="stepwise"):
     opening_models = opening_models or {}
+    wholepath = execution == "wholepath"
+    when = "once after the path" if wholepath else "within the same max_steps budget"
     # Without a metric model, a declared tolerance checks the measured 0-1 opening instead.
-    tracking = ("A calibrated explicit opening is tracked within the same max_steps budget;"
+    tracking = (f"A calibrated explicit opening is tracked {when};"
                 if opening_models or normalized_opening_tolerance is None else
                 f"An explicit opening is checked against the measured 0-1 opening within "
-                f"{normalized_opening_tolerance:g} (opening_basis=measured_normalized_opening), within the same "
-                "max_steps budget; a reading the environment does not mark as measured stays unknown;")
+                f"{normalized_opening_tolerance:g} (opening_basis=measured_normalized_opening), {when}; "
+                "a reading the environment does not mark as measured stays unknown;")
+    after_arrival = (" a blocked or slipping gripper reports opening_status=not_reached." if wholepath else
+                     " after pose arrival the arm holds while the opening continues.")
+    # Stepwise waypoint behaviour that one preflighted path does not have.
+    waypoint_recovery = ("" if wholepath else
+        "On supported backends, a rejected waypoint may trigger one search for a temporary execution goal within 80% "
+        "of those tolerances. Native waypoint IK remains strict; arrival still uses measured error from the original "
+        "goal. There is no automatic return to the exact center or coarse-to-fine phase. Inspect goal_recovery and "
+        "per-arm execution_target_position/execution_target_quaternion when recovery occurs. ")
+    rotation_budget = "" if wholepath else "Rotation consumes displacement budget. "
+    path = (" One move is one preflighted path: the environment checks the whole path before dispatch, runs it "
+            "without intermediate stops and arrival is checked once. The profile increment is a path segment, not "
+            "a speed, and increment times max_steps bounds travel. A distant or blocked target may stop at "
+            "reachable_prefix, which is not the original goal." if wholepath else "")
+    holding = ("holding every arm joint at its measured angle in one command; steps sets its duration in control "
+               "periods. An arm resting outside the end-effector workspace is reported in hold_reports and does not "
+               "stop the gripper command" if wholepath else "holding fresh arm poses")
     if opening_models and set(opening_models) != set(arms):
         raise ValueError("Opening calibration must cover all tool arms")
     opening_key = "gripper_opening_m" if opening_models else "gripper"
@@ -55,17 +76,20 @@ def tool_specs(arms, *, opening_models=None, profiles=MOTION_PROFILES, normalize
     specs = [
         ToolSpec("move",
             "Move coordinated arms to absolute world grasp-site poses [x,y,z,roll,pitch,yaw], in metres and fixed-axis XYZ radians (R=Rz(yaw)@Ry(pitch)@Rx(roll)). All six values are required; both position and orientation are checked against the original goal and its tolerances. Copy the measured orientation to translate without reorienting, or the measured position to rotate in place. Omitted gripper preserves the previous command; a supplied opening applies during motion, not after arrival. "
-            f"Profiles: {profiles}. Profiles add no offset. Tolerances define final arrival around the original goal. On supported backends, a rejected waypoint may trigger one search for a temporary execution goal within 80% of those tolerances. Native waypoint IK remains strict; arrival still uses measured error from the original goal. There is no automatic return to the exact center or coarse-to-fine phase. Inspect goal_recovery and per-arm execution_target_position/execution_target_quaternion when recovery occurs. Position and orientation interpolate together; one goal does not express 'move then rotate'. Use separate calls and inspect completed feedback before dependent actions. Rotation consumes displacement budget. These are target bounds, not collision guarantees. Unlisted arms hold; target list order is not a sequence. Inspect feedback.pose_reached, targets_reached, per-arm opening_reached, steps_executed and stop_reason. {tracking} after pose arrival the arm holds while the opening continues. opening_stalled/opening_unavailable are not target completion or contact evidence. Omitted opening retains the complete drive intent without requiring a held object to close to zero. Pose arrival is not object contact. Returns state, feedback, snapshot_id and final RGB images from the first scene camera and participating arms' wrists when available.",
+            f"Profiles: {profiles}. Profiles add no offset. Tolerances define final arrival around the original goal. {waypoint_recovery}Position and orientation interpolate together; one goal does not express 'move then rotate'. Use separate calls and inspect completed feedback before dependent actions. {rotation_budget}These are target bounds, not collision guarantees. Unlisted arms hold; target list order is not a sequence. Inspect feedback.pose_reached, targets_reached, per-arm opening_reached, steps_executed and stop_reason. {tracking}{after_arrival} opening_stalled/opening_unavailable are not target completion or contact evidence. Omitted opening retains the complete drive intent without requiring a held object to close to zero. Pose arrival is not object contact. Returns state, feedback, snapshot_id and final RGB images from the first scene camera and participating arms' wrists when available." + path,
             schema({"profile": {"type": "string", "enum": list(MOTION_PROFILES), "default": "standard"},
                     "targets": targets({"pose": POSE6, opening_key: opening}, ("pose",)),
                     "max_steps": budget, "position_tolerance_m": position_tolerance,
                     "orientation_tolerance_rad": orientation_tolerance}, ("targets",))),
         *[ToolSpec(name,
-            f"{verb} selected grippers while holding fresh arm poses. Reports executed control steps and measured opening; object attachment or release must be verified from observations. Returns snapshot_id and final RGB images from the first scene camera and participating arms' wrists when available; inspect the object effect. Shared control-step budget 1..12; unlisted arms hold.",
+            f"{verb} selected grippers while {holding}. Reports executed control steps and measured opening; object attachment or release must be verified from observations. Returns snapshot_id and final RGB images from the first scene camera and participating arms' wrists when available; inspect the object effect. Shared control-step budget 1..12; unlisted arms hold.",
             schema({"targets": targets({"opening_m": opening} if opening_models and name == "release" else {}), "steps": {"type": "integer", "minimum": 1, "maximum": 12, "default": 6}}, ("targets",)))
           for name, verb in (("grasp", "Close"), ("release", "Open"))],
         ToolSpec("hold",
-            "Advance physics holding measured arm poses and existing gripper commands. steps=1..40; native termination stops early. Returns snapshot_id and the first scene camera RGB image when available. Inspect completed feedback and images; this consumes action steps.",
+            ("Hold every arm joint at its measured angle and existing gripper commands, in one command lasting steps "
+             "control periods. steps=1..40; native" if wholepath else
+             "Advance physics holding measured arm poses and existing gripper commands. steps=1..40; native")
+            + " termination stops early. Returns snapshot_id and the first scene camera RGB image when available. Inspect completed feedback and images; this consumes action steps.",
             schema({"steps": {"type": "integer", "minimum": 1, "maximum": 40, "default": 1}})),
     ]
     if opening_models:
@@ -117,7 +141,8 @@ class GripperTools(ToolProvider):
         specs = tool_specs([arm.name for arm in self.episode.description.environment.arms],
                            opening_models=self.opening_models,
                            profiles=motion_profiles(metadata.get("motion_profiles")),
-                           normalized_opening_tolerance=normalized_opening_tolerance(metadata))
+                           normalized_opening_tolerance=normalized_opening_tolerance(metadata),
+                           execution=motion_execution(metadata))
         return bind_tools([spec for spec in specs if spec.name in self.names], provider_id=self.provider_id,
                           handlers={name: getattr(self, name) for name in self.names}, invoke=self.invoke)
 

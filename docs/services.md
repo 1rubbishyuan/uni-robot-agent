@@ -489,17 +489,19 @@ within five steps. Every following chunk captures a fresh observation.
 ## Environment protocol and tool orchestration
 
 The service boundary is intentionally small. `EnvironmentBackend` implements
-native `step_pose`, `step_joints`, `step_native`, capture, preview and finish.
+native `step_pose`, `step_joints`, `step_native`, capture, preview and finish, and optionally
+`step_path` for environments that declare the `wholepath` motion mode.
 `EnvironmentService.step` checks the expected `state_version`, forwards exactly
 one command, records the receipt, and publishes a snapshot. It knows nothing
 about whether a caller is trying to reach a pose, close a gripper, or execute a
 recovery sequence.
 
 `tools/gripper/motion.py` owns Direct motion programs, while
-`tools/hybrid/execution.py` owns the independent bounded actor-prefix loop. It reads the
-latest typed state, plans bounded waypoints, calls `EnvironmentClient.step`
-repeatedly, checks feedback, and stops on tolerance, divergence, native
-termination, or a step budget. This is why high-level orchestration is in the
+`tools/hybrid/execution.py` owns the independent bounded actor-prefix loop. In the
+default `stepwise` mode a Direct program reads the latest typed state, plans bounded
+waypoints, calls `EnvironmentClient.step` repeatedly, checks feedback, and stops on
+tolerance, divergence, native termination, or a step budget. In `wholepath` mode it
+sends one `PathCommand` per action and checks the result once. This is why high-level orchestration is in the
 tools package while physical execution remains in the service. Scalar-gripper physical commands use `/steps`; optional device backends use
 `/device-steps` and the independent `/interrupts` channel. There are no move,
 rotate, gripper, hold, or action-prefix routes. A prefix is a tool-side loop that sends

@@ -1,8 +1,14 @@
 """Model-level gripper programs built from primitive environment steps.
 
-The program is intentionally client-side.  It plans waypoints, checks tracking
-progress, and chooses when to stop; each individual command is sent through
-``EnvironmentClient.step`` by the small backend adapter used by the caller.
+The program is intentionally client-side; each individual command is sent through
+``EnvironmentClient.step`` by the small backend adapter used by the caller. The
+environment's ``motion_execution`` metadata selects one of two modes:
+
+- ``stepwise`` (default): the program plans waypoints, checks tracking progress
+  after every step and chooses when to stop.
+- ``wholepath``: one move is one ``PathCommand`` that the environment preflights
+  and runs without intermediate stops; arrival is checked once. Gripper-only
+  actions hold every joint at its measured angle in one command.
 """
 
 from __future__ import annotations
@@ -18,7 +24,9 @@ from uni_robot_agent.services.environment.contracts import (
     ArmCommand,
     EnvironmentState,
     JointCommand,
+    JointTarget,
     NativeCommand,
+    PathCommand,
     Pose,
     PoseCommand,
     RequestRejected,
@@ -43,6 +51,26 @@ from uni_robot_agent.tools.gripper.pose import (
 
 
 from uni_robot_agent.tools.gripper.opening import opening_tracker
+
+MOTION_EXECUTIONS = ("stepwise", "wholepath")
+# Native reasons a refused whole path keeps as its stop reason; any other refusal is planning_rejected.
+PATH_FAILURES = frozenset({"tracking_interrupted", "native_end"})
+
+
+def motion_execution(metadata) -> str:
+    """The environment's declared motion mode; environments that declare none run stepwise."""
+    mode = metadata.get("motion_execution", "stepwise")
+    if mode not in MOTION_EXECUTIONS:
+        raise ValueError(f"motion_execution must be one of {MOTION_EXECUTIONS}")
+    return mode
+
+
+def _settled(opening) -> dict:
+    """One whole-path command is over when its receipt returns, so an opening short of its target missed it."""
+    feedback = opening.feedback()
+    if feedback["opening_status"] == "pending":
+        feedback["opening_status"] = "not_reached"
+    return feedback
 
 
 class PoseTracker:
@@ -201,8 +229,31 @@ class MotionExecutor:
             for name, arm in state.arms.items()
         }
 
+    def _held_joints(self, state: EnvironmentState, grippers: dict[str, float] | None = None) -> dict[str, JointTarget]:
+        """Every arm at its measured joints; only the named grippers change."""
+        grippers = grippers or {}
+        return {name: JointTarget(joints=list(arm.joints), gripper=grippers.get(name, arm.gripper_command))
+                for name, arm in state.arms.items()}
+
+    @property
+    def wholepath(self) -> bool:
+        return motion_execution(self.backend.description.metadata) == "wholepath"
+
+    def _path_outcome(self, receipt: StepReceipt) -> tuple[str | None, dict | None]:
+        """The stop reason and evidence of a refused or truncated whole path, or (None, None)."""
+        native = receipt.diagnostics.get("reason")
+        if receipt.state.ended:
+            return "native_end", _rejection_evidence(receipt.diagnostics)
+        if not receipt.accepted:
+            return (native if native in PATH_FAILURES else "planning_rejected"), _rejection_evidence(receipt.diagnostics)
+        if native == "reachable_prefix":
+            return "reachable_prefix", _rejection_evidence(receipt.diagnostics)
+        return None, None
+
     def _advance(self, command) -> StepReceipt:
-        if isinstance(command, PoseCommand):
+        if isinstance(command, PathCommand):
+            receipt = self.backend.step_path(command)
+        elif isinstance(command, PoseCommand):
             receipt = self.backend.step_pose(command)
         elif isinstance(command, JointCommand):
             receipt = self.backend.step_joints(command)
@@ -228,6 +279,8 @@ class MotionExecutor:
         return motions, unsafe
 
     def move(self, request: MoveRequest) -> dict:
+        if self.wholepath:
+            return self._move_wholepath(request)
         targets = {target.arm: target for target in request.targets}
         participants = self._participants([target.arm for target in request.targets])
         start = state = self._state()
@@ -358,7 +411,98 @@ class MotionExecutor:
         }
         return feedback
 
+    def _move_wholepath(self, request: MoveRequest) -> dict:
+        """One preflighted path for every arm; the environment monitors it, the program checks arrival once."""
+        metadata = self.backend.description.metadata
+        targets = {target.arm: target for target in request.targets}
+        participants = self._participants(list(targets))
+        start = self._state()
+        profile = request.parameters(motion_profiles(metadata.get("motion_profiles")))
+        trackers, openings = {}, {}
+        for name in participants:
+            target, arm = targets[name], start.arms[name]
+            trackers[name] = PoseTracker(
+                initial_pose=_pose_values(arm.control_pose), target_xyz=target.pose[:3],
+                target_quaternion=rpy_to_quaternion(target.pose[3:]),
+                gripper=arm.gripper_command if target.gripper is None else target.gripper,
+                rotation_radius_m=self.arms[name].rotation_radius_m, profile=profile)
+            if target.gripper is not None and (opening := opening_tracker(target.gripper, name, metadata)):
+                openings[name] = opening
+                opening.update(arm)
+        # Idle arms hold their measured joints; a path is never retried inside this call.
+        arms: dict[str, ArmCommand | JointTarget] = dict(self._held_joints(start))
+        arms.update({name: ArmCommand(pose=_pose(np.r_[tracker.target_xyz, tracker.target_quaternion]),
+                                      gripper=tracker.gripper) for name, tracker in trackers.items()})
+        receipt = self._advance(PathCommand(arms=arms, max_segments=request.max_steps, segment_m=profile.max_step_m))
+        state = receipt.state
+        for name, tracker in trackers.items():
+            tracker.update(_pose_values(state.arms[name].control_pose))
+        for name, opening in openings.items():
+            opening.update(state.arms[name], advanced=receipt.accepted)
+        reason, evidence = self._path_outcome(receipt)
+        pose_reached = reason is None and all(tracker.reached for tracker in trackers.values())
+        opening_results = [opening.reached for opening in openings.values()]
+        unmeasured = any(target.gripper is not None and name not in openings for name, target in targets.items())
+        targets_reached = (False if not pose_reached or False in opening_results else
+                           None if unmeasured or None in opening_results else True)
+        if reason is None:
+            reason = ("targets_reached" if openings and targets_reached else
+                      "pose_reached" if pose_reached else "target_not_reached")
+        steps = state.native_steps - start.native_steps
+        return {
+            "execution": "wholepath", "targets_reached": targets_reached,
+            "hold_reports": receipt.diagnostics.get("hold_reports", {}),
+            "control_frames": {name: self.arms[name].control_frame for name in participants},
+            "profile": request.profile,
+            "arms": {name: {**tracker.feedback(), "target_gripper": tracker.gripper,
+                            "actual_gripper": state.arms[name].gripper, "gripper_command_submitted": steps > 0,
+                            **(_settled(openings[name]) if name in openings else
+                               {"opening_reached": None, "opening_status":
+                                "not_requested" if targets[name].gripper is None else "unavailable"})}
+                     for name, tracker in trackers.items()},
+            "steps_executed": int(receipt.accepted), "requested_max_steps": request.max_steps,
+            "executed_native_steps": steps, "pose_reached": pose_reached,
+            "stop_reason": reason, "stop_evidence": evidence, "no_execution": steps == 0,
+        }
+
+    def _stationary_wholepath(self, steps: int, grippers: dict[str, float]) -> dict:
+        """Every joint keeps its measured angle and only the named grippers change, in one command.
+
+        A step lasts one control period, as in a stepped simulation. Joint holds never enter an
+        end-effector workspace check, so an arm resting just outside it is reported in
+        hold_reports instead of truncating the gripper command.
+        """
+        metadata = self.backend.description.metadata
+        start = self._state()
+        openings = {name: tracker for name, value in grippers.items()
+                    if (tracker := opening_tracker(value, name, metadata)) is not None}
+        for name, opening in openings.items():
+            opening.update(start.arms[name])
+        duration = steps / self.backend.description.control_frequency_hz
+        receipt = self._advance(PathCommand(
+            arms=self._held_joints(start, grippers), max_segments=1,
+            segment_m=motion_profiles(metadata.get("motion_profiles"))["standard"].max_step_m,
+            min_duration_s=duration))
+        state = receipt.state
+        for name, opening in openings.items():
+            opening.update(state.arms[name], advanced=receipt.accepted)
+        reason, evidence = self._path_outcome(receipt)
+        executed = state.native_steps - start.native_steps
+        return {
+            "execution": "wholepath_joint_hold",
+            "arms": {name: {"target_gripper": value, "actual_gripper": state.arms[name].gripper,
+                            **(_settled(openings[name]) if name in openings else
+                               {"opening_reached": None, "opening_status": "unavailable"})}
+                     for name, value in grippers.items()},
+            "hold_reports": receipt.diagnostics.get("hold_reports", {}),
+            "requested_steps": steps, "requested_duration_s": duration, "steps_executed": int(receipt.accepted),
+            "executed_native_steps": executed, "stop_reason": reason or "requested_step_budget",
+            "stop_evidence": evidence, "no_execution": executed == 0,
+        }
+
     def _stationary(self, steps: int, grippers: dict[str, float]) -> dict:
+        if self.wholepath:
+            return self._stationary_wholepath(steps, grippers)
         start = state = self._state()
         metadata = self.backend.description.metadata
         openings = {name: tracker for name, value in grippers.items()
@@ -477,6 +621,9 @@ class ClientPrimitiveBackend:
         return self._step(command)
 
     def step_native(self, command: NativeCommand) -> StepReceipt:
+        return self._step(command)
+
+    def step_path(self, command: PathCommand) -> StepReceipt:
         return self._step(command)
 
     def solve_goal_region(self, request: GoalRegionRequest):

@@ -12,7 +12,9 @@ from uni_robot_agent.services.environment.contracts import (
     EnvironmentState,
     JointCommand,
     NativeCommand,
+    PathCommand,
     PoseCommand,
+    RequestRejected,
 )
 
 from .backend import EnvironmentBackend
@@ -33,13 +35,18 @@ class PrimitiveExecutor:
         self.on_step = on_step
 
     def step(self, command: ActionCommand) -> dict:
-        """Execute exactly one pose, joint, or native command."""
+        """Execute exactly one pose, joint, native or whole-path command."""
         if isinstance(command, PoseCommand):
             receipt = self.backend.step_pose(command)
         elif isinstance(command, JointCommand):
             receipt = self.backend.step_joints(command)
         elif isinstance(command, NativeCommand):
             receipt = self.backend.step_native(command)
+        elif isinstance(command, PathCommand):
+            step_path = getattr(self.backend, "step_path", None)
+            if step_path is None:
+                raise RequestRejected("This environment does not run whole-path commands")
+            receipt = step_path(command)
         else:  # pragma: no cover - the discriminated contract prevents this.
             raise TypeError(f"Unsupported control command: {type(command).__name__}")
         if receipt.accepted and self.on_step is not None:
