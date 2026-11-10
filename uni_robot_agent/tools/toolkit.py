@@ -6,7 +6,7 @@ import threading
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from uni_robot_agent.telemetry.logging import get_logger
 
@@ -34,6 +34,22 @@ class ImageAttachment:
     name: str | None = None
 
 
+@dataclass(frozen=True)
+class ActionOutcome:
+    """What a physical action did, for the executor's replan handling; never sent to the model.
+
+    ``complete`` means the requested action finished as planned. ``executed`` is
+    ``"none"`` when nothing reached the hardware, ``"some"`` when it did, and
+    ``"unknown"`` when a lost acknowledgement leaves it open. ``stopped`` is true only
+    when the environment confirmed the actuators are stationary afterwards, and
+    ``None`` when it does not say.
+    """
+
+    complete: bool
+    executed: Literal["none", "some", "unknown"]
+    stopped: bool | None = None
+
+
 @dataclass
 class ToolOutput:
     """Common return type for tool handlers.
@@ -50,6 +66,8 @@ class ToolOutput:
     extra: dict[str, Any] = field(default_factory=dict)
     images: list[ImageAttachment] = field(default_factory=list)
     model_view: Callable[[dict[str, Any]], dict[str, Any]] | None = field(default=None, repr=False)
+    # Read by the executor only; to_dict() never serializes it.
+    action: ActionOutcome | None = None
 
     def to_dict(self, *, for_model: bool = False) -> dict[str, Any]:
         """Keep internal call status; name its meaning explicitly on the model wire."""
@@ -122,8 +140,12 @@ class Toolkit:
         """Return tool declarations for encoding by the selected agent adapter."""
         return [t.spec for t in self._tools.values()]
 
-    def execute_tool(self, name: str, input_dict: dict[str, Any]) -> ToolOutput:
-        """Execute a tool, return its structured result, and emit ToolResult."""
+    def execute_tool(self, name: str, input_dict: dict[str, Any], *,
+                     result_transform: Callable[[ToolOutput], ToolOutput] | None = None) -> ToolOutput:
+        """Execute a tool, return its structured result, and emit ToolResult.
+
+        ``result_transform`` lets the executor annotate the result before it is recorded.
+        """
         tool_def = self._tools.get(name)
         if tool_def is None:
             return ToolOutput(success=False, error=f"Unknown tool: {name}")
@@ -153,9 +175,17 @@ class Toolkit:
                     f"expected ToolOutput"
                 )
 
+        if result_transform is not None:
+            result = result_transform(result)
+        # After the transform, so a replacement result keeps the tool's model view.
         result.model_view = tool_def.model_view
-        result_dict = result.to_dict()
+        self.record_result(name, input_dict, result, tool_execution_seq=tool_execution_seq)
+        return result
 
+    def record_result(self, name: str, arguments: dict[str, Any], result: ToolOutput,
+                      *, tool_execution_seq: int = 0) -> None:
+        """Record a receipt, including admission failures with no executed step."""
+        result_dict = result.to_dict()
         if self._event_bus:
             from uni_robot_agent.events import ToolResult as ToolResultEvent
             from uni_robot_agent.execution import current_execution_id
@@ -164,7 +194,7 @@ class Toolkit:
             self._event_bus.emit(
                 ToolResultEvent(
                     tool_name=name,
-                    arguments=input_dict,
+                    arguments=arguments,
                     success=result_dict.get("success", True),
                     output=result_dict,
                     images=tuple(result.images),
@@ -172,8 +202,6 @@ class Toolkit:
                     execution_id=current_execution_id() or "", **current_call(),
                 )
             )
-
-        return result
 
     def get_tool_names(self) -> list[str]:
         return list(self._tools.keys())

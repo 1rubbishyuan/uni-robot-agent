@@ -7,7 +7,9 @@ NAMES = ("finish",)
 
 
 def tool_policies():
-    return {"finish": ToolExecutionPolicy(resource_key="episode", concurrency="exclusive", mutates_world=True)}
+    # finish stays allowed while a failed action awaits a replan, so the model can still report.
+    return {"finish": ToolExecutionPolicy(resource_key="episode", concurrency="exclusive", mutates_world=True,
+                                          ends_episode=True)}
 
 
 # Each status the completion tool can report, with the reason the episode records for it.

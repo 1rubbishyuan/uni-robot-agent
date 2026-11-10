@@ -36,7 +36,7 @@ from uni_robot_agent.integrations.base import (
     EpisodeOutcome,
 )
 from uni_robot_agent.execution import (
-    ParallelToolExecutor,
+    create_executor,
     ToolExecutor,
     connect_execution_events,
 )
@@ -143,8 +143,10 @@ def assemble_session(args) -> SessionAssembly:
         if observation_profile is not None:
             policies.update(observation_profile.policies)
             listeners = observation_profile.listeners
-        executor = ParallelToolExecutor(
-            toolkit, policies, listeners=listeners, tracer=telemetry.tracer,
+        execution_mode = getattr(args, "execution_mode", None) or integration_spec.execution_mode
+        telemetry.annotate(execution_mode=execution_mode)
+        executor = create_executor(
+            execution_mode, toolkit, policies, listeners=listeners, tracer=telemetry.tracer,
             tool_return_mode=args.tool_return_mode,
             resource_scheduling=args.resource_scheduling,
             control_tool_names=None if selection is None else selection.control_names,
@@ -478,8 +480,9 @@ def _run_cli(args) -> None:
     """CLI adapter retaining process deadlines and exit status outside the Python API."""
     if deadline := runtime_env("EPISODE_DEADLINE"):
         args._episode_deadline = float(deadline)
-    logger.info("Starting: integration=%s, agent=%s, return=%s, scheduling=%s",
-                args.integration, args.agent_backend, args.tool_return_mode, args.resource_scheduling)
+    logger.info("Starting: integration=%s, agent=%s, return=%s, scheduling=%s, execution=%s",
+                args.integration, args.agent_backend, args.tool_return_mode, args.resource_scheduling,
+                getattr(args, "execution_mode", None) or "integration default")
     logger.info("Limits: max_turns=%s, timeout=%s, reasoning_effort=%s",
                 args.max_turns, args.episode_timeout_s or "none", args.reasoning_effort)
     session = Session._from_resolved(args, console=True)

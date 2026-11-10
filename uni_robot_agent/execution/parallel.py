@@ -64,7 +64,7 @@ class ParallelToolExecutor(ToolExecutor):
             max_parallel=max_parallel,
             on_change=self._emit_queue_snapshot,
         )
-        self._controls = JobTools(self._registry, self._scheduler)
+        self._controls = JobTools(self._registry, self._scheduler, on_result_read=self._result_read)
         available_controls = set(self._controls.get_tool_names())
         if control_tool_names is None:
             control_tool_names = available_controls if tool_return_mode == "background" else ()
@@ -82,10 +82,32 @@ class ParallelToolExecutor(ToolExecutor):
         ]
 
     def call(self, name: str, arguments: dict[str, Any]) -> ExecutionResult:
-        return self._call(name, arguments)
+        return self._admit(name, arguments, background=False)
 
     def submit(self, name: str, arguments: dict[str, Any]) -> ExecutionResult:
-        return self._call(name, arguments, background=True)
+        return self._admit(name, arguments, background=True)
+
+    # Extension points for execution modes built on this scheduler (execution/replanning.py).
+    # Here they schedule every call unchanged.
+
+    def _admit(self, name: str, arguments: dict[str, Any], *, background: bool) -> ExecutionResult:
+        """Decide whether a call may be scheduled."""
+        return self._call(name, arguments, background=background)
+
+    def _on_submit(self, policy: ToolExecutionPolicy) -> Any:
+        """Context taken when a job enters its queue, handed to ``_on_start``."""
+        return None
+
+    def _on_start(self, policy: ToolExecutionPolicy, context: Any) -> Any:
+        """Context taken when a call starts, handed to ``_execute``."""
+        return context
+
+    def _execute(self, name: str, arguments: dict[str, Any], policy: ToolExecutionPolicy,
+                 job_id: str | None, context: Any) -> ToolOutput:
+        return self._toolkit.execute_tool(name, arguments)
+
+    def _result_read(self, job: Any) -> None:
+        """A job's result was read, or the job was cancelled."""
 
     def job_result(self, job_id: str, timeout: float | None = 0) -> ExecutionResult:
         job = self._registry.wait(job_id, timeout)
@@ -96,11 +118,15 @@ class ParallelToolExecutor(ToolExecutor):
         return self._controls.result_for(job, include_job_metadata=False)
 
     def cancel_job(self, job_id: str) -> bool:
-        if self._registry.get(job_id) is None:
+        job = self._registry.get(job_id)
+        if job is None:
             raise KeyError(job_id)
-        return self._scheduler.cancel(job_id)
+        cancelled = self._scheduler.cancel(job_id)
+        if cancelled:
+            self._result_read(job)
+        return cancelled
 
-    def _call(self, name: str, arguments: dict[str, Any], *, background=False) -> ExecutionResult:
+    def _call(self, name: str, arguments: dict[str, Any], *, background=False, defer_wait=False) -> ExecutionResult:
         if name in self._control_names:
             if not self._tracer.enabled:
                 return self._controls.call(name, arguments)
@@ -127,6 +153,7 @@ class ParallelToolExecutor(ToolExecutor):
 
         job = self._registry.create(name, arguments, policy.resource_key)
         parent_context = self._tracer.capture()
+        submitted = self._on_submit(policy)
         call_context = copy_context()
         from uni_robot_agent.execution.correlation import current_call
         with self._queue_lock:
@@ -136,7 +163,7 @@ class ParallelToolExecutor(ToolExecutor):
             self._scheduler.submit(
                 job,
                 lambda: call_context.run(self._execute_scheduled,
-                    name, arguments, policy, job.job_id, parent_context,
+                    name, arguments, policy, job.job_id, parent_context, submitted,
                 ),
                 concurrency=policy.concurrency,
             )
@@ -150,14 +177,8 @@ class ParallelToolExecutor(ToolExecutor):
             self._registry.discard(job.job_id)
             return result
 
-        if policy.return_mode == "immediate":
-            completed_job = self._registry.wait(job.job_id)
-            result = self._controls.result_for(
-                completed_job,
-                include_job_metadata=False,
-            )
-            self._registry.discard(job.job_id)
-            return result
+        if policy.return_mode == "immediate" and not defer_wait:
+            return self._wait_immediate(job.job_id)
 
         # Read the registry: a submitted job may already be running or complete.
         # Inferring state from its static policy would expose stale state to the agent.
@@ -168,8 +189,15 @@ class ParallelToolExecutor(ToolExecutor):
             job.queue_position,
         )
 
-    def _execute(self, name: str, arguments: dict[str, Any]) -> ToolOutput:
-        return self._toolkit.execute_tool(name, arguments)
+    def _wait_immediate(self, job_id):
+        completed_job = self._registry.wait(job_id)
+        result = self._controls.result_for(completed_job, include_job_metadata=False)
+        self._result_read(completed_job)
+        self._registry.discard(job_id)
+        return result
+
+    def _resource_key(self, policy):
+        return "__global__" if self._resource_scheduling == "global-serial" else policy.resource_key
 
     def _execute_with_events(
         self,
@@ -177,9 +205,11 @@ class ParallelToolExecutor(ToolExecutor):
         arguments: dict[str, Any],
         policy: ToolExecutionPolicy,
         job_id: str | None = None,
+        submitted: Any = None,
     ) -> ToolOutput:
         """Execute and notify optional extensions without changing tool outcomes on listener failure."""
         execution_id = job_id or uuid.uuid4().hex[:12]
+        context = self._on_start(policy, submitted)
         self._emit(ToolLifecycleEvent(
             phase="started",
             execution_id=execution_id,
@@ -195,7 +225,7 @@ class ParallelToolExecutor(ToolExecutor):
             try:
                 from uni_robot_agent.execution import execution_context
                 with execution_context(execution_id):
-                    output = self._execute(name, arguments)
+                    output = self._execute(name, arguments, policy, job_id, context)
                 return output
             except Exception as exc:
                 error = exc
@@ -232,6 +262,7 @@ class ParallelToolExecutor(ToolExecutor):
         policy: ToolExecutionPolicy,
         job_id: str,
         parent_context,
+        submitted,
     ) -> ToolOutput:
         """Propagate submitter identity explicitly into scheduler threads."""
         with self._tracer.use_context(parent_context):
@@ -250,7 +281,7 @@ class ParallelToolExecutor(ToolExecutor):
                         "job_id": job_id,
                     },
                 )
-            return self._execute_with_events(name, arguments, policy, job_id)
+            return self._execute_with_events(name, arguments, policy, job_id, submitted)
 
     def _emit(self, event: ToolLifecycleEvent) -> None:
         self.emit_execution(event.phase, event.execution_id, event.tool_name, event.arguments,

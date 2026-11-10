@@ -84,7 +84,14 @@ environment that declares nothing gets the defaults, with unchanged schemas.
 |---|---|---|
 | `finish_statuses` | `["success"]` | Statuses `finish` offers, from `success`, `failure` and `give_up`; they are recorded as `completion_claimed`, `task_failed` and `task_abandoned` |
 | `motion_profiles` | Shared `standard`/`approach`/`precision` | Replaces whole named profiles (`max_step_m`, `position_tolerance_m`, `orientation_tolerance_rad`, all positive) with arrival criteria matched to the arm; the `move` description states the effective values |
+| `physical_hardware` | false | A physical environment's results never count as a confirmed stop by themselves; its receipts must confirm the stop for the [replanning execution mode](architecture.md#execution-modes) (see below) |
 | `normalized_opening_tolerance` | None | For arms without `gripper_opening_models`, checks an explicit 0-1 opening against the measured 0-1 opening within this tolerance, in `(0, 0.5]`. Only readings whose arm metadata sets `gripper_opening_measured: true` are judged; others stay unknown |
+
+A physical environment reports what a refused or interrupted command did in its receipt
+`diagnostics`, which the gripper tools read for replan handling: `execution_outcome` is `none`,
+`partial` or `unknown`; `stop.status: confirmed_idle` confirms the actuators stopped, unless
+`requires_operator_recovery` is true. Unknown execution or an unconfirmed stop leaves recovery
+to the operator.
 
 ## RoboDojo
 

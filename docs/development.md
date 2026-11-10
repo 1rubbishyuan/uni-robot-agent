@@ -274,7 +274,13 @@ For perception, use its existing backend contract. See [service examples](servic
 For scheduling changes, extend `execution/` against declared tool policies and
 test resource ownership, cancellation and job completion. Tools declare what
 resources they need; the executor decides when work can run. Service/native
-layers still enforce their own execution and lifecycle constraints.
+layers still enforce their own execution and lifecycle constraints. A new
+execution mode subclasses `ParallelToolExecutor` through its extension points
+(`_admit`, `_on_submit`, `_on_start`, `_execute`, `_result_read`) and is listed in
+`execution.EXECUTION_MODES`. A physical tool family that runs in the
+[replanning mode](architecture.md#execution-modes) reports `ToolOutput.action`
+from its own feedback, so the executor never reads tool-specific result fields
+or tool names.
 
 For observation/context work, distinguish obtaining observations from choosing
 what context the model sees. Observation providers own sampling; the observation

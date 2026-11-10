@@ -162,7 +162,22 @@ __all__ = [
     "QueueSnapshotListener",
     "SerialToolExecutor",
     "ParallelToolExecutor",
+    "ReplanningToolExecutor",
+    "EXECUTION_MODES",
+    "create_executor",
 ]
+
+# How calls are scheduled: parallel queues them per resource; replanning also stops an old plan
+# after a failed world-mutating action (execution/replanning.py).
+EXECUTION_MODES = ("parallel", "replanning")
+
+
+def create_executor(mode: str, toolkit, policies=None, **options) -> ToolExecutor:
+    """The executor for one execution mode; options are the parallel scheduler's."""
+    if mode not in EXECUTION_MODES:
+        raise ValueError(f"Unknown execution mode: {mode}")
+    executor = ReplanningToolExecutor if mode == "replanning" else ParallelToolExecutor
+    return executor(toolkit, policies, **options)
 
 def connect_execution_events(executor: ToolExecutor, bus: EventBus) -> None:
     """Publish actual runtime queue state to the shared event stream."""
@@ -177,3 +192,4 @@ def connect_execution_events(executor: ToolExecutor, bus: EventBus) -> None:
 # Define public contracts before importing implementations that refer back to this module.
 from uni_robot_agent.execution.parallel import ParallelToolExecutor
 from uni_robot_agent.execution.serial import SerialToolExecutor
+from uni_robot_agent.execution.replanning import ReplanningToolExecutor

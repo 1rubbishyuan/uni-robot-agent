@@ -226,6 +226,7 @@ See [services](services.md) for deployment and extension contracts.
 | `--mcp-parallel-dispatch` | Whether Codex dispatches calls concurrently to the MCP server. Defaults to false. |
 | `--tool-return-mode` | `background` by default; `immediate` returns completed results and hides job controls. Both allow model batches. |
 | `--resource-scheduling` | `per-resource` by default; `global-serial` maps all calls onto one exclusive FIFO resource. |
+| `--execution-mode` | The integration's mode by default; `parallel` or `replanning` (see [execution modes](#execution-modes)). |
 
 Both switches accept `--no-` forms. MCP parallel dispatch is Codex-only; Claude
 maps disabled model parallelism to Messages `disable_parallel_tool_use`.
@@ -236,7 +237,55 @@ and placement (`exclusive` or `parallel`). Exclusive jobs enter a FIFO resource
 queue in submission order. A background reply may acknowledge enqueueing,
 rather than completed motion. Use `wait_for_tool`, `wait_for_tools` or
 `get_tool_result` to inspect completion. Cancelling queued work does not
-interrupt a running physical action.
+interrupt a running physical action; `cancel_tool` and `flush_queue` return a
+receipt for each cancelled job.
+
+### Execution modes
+
+`--execution-mode` chooses how calls are scheduled. Without it, the run uses its
+integration's mode (`IntegrationSpec.execution_mode`, `parallel` unless the
+integration says otherwise; ARX ONE uses `replanning`). Both modes accept every
+`--tool-return-mode` and `--resource-scheduling` value.
+
+| Mode | Executor | Behavior |
+|---|---|---|
+| `parallel` | `execution/parallel.py` | The scheduling above, unchanged |
+| `replanning` | `execution/replanning.py` | `parallel`, plus reading each result before the next world-mutating call and replanning after a failed one |
+
+In `replanning`, the model queues `move` (to above the cup), `move` (down) and
+`grasp`, and the first move stops halfway:
+
+| | `parallel` | `replanning` |
+|---|---|---|
+| Queued `move` and `grasp` | Run from a pose the plan did not expect | Cancelled before dispatch, each with a receipt (`replan_after_failure`) |
+| A new action | Accepted | Refused with `replan_required` and the next step |
+| A background action before the last result is read | Accepted | Refused with `unread_action_result` |
+| Ending the episode | Allowed | Allowed (`ends_episode`) |
+
+World-mutating work is accepted again once three things hold: the failed result
+has been read, the environment confirmed that the actuators stopped, and a
+`replan_observation` tool (scene `capture_scene`, on any resource) that started
+after both returned a new `snapshot_id`. With unknown execution or an
+unconfirmed stop it stays refused for the episode; recovery belongs to the
+operator. Nothing is retried or replayed.
+
+The mode reads two facts from each tool's policy; `parallel` ignores them:
+
+| Policy field | Meaning |
+|---|---|
+| `replan_observation` | A successful result with a new `snapshot_id` can clear the requirement |
+| `ends_episode` | Stays allowed while a replan is required |
+
+Tools report what an action did in `ToolOutput.action` (`ActionOutcome`:
+`complete`, `executed` = `none`/`some`/`unknown`, `stopped`), which is never
+sent to the model. A failed result without it counts as unknown execution
+unless it carries `no_execution: true`. Gripper tools fill it from motion
+feedback and the receipt's `execution_outcome` and `stop` evidence; a stepped
+simulation counts as stopped after a known result, while a device environment,
+or one that declares `physical_hardware`, must confirm the stop in its receipt.
+Admission applies to `call` and `submit` alike. In both modes `flush_queue`
+lists each cancelled job, and a cancelled job's result carries `no_execution`,
+`execution_status` and `reason`.
 
 Coordinated arm targets are a separate per-tool capability; see
 [RoboDojo](integrations.md#coordinated-arm-targets).

@@ -116,6 +116,7 @@ create the owned environment before the agent connects.
 | `--episode-timeout-s` | `10800` | Agent episode wall time for `run`, excluding managed environment startup; `0` disables it |
 | `--tool-return-mode` | `background` | `immediate` waits for final results; `background` exposes job controls |
 | `--resource-scheduling` | `per-resource` | Independent resource domains; `global-serial` uses one FIFO queue |
+| `--execution-mode` | Integration's mode | `parallel`, or `replanning`: read each result first and replan after a failed action |
 | `--observation-profile` | `none` | Integration observation profile; requires matching integration and per-resource scheduling |
 | `--skill-writing` | Disabled | Enable writing Markdown experience within the integration's skill namespace |
 | `--env-url` | Environment or required in connection mode | Existing endpoint; conflicts with `--deploy local` |

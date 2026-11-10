@@ -6,6 +6,14 @@
   `finish_statuses` (success, failure, give_up), whole `motion_profiles`, and
   `normalized_opening_tolerance` for measured 0-1 gripper openings.
   Environments that declare nothing keep the previous tools.
+- `--execution-mode` returns with the values `parallel` and `replanning`;
+  the former `serial` value is not accepted. Unset, a run uses its
+  integration's mode, `parallel` unless the integration declares otherwise.
+  `replanning` keeps parallel scheduling and adds result reads before the next
+  world-mutating call and a replan after a failed action. Results of an
+  environment that declares `physical_hardware` count as stopped only when its
+  receipt confirms the stop. Job controls now list each cancelled job, and a
+  cancelled result carries `no_execution`, `execution_status` and `reason`.
 
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.
