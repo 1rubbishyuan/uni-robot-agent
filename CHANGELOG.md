@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Let environments declare tool settings through their description metadata:
+  `finish_statuses` (success, failure, give_up), whole `motion_profiles`, and
+  `normalized_opening_tolerance` for measured 0-1 gripper openings.
+  Environments that declare nothing keep the previous tools.
+
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.
 

@@ -77,6 +77,15 @@ Tool definitions live in [`tools/gripper/`](../uni_robot_agent/tools/gripper/),
 [`tools/scene/`](../uni_robot_agent/tools/scene/), [`tools/skills.py`](../uni_robot_agent/tools/skills.py)
 and [`tools/episode.py`](../uni_robot_agent/tools/episode.py).
 
+An environment adjusts these tools through its description's `metadata`; an
+environment that declares nothing gets the defaults, with unchanged schemas.
+
+| Key | Default | Effect |
+|---|---|---|
+| `finish_statuses` | `["success"]` | Statuses `finish` offers, from `success`, `failure` and `give_up`; they are recorded as `completion_claimed`, `task_failed` and `task_abandoned` |
+| `motion_profiles` | Shared `standard`/`approach`/`precision` | Replaces whole named profiles (`max_step_m`, `position_tolerance_m`, `orientation_tolerance_rad`, all positive) with arrival criteria matched to the arm; the `move` description states the effective values |
+| `normalized_opening_tolerance` | None | For arms without `gripper_opening_models`, checks an explicit 0-1 opening against the measured 0-1 opening within this tolerance, in `(0, 0.5]`. Only readings whose arm metadata sets `gripper_opening_measured: true` are judged; others stay unknown |
+
 ## RoboDojo
 
 `--integration robodojo` adds the RoboDojo prompt and optional task-requirements
