@@ -21,6 +21,13 @@
 - Add the ARX ONE real-robot integration (two ARX X5 arms, three RealSense D405
   cameras) with its Body device process, offline calibration and deployment
   templates. It runs in the `replanning` execution mode.
+- Report recovery through one model-facing field. `StepReceipt` gains typed
+  `execution_outcome`, `stop_confirmed` and `requires_operator_recovery` facts,
+  and `replanning` derives the `replan` report from them; its unrecoverable
+  phase is now `operator_required` (was `stop_unconfirmed`). A failed action
+  that ran nothing no longer requires a new observation. ARX ONE drops its own
+  `control_status` recovery state: a control lease that expires while the model
+  thinks is taken again by the next command after a readiness check.
 
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.

@@ -17,8 +17,11 @@ OPENING = {"type": "number", "minimum": 0, "maximum": 1, "description": "Normali
 NAMES = ("move", "grasp", "release", "hold")
 # Motion stops after which the requested action did not finish as planned.
 INCOMPLETE_STOPS = frozenset({"planning_rejected", "unsafe_motion", "tracking_interrupted", "native_end",
+                              "operator_recovery_required",
                               # A whole path that ran only its verified reachable part.
                               "reachable_prefix"})
+# The step receipt's recovery facts (StepReceipt) that decide how a failed action may continue.
+RECOVERY_FACTS = ("execution_outcome", "stop_confirmed", "requires_operator_recovery")
 
 
 def tool_policies():
@@ -157,9 +160,9 @@ class GripperTools(ToolProvider):
                 output.action = ActionOutcome(complete=False, executed=executed, stopped=self._stopped(executed))
         return output
 
-    def _stopped(self, executed, diagnostics=None):
+    def _stopped(self, executed, facts=None):
         # A stepped simulation does not advance between requests, so a known result leaves it at rest.
-        # Physical and device environments confirm the stop in the receipt (diagnostics.stop.status).
+        # Physical and device environments confirm the stop in the step receipt (stop_confirmed).
         if executed == "unknown":
             return None
         description = self.episode.description
@@ -167,20 +170,21 @@ class GripperTools(ToolProvider):
                      and not description.environment.metadata.get("physical_hardware"))
         if simulated:
             return True
-        diagnostics = diagnostics or {}
-        stop = diagnostics.get("stop") or {}
-        confirmed = stop.get("status") == "confirmed_idle" and not diagnostics.get("requires_operator_recovery")
+        facts = facts or {}
+        confirmed = facts.get("stop_confirmed") is True and not facts.get("requires_operator_recovery")
         return True if confirmed else None
 
-    def action_outcome(self, feedback, *, uncertain=False, diagnostics=None) -> ActionOutcome:
+    def action_outcome(self, feedback, *, uncertain=False, facts=None) -> ActionOutcome:
         """What the action did, for the replanning execution mode (execution/replanning.py).
 
-        ``diagnostics`` is the last primitive receipt's: ``execution_outcome`` (``none``, ``partial``
-        or ``unknown``) says what a refused command ran, and a confirmed ``stop`` lets a physical
-        environment resume by replanning.
+        ``facts`` are the last primitive receipt's recovery facts (``StepReceipt``):
+        ``execution_outcome`` (``none``, ``partial`` or ``unknown``) says what a refused or
+        interrupted command ran, ``stop_confirmed`` lets a physical environment resume by
+        replanning, and ``requires_operator_recovery`` leaves recovery to the operator.
         """
+        facts = facts or {}
         reason = feedback.get("stop_reason")
-        outcome = (diagnostics or {}).get("execution_outcome")
+        outcome = facts.get("execution_outcome")
         uncertain = uncertain or outcome == "unknown"
         # unsafe_motion is detected on an accepted step, and a refused step may still have run in part:
         # the world moved even when no step was counted.
@@ -192,9 +196,10 @@ class GripperTools(ToolProvider):
             arm.get("opening_reached") is False for arm in (feedback.get("arms") or {}).values())
         complete = (not uncertain and feedback.get("targets_reached") is not False
                     and reason not in INCOMPLETE_STOPS and not missed_opening)
-        return ActionOutcome(complete=complete, executed=executed, stopped=self._stopped(executed, diagnostics))
+        return ActionOutcome(complete=complete, executed=executed, stopped=self._stopped(executed, facts),
+                             operator_required=bool(facts.get("requires_operator_recovery")))
 
-    def action_output(self, reply, *, cameras=None, diagnostics=None):
+    def action_output(self, reply, *, cameras=None, facts=None):
         self.episode.publish(reply)
         image_error = None
         image_metadata = {}
@@ -216,7 +221,7 @@ class GripperTools(ToolProvider):
             **({"artifact_error": error} if (error := reply.artifact_error or image_error) else {}),
             "snapshot_id": None if snapshot is None else snapshot["snapshot_id"],
             **image_metadata, "image_cameras": [image.name for image in images]}, images=images,
-            action=self.action_outcome(reply.feedback, diagnostics=diagnostics))
+            action=self.action_outcome(reply.feedback, facts=facts))
 
     def _run_motion_program(self, request, method, *, cameras=None, opening_feedback=None):
         """Run a model-level action by composing primitive service requests.
@@ -234,15 +239,15 @@ class GripperTools(ToolProvider):
         reply = backend.last_reply
         if reply is None:
             raise RequestRejected("The motion program did not execute a primitive step")
-        # The final receipt's stop and execution evidence decide how the executor may continue.
-        diagnostics = dict(reply.feedback.get("diagnostics") or {})
+        # The final receipt's recovery facts decide how the executor may continue.
+        facts = {key: reply.feedback.get(key) for key in RECOVERY_FACTS}
         # Several primitive receipts form one model tool result.  Publish only
         # the final receipt once and attach the aggregate tool feedback.
         reply = reply.model_copy(update={
             "state_before": start_state,
             "feedback": feedback,
         })
-        return self.action_output(reply, cameras=cameras, diagnostics=diagnostics)
+        return self.action_output(reply, cameras=cameras, facts=facts)
 
     def _metric_targets(self, targets, *, key="gripper_opening_m"):
         converted, feedback = [], {}

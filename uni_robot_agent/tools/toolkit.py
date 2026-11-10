@@ -42,12 +42,14 @@ class ActionOutcome:
     ``"none"`` when nothing reached the hardware, ``"some"`` when it did, and
     ``"unknown"`` when a lost acknowledgement leaves it open. ``stopped`` is true only
     when the environment confirmed the actuators are stationary afterwards, and
-    ``None`` when it does not say.
+    ``None`` when it does not say. ``operator_required`` means the environment blocks
+    movement until an operator recovers the robot, whatever the action executed.
     """
 
     complete: bool
     executed: Literal["none", "some", "unknown"]
     stopped: bool | None = None
+    operator_required: bool = False
 
 
 @dataclass

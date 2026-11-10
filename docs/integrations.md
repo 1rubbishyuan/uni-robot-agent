@@ -91,11 +91,14 @@ environment that declares nothing gets the defaults, with unchanged schemas.
 | `motion_execution` | `stepwise` | `stepwise`: `move` is the waypoint loop that checks tracking after every step, and gripper actions repeat a pose hold. `wholepath`: `move` sends one `PathCommand` that the environment preflights and runs without intermediate stops, arrival is checked once and a truncated path reports `reachable_prefix`; `grasp`, `release` and `hold` hold every joint at its measured angle in one command lasting `steps` control periods. Schemas are the same in both modes; descriptions follow the mode. `wholepath` requires the backend's `step_path` |
 | `normalized_opening_tolerance` | None | For arms without `gripper_opening_models`, checks an explicit 0-1 opening against the measured 0-1 opening within this tolerance, in `(0, 0.5]`. Only readings whose arm metadata sets `gripper_opening_measured: true` are judged; others stay unknown |
 
-A physical environment reports what a refused or interrupted command did in its receipt
-`diagnostics`, which the gripper tools read for replan handling: `execution_outcome` is `none`,
-`partial` or `unknown`; `stop.status: confirmed_idle` confirms the actuators stopped, unless
-`requires_operator_recovery` is true. Unknown execution or an unconfirmed stop leaves recovery
-to the operator.
+A physical environment reports what a refused or interrupted command did in three typed
+`StepReceipt` fields, which the gripper tools turn into the action's outcome:
+`execution_outcome` (`none`, `partial` or `unknown`), `stop_confirmed` (the actuators are
+confirmed stationary) and `requires_operator_recovery`. It reports facts, not recovery steps: the
+[replanning execution mode](architecture.md#execution-modes) derives the only model-facing
+recovery report (`replan`) from them. A refusal that ran nothing and needs no operator is an
+ordinary failed result. Unknown execution, an unconfirmed stop or a required operator leaves
+recovery to the operator. Keep native stop evidence in `diagnostics` for people.
 
 ## RoboDojo
 

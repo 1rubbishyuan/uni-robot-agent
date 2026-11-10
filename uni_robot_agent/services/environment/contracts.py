@@ -170,9 +170,22 @@ ActionCommand = Annotated[PoseCommand | JointCommand | NativeCommand | PathComma
 
 
 class StepReceipt(Contract):
+    """One primitive step's result.
+
+    The three recovery facts tell the tool layer what a refused or interrupted step did; the
+    replanning execution mode derives the model-facing ``replan`` report from them. An
+    environment that reports none keeps the defaults: a simulated step leaves the world at rest.
+    """
+
     accepted: bool
     state: EnvironmentState
     diagnostics: dict[str, Any] = Field(default_factory=dict)
+    # What a refused or interrupted command ran; None means the receipt reports nothing beyond acceptance.
+    execution_outcome: Literal["none", "partial", "unknown"] | None = None
+    # True when the environment confirmed its actuators are stationary after this step.
+    stop_confirmed: bool | None = None
+    # Movement stays blocked until an operator recovers the robot.
+    requires_operator_recovery: bool = False
 
 
 class StepRequest(Contract):

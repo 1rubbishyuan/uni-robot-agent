@@ -55,6 +55,9 @@ class PrimitiveExecutor:
             "accepted": receipt.accepted,
             "state": receipt.state.model_dump(mode="json"),
             "diagnostics": dict(receipt.diagnostics),
+            "execution_outcome": receipt.execution_outcome,
+            "stop_confirmed": receipt.stop_confirmed,
+            "requires_operator_recovery": receipt.requires_operator_recovery,
             "command": command.model_dump(mode="json"),
         }
 

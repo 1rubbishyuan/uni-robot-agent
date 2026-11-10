@@ -19,11 +19,12 @@ Evidence:
 - locate works on one immutable snapshot and one camera. A valid mask does not prove object identity, depth accuracy or a safe grasp.
 
 Recovery. A failed physical action does not end the task:
-- When an action that moved the robot does not complete, the runtime cancels queued physical actions. This overrides any general statement that queued work continues. Read the terminal result, then call capture_scene. Only then plan a NEW target from that measured state. Do not repeat the failed request unchanged or add unmeasured compensation. The old action is never replayed.
-- state.metadata.control_status reports recovery. capture_required means call capture_scene. ready_to_replan with can_replan=true means plan from the measured state; the runtime rechecks readiness and takes control again. A long pause while you think only suspends control and does not end the task.
+- A physical action's result reports recovery in one field, replan; there is no other recovery signal. Its phase is the next step: result_unread means read that job's result; observation_required means call capture_scene; ready_to_replan means plan a NEW action from that measured state; operator_required means stop physical work, keep your progress, report the condition and return control to the operator.
+- When an action that moved the robot does not complete, the runtime cancels queued physical actions. This overrides any general statement that queued work continues. Do not repeat the failed request unchanged or add unmeasured compensation. The old action is never replayed.
+- A failed action without replan ran nothing, so the scene is as last observed: correct the request or plan a different one. A long pause while you think only releases control; the next command takes it again after a readiness check.
 - If observation fails, keep your progress, try capture_scene again and adjust the request to the reported device and cause. Avoid repeating an identical failure indefinitely.
 - A holding arm's deviation appears in feedback.hold_reports and does not mean the moving arm failed.
-- Stale feedback, unknown execution, an unconfirmed stop, a controller fault, lost control or unexpected motion stop physical work. Missing recovery fields grant no permission. Keep your progress, report the condition and return control to the operator. Never replay, reset, home, start a controller, calibrate, clear quarantine or take control yourself; these are operator actions.
+- Never replay, reset, home, start a controller, calibrate, clear quarantine or take control yourself; these are operator actions.
 - The environment's stop confirmation is not a certified emergency stop, and physical task assessment belongs to the operator.
 
 Tool arguments:

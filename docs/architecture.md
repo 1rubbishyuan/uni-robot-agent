@@ -265,9 +265,16 @@ In `replanning`, the model queues `move` (to above the cup), `move` (down) and
 World-mutating work is accepted again once three things hold: the failed result
 has been read, the environment confirmed that the actuators stopped, and a
 `replan_observation` tool (scene `capture_scene`, on any resource) that started
-after both returned a new `snapshot_id`. With unknown execution or an
-unconfirmed stop it stays refused for the episode; recovery belongs to the
-operator. Nothing is retried or replayed.
+after both returned a new `snapshot_id`. With unknown execution, an
+unconfirmed stop or an environment that requires an operator it stays refused
+for the episode; recovery belongs to the operator. A failed action that ran
+nothing and needs no operator is an ordinary result: the world did not change.
+Nothing is retried or replayed.
+
+The model sees recovery only in the `replan` report attached to results:
+`phase` (`result_unread`, `observation_required`, `ready_to_replan` or
+`operator_required`), `reason`, `executed`, `stop_confirmed`, the cancelled jobs
+and `next_action`. Environments report facts, never their own recovery protocol.
 
 The mode reads two facts from each tool's policy; `parallel` ignores them:
 
@@ -277,12 +284,13 @@ The mode reads two facts from each tool's policy; `parallel` ignores them:
 | `ends_episode` | Stays allowed while a replan is required |
 
 Tools report what an action did in `ToolOutput.action` (`ActionOutcome`:
-`complete`, `executed` = `none`/`some`/`unknown`, `stopped`), which is never
-sent to the model. A failed result without it counts as unknown execution
-unless it carries `no_execution: true`. Gripper tools fill it from motion
-feedback and the receipt's `execution_outcome` and `stop` evidence; a stepped
-simulation counts as stopped after a known result, while a device environment,
-or one that declares `physical_hardware`, must confirm the stop in its receipt.
+`complete`, `executed` = `none`/`some`/`unknown`, `stopped`, `operator_required`),
+which is never sent to the model. A failed result without it counts as unknown
+execution unless it carries `no_execution: true`. Gripper tools fill it from
+motion feedback and the step receipt's `execution_outcome`, `stop_confirmed` and
+`requires_operator_recovery`; a stepped simulation counts as stopped after a
+known result, while a device environment, or one that declares
+`physical_hardware`, must confirm the stop in its receipt.
 Admission applies to `call` and `submit` alike. In both modes `flush_queue`
 lists each cancelled job, and a cancelled job's result carries `no_execution`,
 `execution_status` and `reason`.

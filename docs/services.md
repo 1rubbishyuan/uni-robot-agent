@@ -492,7 +492,9 @@ The service boundary is intentionally small. `EnvironmentBackend` implements
 native `step_pose`, `step_joints`, `step_native`, capture, preview and finish, and optionally
 `step_path` for environments that declare the `wholepath` motion mode.
 `EnvironmentService.step` checks the expected `state_version`, forwards exactly
-one command, records the receipt, and publishes a snapshot. It knows nothing
+one command, records the receipt, and publishes a snapshot. A `StepReceipt` may
+state three recovery facts for a refused or interrupted command:
+`execution_outcome`, `stop_confirmed` and `requires_operator_recovery`. It knows nothing
 about whether a caller is trying to reach a pose, close a gripper, or execute a
 recovery sequence.
 

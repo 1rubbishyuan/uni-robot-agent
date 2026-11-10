@@ -4,16 +4,20 @@
 global-serial scheduling) and adds three rules for world-mutating tools:
 
 1. A new action on a resource waits until the last action's result has been read.
-2. When an action that may have moved something does not complete (``ToolOutput.action``),
-   queued world-mutating calls on that resource are cancelled before dispatch and keep their
-   receipts; a call that was already dequeued is refused when it starts.
+2. When an action that may have moved something does not complete, or the environment requires
+   an operator (``ToolOutput.action``), queued world-mutating calls on that resource are
+   cancelled before dispatch and keep their receipts; a call that was already dequeued is
+   refused when it starts.
 3. New world-mutating calls on the resource are refused (``reason: replan_required``) until the
    failed result has been read, the environment has confirmed that the actuators stopped, and
    a ``replan_observation`` tool (on any resource) that started after both returns a new
    snapshot. Tools whose policy sets ``ends_episode`` stay allowed, so the model can still report.
 
-When execution is unknown or the stop is not confirmed, the requirement never clears within the
-episode: recovery belongs to the operator. Nothing here dispatches, retries or replays an action.
+An action that ran nothing and needs no operator is an ordinary failed result: the world did not
+change, so it needs no new observation. When execution is unknown, the stop is not confirmed or
+the environment requires an operator, the requirement never clears within the episode
+(``operator_required``). The ``replan`` report on results is the only recovery signal the model
+gets. Nothing here dispatches, retries or replays an action.
 """
 
 from __future__ import annotations
@@ -44,8 +48,9 @@ def action_outcome(output: ToolOutput) -> ActionOutcome | None:
 
 
 def requires_replan(outcome: ActionOutcome | None) -> bool:
-    """An incomplete action that may have moved something invalidates the queued plan."""
-    return outcome is not None and not outcome.complete and outcome.executed != "none"
+    """An incomplete action that may have moved something, or an operator block, invalidates the plan."""
+    return outcome is not None and (outcome.operator_required
+                                    or (not outcome.complete and outcome.executed != "none"))
 
 
 @dataclass
@@ -64,7 +69,7 @@ class PendingReplan:
         if not self.result_read:
             return "result_unread"
         if not self.stop_confirmed:
-            return "stop_unconfirmed"
+            return "operator_required"
         return "observation_required"
 
     def report(self, observation_tools: list[str]) -> dict[str, Any]:
@@ -81,9 +86,9 @@ class PendingReplan:
     def _next_action(self, observation_tools: list[str]) -> str:
         if self.phase == "result_unread":
             return f"Read the result of job {self.failed_job_id} with wait_for_tool or get_tool_result."
-        if self.phase == "stop_unconfirmed":
-            return ("The stop was not confirmed or execution is unknown. No new action can run until "
-                    "an operator recovers the robot; report the condition.")
+        if self.phase == "operator_required":
+            return ("The stop was not confirmed, execution is unknown or the robot needs an operator. "
+                    "No new action can run until an operator recovers the robot; report the condition.")
         if not observation_tools:
             return "No observation tool can start a replan in this environment; report the condition."
         return (f"Call {' or '.join(observation_tools)} for a new observation, then plan a NEW action "
@@ -105,14 +110,16 @@ class ReplanTracker:
               cancelled: list[dict[str, Any]], *, result_read: bool) -> ToolOutput:
         """Start (or extend) a replan requirement and attach it to the failed result."""
         epoch = self.epochs[resource] = self.epoch(resource) + 1
-        stop_confirmed = outcome.stopped is True and outcome.executed != "unknown"
+        stop_confirmed = (outcome.stopped is True and outcome.executed != "unknown"
+                          and not outcome.operator_required)
         previous = self.pending.get(resource)
         if previous is not None:
             # A later failure cannot erase an earlier unknown execution or unconfirmed stop.
             stop_confirmed = stop_confirmed and previous.stop_confirmed
             cancelled = previous.cancelled_jobs + cancelled
         item = self.pending[resource] = PendingReplan(
-            epoch=epoch, failed_job_id=job_id, reason=output.error or "action_incomplete",
+            epoch=epoch, failed_job_id=job_id,
+            reason=output.error or (output.extra.get("feedback") or {}).get("stop_reason") or "action_incomplete",
             executed=outcome.executed, stop_confirmed=stop_confirmed,
             result_read=result_read or job_id is None,
             failed_snapshot_id=output.extra.get("snapshot_id"), cancelled_jobs=cancelled)

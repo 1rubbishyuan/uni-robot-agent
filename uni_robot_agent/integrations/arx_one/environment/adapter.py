@@ -33,8 +33,6 @@ from ..body.core.timing import host_clock_id, timestamp_ns
 
 OPERATOR_RECOVERY = ("Movement stays blocked until an operator checks the robot and restarts the "
                      "environment service. capture_scene and finish remain available.")
-REPLAN = ("Call capture_scene, then plan a new target from the measured state. A new command rechecks "
-          "readiness and acquires a new lease; the interrupted command is not replayed.")
 
 
 def _pose_rpy(t):
@@ -57,7 +55,8 @@ class Adapter:
         self._outcome = None
         self._output_dir = output_dir
         self._last_state = None
-        self._replan = None
+        # A confirmed recoverable stop: the next command takes control again after a readiness check.
+        self._resume = None
         self._blocked = None
         self._recovery_count = 0
         self._recovery_lock = threading.RLock()
@@ -115,7 +114,7 @@ class Adapter:
     # Movement admission
 
     def _sync_admission(self):
-        """Turn a watchdog stop into the recovery state the model can act on."""
+        """Classify a closed control: a recoverable stop resumes on the next command, any other needs an operator."""
         control = self.control
         with self._recovery_lock:
             if (control is None or not control.blocked.is_set() or control.evidence is None
@@ -123,80 +122,65 @@ class Adapter:
                 return
             stop = control.evidence
             if control.failure == "control_idle_timeout" and stop["status"] == "confirmed_idle":
-                if not self._replan:
-                    self._replan = {"reason": "control_idle_timeout", "observed": False}
-            elif control.failure or not self._replan:
+                self._resume = self._resume or "control_idle_timeout"
+            elif control.failure or not self._resume:
                 # A watchdog failure (lost control, an action timeout, an unconfirmed idle stop)
-                # goes to the operator even while a replan is pending for another reason.
-                self._replan = None
+                # goes to the operator even while a resume is pending for another reason.
+                self._resume = None
                 self._blocked = {"reason": control.failure or stop["reason"], "stop": stop}
 
-    def _control_status(self):
-        self._sync_admission()
-        control = self.control
-        if control is None:
-            # Startup reads state before control is acquired.
-            return {"phase": "starting"}
-        stop = control.evidence or {}
-        common = {"stop_status": stop.get("status", "pending"), "old_actions_replayed": False}
-        if self._blocked:
-            return {"phase": "blocked", "reason": self._blocked["reason"], "can_replan": False,
-                    "next_action": OPERATOR_RECOVERY, **common}
-        if self._replan:
-            observed = self._replan["observed"]
-            return {"phase": "ready_to_replan" if observed else "capture_required",
-                    "reason": self._replan["reason"], "can_replan": observed, "next_action": REPLAN, **common}
-        if control.blocked.is_set():
-            return {"phase": "stopping", "reason": control.failure or "control_admission_closed",
-                    "can_replan": False, **common}
-        return {"phase": "active"}
-
     def _require_admission(self):
+        """None when a command may run; otherwise the refusal receipt that leaves recovery to the operator."""
         self._sync_admission()
-        if self._blocked:
-            raise RequestRejected(f"Movement is blocked ({self._blocked['reason']}). {OPERATOR_RECOVERY}")
-        if self._replan:
-            if not self._replan["observed"]:
-                raise RequestRejected(f"The previous action stopped early ({self._replan['reason']}). "
-                                      f"No command was sent. {REPLAN}")
+        if self._resume and not self._blocked:
             self._resume_control()
+        if self._blocked:
+            return self._operator_refusal()
         try:
             self.control.require()
         except BodyError as error:
-            raise RequestRejected(f"Control is stopping ({error.code}); no command was sent. {REPLAN}") from error
+            raise RequestRejected(f"Control is stopping ({error.code}); no command was sent.") from error
+        return None
 
     def _resume_control(self):
-        """A new model command may obtain a new lease; an interrupted command cannot."""
+        """Take control again after a confirmed recoverable stop; the stopped command is never replayed."""
         with self._recovery_lock:
             previous = self.control
+            reason, self._resume = self._resume, None
             if not previous.blocked.is_set():
-                # An observation failure leaves the current lease valid.
-                self._replan = None
                 return
             try:
                 # Fresh post-stop samples, no owner, no active work, and the pinned
-                # pinned identity plus device readiness.
+                # identity plus device readiness.
                 confirm_unowned_idle(self.config, self.client)
                 self.limits = verify(self.client, self.config)
                 self._fresh_state()
                 previous.close()
                 self._recovery_count += 1
                 self.control = self._new_control(f"body-journal-recovery-{self._recovery_count}.jsonl")
-                self.control.record("recovery_requested", recovery_reason=self._replan["reason"])
+                self.control.record("recovery_requested", recovery_reason=reason)
                 self.control.acquire()
-                self._replan = None
                 self.control.record("recovery_ready", replayed_operations=False)
             except Exception as error:
-                self._replan = None
                 self._blocked = {"reason": f"recovery_failed: {type(error).__name__}", "stop": previous.evidence}
                 self.control.stop("recovery_failed")
-                raise RequestRejected(f"Recovery preflight failed; no command was sent. {OPERATOR_RECOVERY}") from error
+
+    def _operator_refusal(self):
+        """A command refused while movement is blocked; nothing was sent."""
+        stop = self._blocked.get("stop") or {}
+        return StepReceipt(accepted=False, state=self.read_state(), execution_outcome="none",
+                           stop_confirmed=stop.get("status") == "confirmed_idle", requires_operator_recovery=True,
+                           diagnostics={"reason": "operator_recovery_required", "blocked_reason": self._blocked["reason"],
+                                        "message": f"Movement is blocked ({self._blocked['reason']}); no command was "
+                                                   f"sent. {OPERATOR_RECOVERY}"})
 
     def _ready(self, command):
+        """The measured start state, or the refusal receipt while an operator must recover the robot."""
         self.validate_commands([command], "direct")
         if self.ended or self.steps >= self.config.max_episode_steps:
             raise RequestRejected("The episode has ended or reached its step limit")
-        self._require_admission()
+        if (refusal := self._require_admission()) is not None:
+            return None, refusal
         try:
             state = self._fresh_state()
         except Exception as error:
@@ -206,7 +190,7 @@ class Adapter:
                 delta = np.max(np.abs(np.asarray(target.joints) - state.arms[name].joints))
                 if delta > self.limits[name]["joint_step_rad"]:
                     raise RequestRejected("Joint target exceeds the measured-state delta bound")
-        return state
+        return state, None
 
     # State
 
@@ -242,7 +226,7 @@ class Adapter:
                           "timing": reading.get("timing"), "moving": reading.get("moving"),
                           "gripper_opening_measured": contract.opening_measured(signals)})
         state = EnvironmentState(arms=arms, state_version=self.steps, native_steps=self.steps, ended=self.ended,
-            metadata={"physical_hardware": True, "feedback_fresh": True, "control_status": self._control_status()})
+            metadata={"physical_hardware": True, "feedback_fresh": True})
         self._last_state = state
         return state
 
@@ -260,8 +244,7 @@ class Adapter:
             state = self._last_state.model_copy(deep=True)
             state.state_version = state.native_steps = self.steps
             state.ended = self.ended
-            state.metadata.update(feedback_fresh=False, feedback_error=type(error).__name__,
-                                  control_status=self._control_status())
+            state.metadata.update(feedback_fresh=False, feedback_error=type(error).__name__)
             return state
 
     def _measured_commands(self, state):
@@ -299,16 +282,18 @@ class Adapter:
             raise failure
         return results
 
-    def _blocked_receipt(self, reason, message, **evidence):
-        self._replan = None
+    def _blocked_receipt(self, reason, message, *, execution_outcome, **evidence):
+        self._resume = None
         self._blocked = {"reason": reason, "stop": self.control.evidence}
         state = self.read_state()
         if state.metadata.get("feedback_fresh"):
             self._measured_commands(state)
-        diagnostics = {"reason": reason, "message": f"{message} {OPERATOR_RECOVERY}", "recoverable": False,
-                       "requires_operator_recovery": True, "stop": self.control.evidence, **evidence}
-        self.control.record("blocked_receipt", **diagnostics)
-        return StepReceipt(accepted=False, state=state, diagnostics=diagnostics)
+        diagnostics = {"reason": reason, "message": f"{message} {OPERATOR_RECOVERY}",
+                       "stop": self.control.evidence, **evidence}
+        self.control.record("blocked_receipt", execution_outcome=execution_outcome, **diagnostics)
+        return StepReceipt(accepted=False, state=state, diagnostics=diagnostics, execution_outcome=execution_outcome,
+                           stop_confirmed=(self.control.evidence or {}).get("status") == "confirmed_idle",
+                           requires_operator_recovery=True)
 
     def _unknown_receipt(self, error):
         """Never replay a command whose acknowledgement or feedback was lost."""
@@ -346,7 +331,7 @@ class Adapter:
                 return self._blocked_receipt("native_action_failed",
                     f"The arm failed ({native.get('message', blocker)}) and stopped; this failure needs an operator ({blocker}).",
                     execution_outcome=outcome, native_error=native, operations=operations)
-            self._replan = {"reason": "tracking_interrupted", "observed": False}
+            self._resume = "tracking_interrupted"
             state = self.read_state()
             if not state.metadata.get("feedback_fresh") or any(
                     arm.metadata.get("moving") is not False for arm in state.arms.values()):
@@ -354,12 +339,13 @@ class Adapter:
                     "The action stopped, but stationary feedback could not be read.",
                     execution_outcome=outcome, operations=operations)
             self._measured_commands(state)
-            diagnostics = {"reason": "tracking_interrupted", "execution_outcome": outcome,
-                "message": f"The arm stopped before the waypoint ({', '.join(reasons)}); the group is confirmed idle. {REPLAN}",
-                "recoverable": True, "requires_operator_recovery": False, "tracking_reasons": reasons,
-                "stop": stop, "operations": operations}
-            self.control.record("interrupted_receipt", **diagnostics)
-            return StepReceipt(accepted=False, state=state, diagnostics=diagnostics)
+            diagnostics = {"reason": "tracking_interrupted",
+                "message": f"The arm stopped before the waypoint ({', '.join(reasons)}); the group is confirmed "
+                           "idle. The next command takes control again; this one is not replayed.",
+                "tracking_reasons": reasons, "stop": stop, "operations": operations}
+            self.control.record("interrupted_receipt", execution_outcome=outcome, **diagnostics)
+            return StepReceipt(accepted=False, state=state, diagnostics=diagnostics, execution_outcome=outcome,
+                               stop_confirmed=True)
 
     def _recovery_blocker(self, operations, failures, reasons):
         """Unknown outcomes, controller faults and lost control stay with the operator."""
@@ -382,11 +368,11 @@ class Adapter:
         try:
             self.control.begin_action()
         except BodyError as error:
-            raise RequestRejected(f"Control is stopping ({error.code}); no command was sent. {REPLAN}") from error
+            raise RequestRejected(f"Control is stopping ({error.code}); no command was sent.") from error
         # Count a dispatched attempt before crossing the physical boundary so a
         # later validation or transport error cannot be reported as not started.
         self.steps += 1
-        rejected = None
+        rejected, executed = None, None
         try:
             try:
                 diagnostics = action()
@@ -394,10 +380,11 @@ class Adapter:
                 return self._interrupted_receipt(error)
             except PreflightBlocked as error:
                 rejected = error
-                diagnostics = {"reason": "command_limit", "operations": error.operations, "recoverable": True,
+                diagnostics = {"reason": "command_limit", "operations": error.operations,
                     "message": "The Body command limits rejected this waypoint before execution. Choose a different reachable target."}
                 if all(op["state"] == "failed" for op in error.operations.values()):
                     self.steps -= 1  # Every member explicitly reports no execution.
+                    executed = "none"
             after_ns = time.time_ns()
             # Wait for feedback published after dispatch completion, never reuse
             # a still-fresh pre-action sample as the physical action receipt.
@@ -420,18 +407,18 @@ class Adapter:
                 if not stationary:
                     raise RuntimeError("Preflight rejection group has no stationary feedback")
                 self._measured_commands(state)
-            if stationary:
-                # Terminal operations and fresh stillness; not a lease release or an E-stop.
-                diagnostics["stop"] = {"status": "confirmed_idle", "physical_stop_guaranteed": False,
-                                       "basis": "terminal_operations_and_fresh_stationary_feedback"}
             accepted = diagnostics["reason"] == "completed" or (
                 diagnostics["reason"] == "reachable_prefix" and diagnostics.get("execution") == "wholepath")
-            return StepReceipt(accepted=accepted, state=state, diagnostics=diagnostics)
+            # Terminal operations and fresh stillness confirm the stop; not a lease release or an E-stop.
+            return StepReceipt(accepted=accepted, state=state, diagnostics=diagnostics,
+                               execution_outcome=executed, stop_confirmed=stationary or None)
         except Exception as error:
             return self._unknown_receipt(error)
 
     def step_pose(self, command):
-        state = self._ready(command)
+        state, refusal = self._ready(command)
+        if refusal is not None:
+            return refusal
         calls = []
         targets = {}
         for name, target in command.arms.items():
@@ -469,7 +456,7 @@ class Adapter:
             adjustments = [item for op in operations.values() for item in
                            [(op.get("result") or {}).get("workspace_clipping"),
                             *(op.get("result") or {}).get("workspace_clippings", [])] if item]
-            diagnostics = {"operations": operations, "bounded_targets": targets, "reason": "completed", "recoverable": True,
+            diagnostics = {"operations": operations, "bounded_targets": targets, "reason": "completed",
                            "completion_basis": "body_operation_and_measured_feedback_not_task_success"}
             if any(item.get("requires_replan", True) for item in adjustments):
                 diagnostics.update(reason="reachable_prefix", message="Body stopped this waypoint at the workspace "
@@ -487,7 +474,9 @@ class Adapter:
         """One preflighted path for every arm; Body monitors it on every control tick."""
         if self.description.metadata["motion_execution"] != "wholepath":
             raise RequestRejected("This environment is configured for stepwise motion")
-        self._ready(PoseCommand(arms=command.arms))
+        _, refusal = self._ready(PoseCommand(arms=command.arms))
+        if refusal is not None:
+            return refusal
         # Robot-specific: Body accepts 0.2-30 s group commands; keep the RPC allowance in reserve.
         budget = min(30., self.config.action_timeout_s - self.config.rpc_timeout_s - .01)
         duration = max(.2, command.min_duration_s)
@@ -516,7 +505,7 @@ class Adapter:
             operations = self.control.wait_operations([operation])
             result = operations[operation].get("result") or {}
             prefix = result.get("requested_targets_reached") is False
-            diagnostics = {"operations": operations, "execution": "wholepath", "recoverable": True,
+            diagnostics = {"operations": operations, "execution": "wholepath",
                            "reason": "reachable_prefix" if prefix else "completed",
                            "hold_reports": result.get("hold_reports", {})}
             if prefix:
@@ -554,19 +543,11 @@ class Adapter:
         names = list(self.config.cameras) if cameras is None else cameras
         if not set(names) <= self.config.cameras.keys():
             raise RequestRejected("Unknown camera")
-        # Only an observation begun after the verified stop can enable recovery;
-        # snapshots published while an action runs or fails cannot.
-        self._sync_admission()
-        pending = self._replan if high_resolution else None
         try:
             frames, provenance = capture(self, names)
             state = self._fresh_state()
         except Exception as error:
-            # No physical action ran, and the episode stays open. The next action
-            # waits for a good observation rather than continuing without images.
-            with self._recovery_lock:
-                if names and not (self._replan or self._blocked or self.ended):
-                    self._replan = {"reason": "observation_failed", "observed": False}
+            # No physical action ran, and the episode stays open.
             raise RequestRejected(f"Observation failed ({type(error).__name__}: {error}); "
                                   "no physical action was executed") from error
         state.metadata["camera_provenance"] = provenance
@@ -574,10 +555,6 @@ class Adapter:
         if high_resolution and self.depth_backend is not None:
             frames, report = self._complete_depth(frames, provenance)
             state.metadata["depth_completion"] = report
-        if pending is not None and pending is self._replan and frames and all(
-                arm.metadata.get("moving") is False for arm in state.arms.values()):
-            pending["observed"] = True
-            state.metadata["control_status"] = self._control_status()
         return CapturedObservation(self.episode_id, self.steps, time.time(), state.model_dump(mode="json"),
                                    frames, terminated=self.ended)
 
@@ -587,7 +564,7 @@ class Adapter:
         with self._recovery_lock:
             if self._outcome is None:
                 self.ended = True
-                self._replan = None
+                self._resume = None
                 stop = self._final_stop(reason)
                 # Physical task success is assessed outside this process.
                 self._outcome = {"task_success": None, "physical_task_evaluated": False,

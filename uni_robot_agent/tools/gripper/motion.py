@@ -57,6 +57,11 @@ MOTION_EXECUTIONS = ("stepwise", "wholepath")
 PATH_FAILURES = frozenset({"tracking_interrupted", "native_end"})
 
 
+def _refusal_reason(receipt: StepReceipt) -> str:
+    """A refused step that an operator must recover is not a planning rejection."""
+    return "operator_recovery_required" if receipt.requires_operator_recovery else "planning_rejected"
+
+
 def motion_execution(metadata) -> str:
     """The environment's declared motion mode; environments that declare none run stepwise."""
     mode = metadata.get("motion_execution", "stepwise")
@@ -245,7 +250,8 @@ class MotionExecutor:
         if receipt.state.ended:
             return "native_end", _rejection_evidence(receipt.diagnostics)
         if not receipt.accepted:
-            return (native if native in PATH_FAILURES else "planning_rejected"), _rejection_evidence(receipt.diagnostics)
+            reason = native if native in PATH_FAILURES and not receipt.requires_operator_recovery else _refusal_reason(receipt)
+            return reason, _rejection_evidence(receipt.diagnostics)
         if native == "reachable_prefix":
             return "reachable_prefix", _rejection_evidence(receipt.diagnostics)
         return None, None
@@ -317,7 +323,7 @@ class MotionExecutor:
             for arm in receipt.diagnostics.get("arms", {}).values():
                 ik_statistics.update(arm.get("recovery", {}).get("stats", {}))
             if not receipt.accepted:
-                reason, evidence = "planning_rejected", _rejection_evidence(receipt.diagnostics)
+                reason, evidence = _refusal_reason(receipt), _rejection_evidence(receipt.diagnostics)
                 motion, unsafe = self._motion(state, receipt.state, set(participants))
                 state = receipt.state
                 # Rejection advances no command, but pooled physics may change observations.
@@ -520,7 +526,7 @@ class MotionExecutor:
                 arms[name] = ArmCommand(pose=arms[name].pose, gripper=opening)
             receipt = self._advance(PoseCommand(arms=arms))
             if not receipt.accepted:
-                reason, evidence = "planning_rejected", _rejection_evidence(receipt.diagnostics)
+                reason, evidence = _refusal_reason(receipt), _rejection_evidence(receipt.diagnostics)
                 motion, unsafe = self._motion(state, receipt.state, set())
                 state = receipt.state
                 for name, opening in openings.items():
@@ -612,6 +618,9 @@ class ClientPrimitiveBackend:
             accepted=bool(feedback.get("accepted", True)),
             state=self._state,
             diagnostics=dict(feedback.get("diagnostics", feedback)),
+            execution_outcome=feedback.get("execution_outcome"),
+            stop_confirmed=feedback.get("stop_confirmed"),
+            requires_operator_recovery=bool(feedback.get("requires_operator_recovery")),
         )
 
     def step_pose(self, command: PoseCommand) -> StepReceipt:
