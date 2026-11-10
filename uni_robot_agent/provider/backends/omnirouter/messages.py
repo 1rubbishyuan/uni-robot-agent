@@ -1,5 +1,6 @@
 """Codex Responses to OmniRouter's native Claude Messages endpoint."""
 from uni_robot_agent.provider.conversions import responses_messages
+from uni_robot_agent.provider.image_encoding import encode_messages_images
 
 
 class OmniMessagesAdapter:
@@ -13,6 +14,7 @@ class OmniMessagesAdapter:
 
     def encode_request(self, request):
         encoded = responses_messages.encode_request(request, self._reasoning_history)
+        encode_messages_images(encoded.body["messages"])
         effort = (request.get("reasoning") or {}).get("effort", "medium")
         if effort not in {"low", "medium", "high", "max"}:
             raise ValueError("Claude adaptive thinking requires low, medium, high or max effort")
