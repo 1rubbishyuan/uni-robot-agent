@@ -16,7 +16,7 @@ from uni_robot_agent.integrations.prepared_episode import PreparedEpisodeSession
 from uni_robot_agent.tools.scene.provider import SceneTools, tool_policies as scene_policies
 from uni_robot_agent.tools.gripper.provider import GripperTools
 from uni_robot_agent.tools.gripper import provider as gripper
-from uni_robot_agent.tools.minimal import RESULT_NOTES, result_view
+from uni_robot_agent.tools.clean import RESULT_NOTES, result_view
 
 
 class GripperOptions(HybridOptions):
@@ -43,15 +43,15 @@ def validate_gripper_cli(args: Any) -> None:
 
 GRIPPER_MODULE = ToolModule("gripper", lambda session: GripperTools(session.episode), gripper.tool_policies())
 
-MINIMAL_GRIPPER_MODULE = ToolModule("minimal_gripper",
+CLEAN_GRIPPER_MODULE = ToolModule("clean_gripper",
     lambda session: GripperTools(session.episode, names=("move", "hold")),
     {name: policy for name, policy in gripper.tool_policies().items() if name in {"move", "hold"}},
     model_view=result_view, prompt_contributions=RESULT_NOTES)
-MINIMAL_SCENE_MODULE = ToolModule("minimal_scene",
+CLEAN_SCENE_MODULE = ToolModule("clean_scene",
     lambda session: SceneTools(session.episode, names=("capture_scene",)),
     {"capture_scene": scene_policies()["capture_scene"]},
     model_view=result_view)
-MINIMAL_TOOLS = (MINIMAL_GRIPPER_MODULE, MINIMAL_SCENE_MODULE,
+CLEAN_TOOLS = (CLEAN_GRIPPER_MODULE, CLEAN_SCENE_MODULE,
                  replace(EPISODE_MODULE, model_view=result_view))
 
 DIRECT_TOOLS = (SKILLS_MODULE, SCENE_MODULE, GRIPPER_MODULE, EPISODE_MODULE)

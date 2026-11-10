@@ -244,8 +244,8 @@ integrations default to `direct`, which assembles skills, scene, gripper and
 episode modules. `robodojo`, `robouse` and `robolab` also declare `hybrid`,
 which adds actor collaboration; the selected environment/controller and actor
 must still satisfy their binding contract. `robotwin`, `libero_plus`,
-`libero_pro`, `rmbench` and `calvin` declare `direct` and `minimal`.
-All eight integrations support `minimal`.
+`libero_pro`, `rmbench` and `calvin` declare `direct` and `clean`.
+All eight integrations support `clean`.
 
 ```bash
 uni-robot-agent run --integration robouse --model MODEL \
@@ -253,8 +253,8 @@ uni-robot-agent run --integration robouse --model MODEL \
   --tool-profile direct --tool-return-mode immediate
 ```
 
-For the [minimal robot tool set](integrations.md#minimal-robot-tools), select
-`--tool-profile minimal` and connect to an environment with depth disabled.
+For the [clean robot tool set](integrations.md#clean-robot-tools), select
+`--tool-profile clean` and connect to an environment with depth disabled.
 It exposes only `move`, `hold`, `capture_scene` and `finish` as harness tools and selects immediate
 returns automatically. The first model input includes RGB, state and calibration;
 no initial `capture_scene` call is needed. Native SDK helpers keep their existing
@@ -737,9 +737,11 @@ Install `uni-robot-agent[antigravity]` and select `--agent antigravity` with
 supports `tool_calling` with Qwen. See [setup, constraints and smoke validation](antigravity.md).
 
 
-### Compact minimal results and observation history
+<a id="compact-minimal-results-and-observation-history"></a>
 
-The minimal tool profile uses compact model-facing JSON. Measured arm poses use
+### Compact clean results and observation history
+
+The clean tool profile uses compact model-facing JSON. Measured arm poses use
 `state.arms[name].pose` (world metres and fixed-axis XYZ radians), with joints,
 measured/commanded gripper values, native steps and ended state retained. Normal
 feedback omits duplicated poses and IK statistics; rejected/recovered motion and

@@ -26,7 +26,7 @@ def build_simulation_spec(name, *, tool_profiles):
         ))
         if episode:
             result = result.append(system="Environment description:\n" + episode.description.environment.model_dump_json(),
-                                   user=None if context.tool_profile == "minimal" else "Initial measured state:\n" + episode.state.model_dump_json())
+                                   user=None if context.tool_profile == "clean" else "Initial measured state:\n" + episode.state.model_dump_json())
         return result
 
     return build_gripper_spec(name=name, create_session=create_session,

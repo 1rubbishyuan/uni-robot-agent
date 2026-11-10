@@ -146,12 +146,12 @@ def resolve_settings(args, integration_spec, *, explicit=(), agent_enabled=True)
     from uni_robot_agent.integrations.composition import resolve_tool_profile
 
     resolve_tool_profile(args, integration_spec)
-    if args.tool_profile == "minimal":
+    if args.tool_profile == "clean":
         if "--tool-return-mode" in explicit and args.tool_return_mode != "immediate":
-            raise ValueError("minimal requires --tool-return-mode immediate (no job-control tools)")
+            raise ValueError("clean requires --tool-return-mode immediate (no job-control tools)")
         if (args.observation_profile != "none" or args.skill_writing or args.tool_debug
                 or args.interaction_mode != "tool_calling"):
-            raise ValueError("minimal requires tool_calling without observation profiles, skill writing or tool debugging")
+            raise ValueError("clean requires tool_calling without observation profiles, skill writing or tool debugging")
         args.tool_return_mode = "immediate"
     integration_spec.validate_cli(args)
     if getattr(args, "skill_writing", False):

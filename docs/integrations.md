@@ -108,22 +108,26 @@ The harness also supports optional depth localization and physical RGB-D sensors
 These capabilities do not establish that a run uses the paper's RGB-only setting.
 See [runtime defaults](running.md#single-episode-cli) for capability selection.
 
-### Minimal robot tools
+<a id="minimal-robot-tools"></a>
 
-All eight gripper integrations support `--tool-profile minimal`: RoboDojo,
+### Clean robot tools
+
+All eight gripper integrations support `--tool-profile clean`: RoboDojo,
 RoboUse, RoboLab, RoboTwin, LIBERO-Plus, LIBERO-PRO, RMBench and CALVIN.
+The former `--tool-profile minimal` remains a compatibility alias; CLI and Python
+configuration resolve it to `clean`, including saved run metadata.
 It exposes `move`, `hold`, `capture_scene` and `finish`, reusing the same schemas, controllers,
 execution receipts and outcome storage as Direct. `move` already accepts a
 gripper opening, so separate grasp/release tools are unnecessary.
 
-Minimal selects immediate tool returns and omits skill, localization, Hybrid, observer,
+Clean selects immediate tool returns and omits skill, localization, Hybrid, observer,
 workspace and background-job tools. Explicit background returns, tool debugging,
 skill writing, observation profiles and Code as Policy are rejected. Planner
 SDK native computation/file tools retain their existing configuration. Direct
 remains the default; Direct/Hybrid tool visibility and scheduling are unchanged.
 
 Start the environment with depth disabled (for example RoboDojo `--no-depth`).
-An external `--env-url` must already describe a depth-disabled service. Minimal
+An external `--env-url` must already describe a depth-disabled service. Clean
 supports calibrated RGB and cameras that explicitly declare no calibration;
 it does not expose a depth setting or silently change the connected service.
 Initial input includes RGB images, measured robot state and per-image calibration.
@@ -132,7 +136,7 @@ multimodal user input. The shared artifact store retains images and snapshot
 manifests; `initial_observation.json` records the initial image/state references.
 `capture_scene` requests all or selected camera views without advancing control
 steps. It does not initialize SAM or expose `locate` or `view_env_state`.
-Initial input and image-bearing minimal results include `observation.artifact_ref`,
+Initial input and image-bearing clean results include `observation.artifact_ref`,
 the readable JSON of the immutable snapshot, with original same-frame calibration.
 Model-facing `observation.cameras` contains rounded camera matrices and each view's
 absolute `image_path`; image attachments remain unchanged. Snapshot artifact IDs

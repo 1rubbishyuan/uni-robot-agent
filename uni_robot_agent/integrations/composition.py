@@ -77,9 +77,14 @@ def assemble_tools(session: Any, modules: tuple[ToolModule, ...]) -> ToolAssembl
     return ToolAssembly(modules, tuple(module.create(session) for module in modules))
 
 
+def canonical_tool_profile(name: str | None) -> str | None:
+    """Normalize the former minimal profile name at configuration boundaries."""
+    return "clean" if name == "minimal" else name
+
+
 def resolve_tool_profile(args: Any, spec: Any) -> None:
     """Resolve the new selector and legacy alias before opening any services."""
-    requested = getattr(args, "tool_profile", None)
+    requested = canonical_tool_profile(getattr(args, "tool_profile", None))
     legacy = getattr(args, "action_profile", None)
     if requested is not None and legacy is not None and requested != legacy:
         raise ValueError("--tool-profile and --action-profile select different tool profiles")
