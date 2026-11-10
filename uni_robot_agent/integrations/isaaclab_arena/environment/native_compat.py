@@ -3,6 +3,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import os
+import random
 from pathlib import Path
 import subprocess
 import sys
@@ -101,6 +102,46 @@ def refresh_initial_observation(env):
     return observation
 
 
+
+def align_spawn_with_reset(config, seed):
+    """Seed the cold scene with the pinned reset sampler before contact caches exist."""
+    import torch
+    from isaaclab.utils.math import quat_from_euler_xyz
+    from isaaclab_tasks.manager_based.manipulation.stack.mdp.franka_stack_events import (
+        randomize_object_pose, sample_object_poses,
+    )
+
+    event = config.events.brown_box
+    if (event.func is not randomize_object_pose or config.scene.num_envs != 1
+            or [asset.name for asset in event.params["asset_cfgs"]] != ["brown_box"]):
+        raise ValueError("Pinned Arena object reset contract changed")
+    # PhysX retains high-friction contact anchors across a teleport from the
+    # midpoint spawn to the first randomized reset. Sample with the upstream
+    # function before spawning; the unchanged reset still samples independently.
+    rng_state = random.getstate()
+    try:
+        random.seed(seed)
+        poses = sample_object_poses(num_objects=1,
+            pose_range=event.params["pose_range"],
+            min_separation=event.params.get("min_separation", 0.),
+            max_sample_tries=event.params.get("max_sample_tries", 5000))
+    finally:
+        random.setstate(rng_state)
+    pose = torch.tensor(poses, dtype=torch.float32)
+    quaternion = quat_from_euler_xyz(pose[:, 3], pose[:, 4], pose[:, 5])
+    config.scene.brown_box.init_state.pos = tuple(pose[0, :3].tolist())
+    config.scene.brown_box.init_state.rot = tuple(quaternion[0].tolist())
+    return torch.cat([pose[:, :3], quaternion], dim=-1).numpy()
+
+
+def verify_initial_object_pose(native, expected):
+    """Reject drift between the primed scene and the unchanged native reset."""
+    actual = as_numpy(native.scene["brown_box"].root_physx_view.get_transforms())
+    actual_wxyz = np.concatenate([actual[:, :3], actual[:, 6:7], actual[:, 3:6]], axis=1)
+    if not np.array_equal(actual_wxyz, expected):
+        raise RuntimeError("Arena initial object pose differs from its seeded native reset sampler")
+
+
 def create_native(path, *, seed, assets_dir=None):
     preflight(path)
     from isaaclab.app import AppLauncher
@@ -132,9 +173,11 @@ def create_native(path, *, seed, assets_dir=None):
         description = GalileoG1LocomanipPickAndPlaceEnvironment().get_env(args)
         _, config = ArenaEnvBuilder(description, args).build_registered()
         config.seed = seed
+        expected_object_pose = align_spawn_with_reset(config, seed)
         env = TerminalPreservingEnv(cfg=config)
         native = env.unwrapped
         env.reset(seed=seed)
+        verify_initial_object_pose(native, expected_object_pose)
         native.initial_reset_complete = True
         observation = refresh_initial_observation(env)
         action = native.action_manager.get_term("g1_action")
