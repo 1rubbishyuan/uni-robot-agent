@@ -18,6 +18,9 @@
   `move` sends one preflighted `PathCommand` through an optional backend
   `step_path`, and gripper-only actions hold every joint for `steps` control
   periods. `stepwise` stays the default and its tools are unchanged.
+- Add the ARX ONE real-robot integration (two ARX X5 arms, three RealSense D405
+  cameras) with its Body device process, offline calibration and deployment
+  templates. It runs in the `replanning` execution mode.
 
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.

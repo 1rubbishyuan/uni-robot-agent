@@ -42,8 +42,11 @@ requires at least two calibrated views.
 
 ## Real-robot release status
 
-Public support for **ARX One** and **Franka** is **Coming soon**.
-Real-robot integrations and deployment guides will be released separately.
+`arx_one` supports a dual-arm ARX ONE with its own Body runtime, on the shared gripper
+tools. See [ARX ONE](../uni_robot_agent/integrations/arx_one/README.md); a new machine
+supplies third-party binaries, meshes and calibration as described in its
+[deployment guide](../uni_robot_agent/integrations/arx_one/DEPLOYMENT.md).
+Public support for **Franka** is **Coming soon**.
 
 ## Inspect integration options
 
