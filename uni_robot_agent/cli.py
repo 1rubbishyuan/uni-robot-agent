@@ -128,6 +128,11 @@ def build_parser(integration_spec=None) -> argparse.ArgumentParser:
         "--resource-scheduling", choices=("per-resource", "global-serial"), default="per-resource",
     )
     execution.add_argument(
+        "--execution-mode", choices=("parallel", "replanning"), default=None,
+        help="parallel queues calls per resource; replanning also cancels queued actions after a failed "
+             "one and requires reading results and a new observation. Default: the integration's mode",
+    )
+    execution.add_argument(
         "--observation-profile",
         default="none",
         help="Environment observation sidecar; requires per-resource scheduling",

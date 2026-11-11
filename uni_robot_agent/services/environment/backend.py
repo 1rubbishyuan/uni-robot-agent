@@ -9,6 +9,7 @@ from .contracts import (
     EnvironmentState,
     JointCommand,
     NativeCommand,
+    PathCommand,
     PoseCommand,
     StepReceipt,
 )
@@ -32,6 +33,11 @@ class EnvironmentBackend(Protocol):
     def capture(self, cameras: list[str] | None = None, *, high_resolution: bool = False) -> CapturedObservation: ...
     def finish(self, reason: str, status: str | None = None) -> dict[str, Any]: ...
     def close(self) -> None: ...
+
+
+class PathBackend(Protocol):
+    """Optional whole-path capability, declared by environment metadata ``motion_execution: wholepath``."""
+    def step_path(self, command: PathCommand) -> StepReceipt: ...
 
 
 class GoalRegionBackend(Protocol):

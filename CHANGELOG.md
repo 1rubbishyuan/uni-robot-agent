@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- Let environments declare tool settings through their description metadata:
+  `finish_statuses` (success, failure, give_up), whole `motion_profiles`, and
+  `normalized_opening_tolerance` for measured 0-1 gripper openings.
+  Environments that declare nothing keep the previous tools.
+- `--execution-mode` returns with the values `parallel` and `replanning`;
+  the former `serial` value is not accepted. Unset, a run uses its
+  integration's mode, `parallel` unless the integration declares otherwise.
+  `replanning` keeps parallel scheduling and adds result reads before the next
+  world-mutating call and a replan after a failed action. Results of an
+  environment that declares `physical_hardware` count as stopped only when its
+  receipt confirms the stop. Job controls now list each cancelled job, and a
+  cancelled result carries `no_execution`, `execution_status` and `reason`.
+- Add the `wholepath` motion mode (environment metadata `motion_execution`):
+  `move` sends one preflighted `PathCommand` through an optional backend
+  `step_path`, and gripper-only actions hold every joint for `steps` control
+  periods. `stepwise` stays the default and its tools are unchanged.
+- Add the ARX ONE real-robot integration (two ARX X5 arms, three RealSense D405
+  cameras) with its Body device process, offline calibration and deployment
+  templates. It runs in the `replanning` execution mode.
+- Report recovery through one model-facing field. `StepReceipt` gains typed
+  `execution_outcome`, `stop_confirmed` and `requires_operator_recovery` facts,
+  and `replanning` derives the `replan` report from them; its unrecoverable
+  phase is now `operator_required` (was `stop_unconfirmed`). A failed action
+  that ran nothing no longer requires a new observation. ARX ONE drops its own
+  `control_status` recovery state: a control lease that expires while the model
+  thinks is taken again by the next command after a readiness check.
+
 - Rename the minimal tool profile to `clean`; retain `minimal` as a CLI/Python
   configuration alias without changing tools, observations or context behavior.
 

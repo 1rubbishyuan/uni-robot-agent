@@ -41,6 +41,8 @@ class IntegrationSpec:
     debug_modules: tuple[ToolModule, ...] = ()
     validate_cli: Callable[[Any], None] = _validate_no_cli_args
     allow_automatic_retry: bool = True
+    # Execution mode used when the run does not choose one (see execution.EXECUTION_MODES).
+    execution_mode: str = "parallel"
     requires_env_url: bool = True
     deployment_module: str | None = None
     config_model: type[IntegrationOptions] = IntegrationOptions

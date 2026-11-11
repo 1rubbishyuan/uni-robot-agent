@@ -149,13 +149,43 @@ class NativeCommand(Contract):
     values: list[FiniteFloat] = Field(min_length=1)
 
 
-ActionCommand = Annotated[PoseCommand | JointCommand | NativeCommand, Field(discriminator="kind")]
+class PathCommand(Contract):
+    """One whole path for every arm, preflighted by the environment and run without intermediate stops.
+
+    A moving arm names its final grasp-site pose; a held arm keeps the given joints. The
+    environment may run a verified reachable prefix instead of the whole path and reports
+    ``reason: reachable_prefix``. Only environments that declare the ``wholepath`` motion
+    mode accept it.
+    """
+    kind: Literal["path"] = "path"
+    arms: dict[str, ArmCommand | JointTarget]
+    # Bounds on the path: at most max_segments straight segments of at most segment_m each.
+    max_segments: int = Field(ge=1, le=24, strict=True)
+    segment_m: FiniteFloat = Field(gt=0)
+    # The command lasts at least this long; a pure hold keeps every joint for this time.
+    min_duration_s: FiniteFloat = Field(default=0., ge=0)
+
+
+ActionCommand = Annotated[PoseCommand | JointCommand | NativeCommand | PathCommand, Field(discriminator="kind")]
 
 
 class StepReceipt(Contract):
+    """One primitive step's result.
+
+    The three recovery facts tell the tool layer what a refused or interrupted step did; the
+    replanning execution mode derives the model-facing ``replan`` report from them. An
+    environment that reports none keeps the defaults: a simulated step leaves the world at rest.
+    """
+
     accepted: bool
     state: EnvironmentState
     diagnostics: dict[str, Any] = Field(default_factory=dict)
+    # What a refused or interrupted command ran; None means the receipt reports nothing beyond acceptance.
+    execution_outcome: Literal["none", "partial", "unknown"] | None = None
+    # True when the environment confirmed its actuators are stationary after this step.
+    stop_confirmed: bool | None = None
+    # Movement stays blocked until an operator recovers the robot.
+    requires_operator_recovery: bool = False
 
 
 class StepRequest(Contract):

@@ -292,6 +292,8 @@ class SessionConfig(BaseModel):
     interaction_mode: Literal["tool_calling", "code_as_policy"] = "tool_calling"
     tool_return_mode: Literal["immediate", "background"] = "background"
     resource_scheduling: Literal["per-resource", "global-serial"] = "per-resource"
+    # None selects the integration's execution mode (IntegrationSpec.execution_mode).
+    execution_mode: Literal["parallel", "replanning"] | None = None
     observation_profile: str = "none"
     skill_writing: bool = False
     tool_profile: str | None = None

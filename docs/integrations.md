@@ -42,8 +42,11 @@ requires at least two calibrated views.
 
 ## Real-robot release status
 
-Public support for **ARX One** and **Franka** is **Coming soon**.
-Real-robot integrations and deployment guides will be released separately.
+`arx_one` supports a dual-arm ARX ONE with its own Body runtime, on the shared gripper
+tools. See [ARX ONE](../uni_robot_agent/integrations/arx_one/README.md); a new machine
+supplies third-party binaries, meshes and calibration as described in its
+[deployment guide](../uni_robot_agent/integrations/arx_one/DEPLOYMENT.md).
+Public support for **Franka** is **Coming soon**.
 
 ## Inspect integration options
 
@@ -76,6 +79,26 @@ Tool definitions live in [`tools/gripper/`](../uni_robot_agent/tools/gripper/),
 [`tools/hybrid/`](../uni_robot_agent/tools/hybrid/),
 [`tools/scene/`](../uni_robot_agent/tools/scene/), [`tools/skills.py`](../uni_robot_agent/tools/skills.py)
 and [`tools/episode.py`](../uni_robot_agent/tools/episode.py).
+
+An environment adjusts these tools through its description's `metadata`; an
+environment that declares nothing gets the defaults, with unchanged schemas.
+
+| Key | Default | Effect |
+|---|---|---|
+| `finish_statuses` | `["success"]` | Statuses `finish` offers, from `success`, `failure` and `give_up`; they are recorded as `completion_claimed`, `task_failed` and `task_abandoned` |
+| `motion_profiles` | Shared `standard`/`approach`/`precision` | Replaces whole named profiles (`max_step_m`, `position_tolerance_m`, `orientation_tolerance_rad`, all positive) with arrival criteria matched to the arm; the `move` description states the effective values |
+| `physical_hardware` | false | A physical environment's results never count as a confirmed stop by themselves; its receipts must confirm the stop for the [replanning execution mode](architecture.md#execution-modes) (see below) |
+| `motion_execution` | `stepwise` | `stepwise`: `move` is the waypoint loop that checks tracking after every step, and gripper actions repeat a pose hold. `wholepath`: `move` sends one `PathCommand` that the environment preflights and runs without intermediate stops, arrival is checked once and a truncated path reports `reachable_prefix`; `grasp`, `release` and `hold` hold every joint at its measured angle in one command lasting `steps` control periods. Schemas are the same in both modes; descriptions follow the mode. `wholepath` requires the backend's `step_path` |
+| `normalized_opening_tolerance` | None | For arms without `gripper_opening_models`, checks an explicit 0-1 opening against the measured 0-1 opening within this tolerance, in `(0, 0.5]`. Only readings whose arm metadata sets `gripper_opening_measured: true` are judged; others stay unknown |
+
+A physical environment reports what a refused or interrupted command did in three typed
+`StepReceipt` fields, which the gripper tools turn into the action's outcome:
+`execution_outcome` (`none`, `partial` or `unknown`), `stop_confirmed` (the actuators are
+confirmed stationary) and `requires_operator_recovery`. It reports facts, not recovery steps: the
+[replanning execution mode](architecture.md#execution-modes) derives the only model-facing
+recovery report (`replan`) from them. A refusal that ran nothing and needs no operator is an
+ordinary failed result. Unknown execution, an unconfirmed stop or a required operator leaves
+recovery to the operator. Keep native stop evidence in `diagnostics` for people.
 
 ## RoboDojo
 
