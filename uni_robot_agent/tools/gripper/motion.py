@@ -306,6 +306,7 @@ class MotionExecutor:
                 openings[name] = tracker
                 openings[name].update(arm)
         executed = 0
+        no_execution = True
         reason, evidence = "max_steps", None
         recovery_attempted, goal_recovery = False, None
         ik_statistics = Counter()
@@ -320,6 +321,8 @@ class MotionExecutor:
                 for name, waypoint in waypoints.items()
             })
             receipt = self._advance(PoseCommand(arms=command_arms))
+            if receipt.accepted or receipt.execution_outcome in {"partial", "unknown"}:
+                no_execution = False
             for arm in receipt.diagnostics.get("arms", {}).values():
                 ik_statistics.update(arm.get("recovery", {}).get("stats", {}))
             if not receipt.accepted:
@@ -413,7 +416,7 @@ class MotionExecutor:
             "executed_native_steps": state.native_steps - start.native_steps,
             "pose_reached": all(tracker.reached for tracker in trackers.values()),
             "stop_reason": reason, "stop_evidence": evidence,
-            "no_execution": executed == 0,
+            "no_execution": no_execution,
         }
         return feedback
 
@@ -516,6 +519,7 @@ class MotionExecutor:
         for name, opening in openings.items():
             opening.update(state.arms[name])
         executed = 0
+        no_execution = True
         reason, evidence = "requested_step_budget", None
         for _ in range(steps):
             if state.ended:
@@ -525,6 +529,8 @@ class MotionExecutor:
             for name, opening in grippers.items():
                 arms[name] = ArmCommand(pose=arms[name].pose, gripper=opening)
             receipt = self._advance(PoseCommand(arms=arms))
+            if receipt.accepted or receipt.execution_outcome in {"partial", "unknown"}:
+                no_execution = False
             if not receipt.accepted:
                 reason, evidence = _refusal_reason(receipt), _rejection_evidence(receipt.diagnostics)
                 motion, unsafe = self._motion(state, receipt.state, set())
@@ -556,7 +562,7 @@ class MotionExecutor:
             "requested_steps": steps, "steps_executed": executed,
             "executed_native_steps": state.native_steps - start.native_steps,
             "stop_reason": reason, "stop_evidence": evidence,
-            "no_execution": executed == 0,
+            "no_execution": no_execution,
         }
         return feedback
 

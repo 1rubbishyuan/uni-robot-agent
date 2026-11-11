@@ -381,10 +381,12 @@ class Adapter:
             except PreflightBlocked as error:
                 rejected = error
                 diagnostics = {"reason": "command_limit", "operations": error.operations,
-                    "message": "The Body command limits rejected this waypoint before execution. Choose a different reachable target."}
+                    "message": "One or more arms rejected the waypoint during preflight. Inspect the per-arm operation outcomes."}
                 if all(op["state"] == "failed" for op in error.operations.values()):
                     self.steps -= 1  # Every member explicitly reports no execution.
                     executed = "none"
+                else:
+                    executed = "partial"
             after_ns = time.time_ns()
             # Wait for feedback published after dispatch completion, never reuse
             # a still-fresh pre-action sample as the physical action receipt.
@@ -409,6 +411,8 @@ class Adapter:
                 self._measured_commands(state)
             accepted = diagnostics["reason"] == "completed" or (
                 diagnostics["reason"] == "reachable_prefix" and diagnostics.get("execution") == "wholepath")
+            if not accepted and diagnostics["reason"] == "reachable_prefix":
+                executed = "partial"
             # Terminal operations and fresh stillness confirm the stop; not a lease release or an E-stop.
             return StepReceipt(accepted=accepted, state=state, diagnostics=diagnostics,
                                execution_outcome=executed, stop_confirmed=stationary or None)
